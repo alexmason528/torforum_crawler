@@ -1,3 +1,4 @@
+import alphabayforum.settings
 # -*- coding: utf-8 -*-
 
 # Scrapy settings for torforum_crawler project
@@ -19,6 +20,8 @@ DEATHBYCAPTHA = {
 	'password' : 'h3GnHQNxgdty'
 }
 
+
+ALPHABAYFORUM = alphabayforum.settings.settings
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'torforum_crawler (+http://www.yourdomain.com)'
@@ -51,10 +54,12 @@ ROBOTSTXT_OBEY = False
 
 # Enable or disable spider middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
-#    'torforum_crawler.middlewares.TorforumCrawlerSpiderMiddleware': 543,
-#}
+SPIDER_MIDDLEWARES = {
+    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 100,
+}
 
+
+LOG_LEVEL = 'DEBUG'
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #DOWNLOADER_MIDDLEWARES = {
