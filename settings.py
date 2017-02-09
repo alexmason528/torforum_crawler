@@ -1,4 +1,6 @@
 import alphabayforum.settings
+import database.settings
+#from peewee import *
 # -*- coding: utf-8 -*-
 
 # Scrapy settings for torforum_crawler project
@@ -12,6 +14,8 @@ import alphabayforum.settings
 
 BOT_NAME = 'torforum_crawler'
 
+
+
 SPIDER_MODULES = ['torforum_crawler.spiders']
 NEWSPIDER_MODULE = 'torforum_crawler.spiders'
 
@@ -20,8 +24,8 @@ DEATHBYCAPTHA = {
 	'password' : 'h3GnHQNxgdty'
 }
 
-
 ALPHABAYFORUM = alphabayforum.settings.settings
+DATABASE = database.settings.settings
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'torforum_crawler (+http://www.yourdomain.com)'

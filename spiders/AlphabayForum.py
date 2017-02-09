@@ -11,6 +11,9 @@ from pprint import pprint
 from fake_useragent import UserAgent
 import torforum_crawler.alphabayforum.helpers.LoginQuestion as LoginQuestion
 from scrapy.shell import inspect_response
+import torforum_crawler.database.db as db
+from torforum_crawler.database.orm.models import CaptchaQuestion
+from torforum_crawler.ColorFormatterWrapper import ColorFormatterWrapper
 
 class AlphabayForum(scrapy.Spider):
     name = "alphabay_forum"
@@ -19,6 +22,7 @@ class AlphabayForum(scrapy.Spider):
     ua = UserAgent()
     user_agent  = 'Mozilla/5.0 (Windows NT 6.1; rv:45.0) Gecko/20100101 Firefox/45.0' #ua.random
     request_stack = list()
+    db.init(settings['DATABASE']); 
 
     def __init__(self, *args, **kwargs):
     #  self.dbc= deathbycaptcha.SocketClient('a', 'b');
@@ -26,7 +30,7 @@ class AlphabayForum(scrapy.Spider):
         self.password = self.specific_settings['logins'][0]['password']  #todo
         self.username = self.specific_settings['logins'][0]['username']  #todo
 
-        self.logger
+        self.trycolorizelogs() # monkey patching to have color in the logs.
 
         super(AlphabayForum, self).__init__(*args, **kwargs)
 
@@ -70,8 +74,6 @@ class AlphabayForum(scrapy.Spider):
 
     #Request Callback
     def handle_login_response(self, response):
-        
-
         if self.islogged(response):
             self.logger.info('Login success, continuing where we were.')
             if len(self.request_stack):
@@ -79,12 +81,31 @@ class AlphabayForum(scrapy.Spider):
             else:
                 self.logger.error("No request was stored in the request stack. Can't continue")
         else :   # Not logged, check for captcha
+
             loginform = response.css("form[id='pageLogin']")
-            captcha = loginform.css("#Captcha")
-            if captcha:
-                question = captcha.css('label::text').extract_first()
-                question_hash = captcha.css("input[name='captcha_question_hash']::attr(value)").extract_first()
-                answer = LoginQuestion.Answer(question, question_hash)
+            if loginform:
+                captcha = loginform.css("#Captcha")
+                if captcha:
+                    question = captcha.css('label::text').extract_first()
+                    qhash = captcha.css("input[name='captcha_question_hash']::attr(value)").extract_first()
+                    self.logger.info('Login failed. A captcha question has been asked.  Question : ' + question)  
+                    db_question = LoginQuestion.lookup(self.name, qhash)
+                    answer = ""
+                    if db_question.answer:
+                        answer = db_question.answer
+                        self.logger.info('Captcha was part of database. Using answer : ' + answer)
+                    else:
+                        db_question.question = question
+                        db_question.save()
+                        answer = LoginQuestion.answer(question)
+                        self.logger.info('Trying to guess the answer. Best bet is ' + answer)
+
+
+                else : 
+                    self.logger.warning("Login failed. A new login form has been given, bu with no captcha. Trying again.")
+                    #todo
+            else :
+                self.logger.error("Login failed and no login form has been given. Don't know what to do next.")
         
             # Send new login request
         inspect_response(response, self)
@@ -101,6 +122,8 @@ class AlphabayForum(scrapy.Spider):
             self.logger.debug("Logged In")
         else:
             self.logger.debug("Not Logged In")
+
+        return logged
 
 
     def ressource(self, name):
@@ -122,3 +145,10 @@ class AlphabayForum(scrapy.Spider):
 
         return req
 
+    #Monkey patch to have color in the logs.
+    def trycolorizelogs(self):
+        try:
+            colorformatter = ColorFormatterWrapper(self.logger.logger.parent.handlers[0].formatter)
+            self.logger.logger.parent.handlers[0].setFormatter(colorformatter)
+        except:
+            pass
