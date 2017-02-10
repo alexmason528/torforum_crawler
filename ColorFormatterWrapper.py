@@ -3,11 +3,11 @@ from clint.textui import colored
 
 ###
 # This class simply add color to a formatter without touching the other parameters.
+# We do extreme monkey patching
 class ColorFormatterWrapper(logging.Formatter):
 	baseformatter = logging.Formatter()
 
 	def __init__(self,base):
-		# can't do super(...) here because Formatter is an old school class
 		self.baseformatter = base;
 
 	def format(self, record):

@@ -2,7 +2,7 @@ import torforum_crawler.database.db as db
 from peewee import *
 
 class CaptchaQuestion(Model):
-	id = BigIntegerField(primary_key = True)
+	id = PrimaryKeyField()
 	spider = CharField()
 	hash = CharField(unique = True)
 	question = TextField()

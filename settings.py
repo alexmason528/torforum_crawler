@@ -24,8 +24,10 @@ DEATHBYCAPTHA = {
 	'password' : 'h3GnHQNxgdty'
 }
 
+MAX_LOGIN_RETRY = 3
 ALPHABAYFORUM = alphabayforum.settings.settings
 DATABASE = database.settings.settings
+
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'torforum_crawler (+http://www.yourdomain.com)'

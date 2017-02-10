@@ -4,12 +4,16 @@ import parser
 from torforum_crawler.database.orm.models import CaptchaQuestion
 from torforum_crawler.thirdparties import parse_number
 
-def answer(q, qhash=None):
+def answer(q):
 	val = "yes"
 	q=q.strip()
-
-	if qhash:
-		pass #Check database for hashes
+ 	
+ 	text_expr_regex = {
+ 		'+' : '[\[\(]\s*plus\s*[\]\)]',
+	 	'-' : '[\[\(]\s*minus\s*[\]\)]',
+	 	'*' : '[\[\(]\s*multiplied by\s*[\]\)]',
+	 	'/' : '[\[\(]\s*divised by\s*[\]\)]'
+	 	}
 
  	if q.startswith('Solve'):      		# Solve 5 + (2 x 3)
 		r = re.compile("Solve (.*)")
@@ -19,27 +23,32 @@ def answer(q, qhash=None):
 	 		code = parser.expr(m.group(1)).compile()	# Code injection safe eval.
 	 		val = eval(code)
 
-	elif q.startswith('What is'):		#What is fifty-five [plus] five?
-	 	r = re.compile('What is (.*)')
+	elif re.match('What is .*('+'|'.join(text_expr_regex.values())+').*\??', q):		#What is fifty-five [plus] five?
+	 	r = re.compile('What is ([^?]*)\??')
 	 	m = r.match(q)
+
 	 	if m:
 	 		expression = m.group(1) # fifty-five + five
-	 		numbers = re.split('\[plus\]|\[minus\]|\[multiplied by\]|\[divided by\]', expression)
-	 		numbers = map(str.strip, numbers)
+	 		numbers = re.split('|'.join(text_expr_regex.values()), expression)
+	 		print numbers
 	 		for number in numbers:
-	 			expression = expression.replace(number, str(parse_number.parse_number(number)));
+	 			number = number.strip()
+	 			try:
+	 				newnumber = int(number)
+	 			except:
+	 				newnumber = parse_number.parse_number(number)
+
+	 			expression = expression.replace(number, str(newnumber));
 				
-				expression = expression.replace('[plus]', '+')
-				expression = expression.replace('[minus]', '-')
-				expression = expression.replace('[multiplied by]', '*')
-				expression = expression.replace('[divided by]', '/')
+				for k in text_expr_regex.keys():
+					expression = re.sub(text_expr_regex[k], k, expression)
 
 	 		code = parser.expr(expression).compile()	# Code injection safe eval.
 	 		val = eval(code)
 
- 	return val
+ 	return str(val)
 
-def lookup(spider, qhash):
-	return CaptchaQuestion.create_or_get(spider=spider, hash=qhash)[0]
+def lookup(spider, dbhash):
+	return CaptchaQuestion.create_or_get(spider=spider, hash=dbhash)[0]
 	
 #What is fifty-five [plus] five?

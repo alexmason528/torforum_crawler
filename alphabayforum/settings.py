@@ -1,8 +1,9 @@
 settings = {
 	'endpoint' : 'http://pwoah7foa6au2pul.onion',
+	'prefix' : 'forum',
 	'ressources' : {
-		'login-postform' : '/forum/index.php?login/login',
-		'index' : '/forum/index.php'
+		'login-postform' : 'index.php?login/login',
+		'index' : 'index.php'
 		},
 #	'site-logins' : [
 #		{
