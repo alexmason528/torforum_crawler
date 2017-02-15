@@ -21,19 +21,20 @@ import traceback
 import re
 from peewee import *
 import torforum_crawler.alphabayforum.items as items
+from torforum_crawler.database.marshall import Marshall
 
 class AlphabayForum(scrapy.Spider):
     name = "alphabay_forum"
 
     alphabay_settings = settings['ALPHABAYFORUM']
     user_agent  = UserAgent().random
-    db.init(settings['DATABASE']); 
     logintrial = 0
     pipeline = None  # Set by the pipeline open_spider() callback
 
     custom_settings = {
         'ITEM_PIPELINES': {
-            'torforum_crawler.alphabayforum.pipelines.SaveToDBPipeline.SaveToDBPipeline': 400
+            'torforum_crawler.alphabayforum.pipelines.map2db.map2db': 400,
+            'torforum_crawler.alphabayforum.pipelines.SaveToDBPipeline.SaveToDBPipeline': 401
         }
     }
 
@@ -42,13 +43,10 @@ class AlphabayForum(scrapy.Spider):
         self.email = self.alphabay_settings['logins'][0]['email']        #todo randomize
         self.password = self.alphabay_settings['logins'][0]['password']  #todo randomize
         self.username = self.alphabay_settings['logins'][0]['username']  #todo randomize
+        self.marshall = Marshall(self)
+        self.forum = self.marshall.forum  # Get back the ORM object representing the forum we are crawling.
 
         self.trycolorizelogs() # monkey patching to have color in the logs.
-
-        try:
-            self.forum = models.Forum.get(spider=self.name)
-        except:
-            raise Exception("No forum entry exist in the database for spider " + self.name)
 
         super(AlphabayForum, self).__init__(*args, **kwargs)
 
@@ -162,7 +160,7 @@ class AlphabayForum(scrapy.Spider):
                         self.logger.error("Failed parsing response forumlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
                         continue
                 
-                self.pipeline.flush_threads()
+                self.marshall.flush(models.Thread)
 
             elif response.meta['reqtype'] == 'userprofile':
                 pass
@@ -172,6 +170,7 @@ class AlphabayForum(scrapy.Spider):
     def handle_login_response(self, response):
         if self.islogged(response):
             self.logger.info('Login success, continuing where we were.')
+            self.marshall.flush(models.CaptchaQuestion)
             if response.meta['req_once_logged']:
                 yield response.meta['req_once_logged']
             else:
@@ -186,14 +185,15 @@ class AlphabayForum(scrapy.Spider):
                     qhash = captcha.css("input[name='captcha_question_hash']::attr(value)").extract_first()   # This hash is not repetitive
                     dbhash = hashlib.sha256(question).hexdigest() # This hash is reusable
                     self.logger.info('Login failed. A captcha question has been asked.  Question : "' + question + '"')  
-                    db_question = models.CaptchaQuestion.create_or_get(forum=self.forum, hash=dbhash)[0]
+                    db_question = self.marshall.get_or_create(models.CaptchaQuestion, forum=self.forum, hash=dbhash)
                     answer = ""
                     if db_question.answer:
                         answer = db_question.answer
                         self.logger.info('Question was part of database. Using answer : ' + answer)
                     else:
                         if not db_question.question:
-                            db_question.update(question=question).where(models.CaptchaQuestion.id==db_question.id).execute()
+                            db_question.question = question
+                            self.marshall.add(db_question)
                         answer = LoginQuestion.answer(question)
                         self.logger.info('Trying to guess the answer. Best bet is : "' + answer + '"')
                     yield self.make_request(reqtype='dologin', args={'req_once_logged' : response.meta['req_once_logged'], 'captcha_question_hash' : qhash, 'captcha_question_answer' : answer});  # We try to login and save the original request
