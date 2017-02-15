@@ -47,8 +47,3 @@ def answer(q):
 	 		val = eval(code)
 
  	return str(val)
-
-def lookup(spider, dbhash):
-	return CaptchaQuestion.create_or_get(spider=spider, hash=dbhash)[0]
-	
-#What is fifty-five [plus] five?

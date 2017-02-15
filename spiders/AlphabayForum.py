@@ -10,26 +10,32 @@ import torforum_crawler.thirdparties.deathbycaptcha as deathbycaptcha
 from pprint import pprint
 from fake_useragent import UserAgent
 import torforum_crawler.alphabayforum.helpers.LoginQuestion as LoginQuestion
+import torforum_crawler.alphabayforum.helpers.DatetimeParser as AlphabayDatetimeParser
 from scrapy.shell import inspect_response
 import torforum_crawler.database.db as db
-from torforum_crawler.database.orm.models import CaptchaQuestion
+from torforum_crawler.database.orm import *
 from torforum_crawler.ColorFormatterWrapper import ColorFormatterWrapper
 import hashlib 
+from urlparse import urlparse
+import traceback
+import re
+from peewee import *
+import torforum_crawler.alphabayforum.items as items
 
 class AlphabayForum(scrapy.Spider):
     name = "alphabay_forum"
 
     alphabay_settings = settings['ALPHABAYFORUM']
-    dbc = deathbycaptcha.SocketClient(settings['DEATHBYCAPTHA']['username'],settings['DEATHBYCAPTHA']['password'])
-    ua = UserAgent()
-    user_agent  = ua.random
-    request_stack = list()
+    user_agent  = UserAgent().random
     db.init(settings['DATABASE']); 
     logintrial = 0
+    pipeline = None  # Set by the pipeline open_spider() callback
 
-    test=0
-
-    settings['MAX_LOGIN_RETRY'] = 9
+    custom_settings = {
+        'ITEM_PIPELINES': {
+            'torforum_crawler.alphabayforum.pipelines.SaveToDBPipeline.SaveToDBPipeline': 400
+        }
+    }
 
     def __init__(self, *args, **kwargs):
     #  self.dbc= deathbycaptcha.SocketClient('a', 'b');
@@ -38,6 +44,11 @@ class AlphabayForum(scrapy.Spider):
         self.username = self.alphabay_settings['logins'][0]['username']  #todo randomize
 
         self.trycolorizelogs() # monkey patching to have color in the logs.
+
+        try:
+            self.forum = models.Forum.get(spider=self.name)
+        except:
+            raise Exception("No forum entry exist in the database for spider " + self.name)
 
         super(AlphabayForum, self).__init__(*args, **kwargs)
 
@@ -59,10 +70,6 @@ class AlphabayForum(scrapy.Spider):
                 'redirect' : self.ressource('index') 
             }
 
-            if self.test==0:        # temporary. We force a bad apssword to get a captcha to check the logic
-                data['password'] = 'asdasdasd'
-                self.test +=1
-
             if args and 'captcha_question_hash' in args:
                 data['captcha_question_hash'] = args['captcha_question_hash']
 
@@ -73,8 +80,9 @@ class AlphabayForum(scrapy.Spider):
             req.method = 'POST'
             req.meta['req_once_logged'] = args['req_once_logged']
 
-        elif reqtype == 'forumlisting':
+        elif reqtype in  ['forumlisting', 'userprofile']:
             req = Request(args['url'])
+
 
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
         req.dont_filter=True
@@ -115,7 +123,50 @@ class AlphabayForum(scrapy.Spider):
                 for link in links:
                     yield self.make_request(reqtype='forumlisting', args={'url':link.extract()})
             elif  response.meta['reqtype'] == 'forumlisting':
-                self.logger.critical("Parsing next page! Oh yes. " + response.url)
+                threaddivs = response.css("li.discussionListItem")
+                for threaddiv in threaddivs:
+                    try:
+                        last_message_datestr = threaddiv.css(".lastPostInfo .DateTime::text").extract_first()
+                        last_message_datetime = AlphabayDatetimeParser.tryparse(last_message_datestr)
+                        if not last_message_datetime:
+                            raise Exception("Could not parse time string : " + last_message_datestr)
+                    
+                        link = threaddiv.css(".title a.PreviewTooltip")
+                        url = link.xpath("@href").extract_first()
+                        title = link.xpath("text()").extract_first()
+                        author_username = threaddiv.css(".username::text").extract_first()
+                        author_url = threaddiv.css(".username::attr(href)").extract_first()
+
+                        #if author_url:
+                        #    yield self.make_request('userprofile',  args={'url': author_url})
+
+                        try:
+                            m = re.match('threads/([^/]+)(/page-\d+)?', urlparse(url).query.strip('/'))
+                            threadid = m.group(1)
+                        except Exception as e:
+                            raise Exception("Could not extract thread id from url. " + e.message)
+
+                        threaditem = items.Thread(
+                            threadid = threadid,
+                            title = title,
+                            relativeurl = url,
+                            fullurl = self.make_url(url),
+                            last_update = last_message_datetime,
+                            author_username = author_username
+                            )
+
+                        yield threaditem
+                        
+
+                    except Exception as e:
+                        self.logger.error("Failed parsing response forumlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
+                        continue
+                
+                self.pipeline.flush_threads()
+
+            elif response.meta['reqtype'] == 'userprofile':
+                pass
+
 
 
     def handle_login_response(self, response):
@@ -135,14 +186,14 @@ class AlphabayForum(scrapy.Spider):
                     qhash = captcha.css("input[name='captcha_question_hash']::attr(value)").extract_first()   # This hash is not repetitive
                     dbhash = hashlib.sha256(question).hexdigest() # This hash is reusable
                     self.logger.info('Login failed. A captcha question has been asked.  Question : "' + question + '"')  
-                    db_question = LoginQuestion.lookup(self.name, dbhash)
+                    db_question = models.CaptchaQuestion.create_or_get(forum=self.forum, hash=dbhash)[0]
                     answer = ""
                     if db_question.answer:
                         answer = db_question.answer
                         self.logger.info('Question was part of database. Using answer : ' + answer)
                     else:
                         if not db_question.question:
-                            db_question.update(question=question).where(CaptchaQuestion.id==db_question.id).execute()
+                            db_question.update(question=question).where(models.CaptchaQuestion.id==db_question.id).execute()
                         answer = LoginQuestion.answer(question)
                         self.logger.info('Trying to guess the answer. Best bet is : "' + answer + '"')
                     yield self.make_request(reqtype='dologin', args={'req_once_logged' : response.meta['req_once_logged'], 'captcha_question_hash' : qhash, 'captcha_question_answer' : answer});  # We try to login and save the original request
@@ -158,7 +209,6 @@ class AlphabayForum(scrapy.Spider):
             # Send new login request
         
     def islogged(self, response):
-        self.logger.debug("Checking if logged in")
         logged = False
         username = response.css(".accountUsername::text").extract_first()
         if username and username.strip() == self.username:
@@ -176,7 +226,6 @@ class AlphabayForum(scrapy.Spider):
             raise Exception('Cannot access ressource ' + name + '. Ressource is not specified in config.')  
         return self.alphabay_settings['ressources'][name]
     
-
     #Monkey patch to have color in the logs.
     def trycolorizelogs(self):
         try:
