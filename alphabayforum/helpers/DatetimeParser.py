@@ -4,6 +4,8 @@ import re
 import calendar
 
 def tryparse(datestr):
+	if not datestr:
+		return None
 	datestr = datestr.lower()
 	
 	if datestr == "some minutes ago":

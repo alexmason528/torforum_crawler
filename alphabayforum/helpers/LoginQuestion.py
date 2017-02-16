@@ -30,7 +30,6 @@ def answer(q):
 	 	if m:
 	 		expression = m.group(1) # fifty-five + five
 	 		numbers = re.split('|'.join(text_expr_regex.values()), expression)
-	 		print numbers
 	 		for number in numbers:
 	 			number = number.strip()
 	 			try:

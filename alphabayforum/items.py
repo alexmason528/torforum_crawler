@@ -8,3 +8,10 @@ class Thread(scrapy.Item) :
 	relativeurl =  scrapy.Field()
 	fullurl =  scrapy.Field()
 
+class Message(scrapy.Item):
+	postid = scrapy.Field()
+	threadid = scrapy.Field()
+	author_username = scrapy.Field()
+	posted_on = scrapy.Field()
+	contenttext = scrapy.Field()
+	contenthtml = scrapy.Field()

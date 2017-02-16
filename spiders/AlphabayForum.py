@@ -22,6 +22,7 @@ import re
 from peewee import *
 import torforum_crawler.alphabayforum.items as items
 from torforum_crawler.database.marshall import Marshall
+from datetime import datetime
 
 class AlphabayForum(scrapy.Spider):
     name = "alphabay_forum"
@@ -33,27 +34,32 @@ class AlphabayForum(scrapy.Spider):
 
     custom_settings = {
         'ITEM_PIPELINES': {
-            'torforum_crawler.alphabayforum.pipelines.map2db.map2db': 400,
-            'torforum_crawler.alphabayforum.pipelines.SaveToDBPipeline.SaveToDBPipeline': 401
+            'torforum_crawler.alphabayforum.pipelines.map2db.map2db': 400,  # Convert from Items to Models
+            'torforum_crawler.pipelines.save2db.save2db': 401   # Sends models to Marshall. Marshall must be explicitly flushed from spider.  self.marshall.flush(Model)
         }
     }
 
     def __init__(self, *args, **kwargs):
     #  self.dbc= deathbycaptcha.SocketClient('a', 'b');
-        self.email = self.alphabay_settings['logins'][0]['email']        #todo randomize
-        self.password = self.alphabay_settings['logins'][0]['password']  #todo randomize
-        self.username = self.alphabay_settings['logins'][0]['username']  #todo randomize
+        self.email = self.alphabay_settings['logins'][0]['email']        #todo use login manager 
+        self.password = self.alphabay_settings['logins'][0]['password']  #todo use login manager
+        self.username = self.alphabay_settings['logins'][0]['username']  #todo use login manager
+
+
         self.marshall = Marshall(self)
         self.forum = self.marshall.forum  # Get back the ORM object representing the forum we are crawling.
+        self.fromtime = settings['fromtime'] if 'fromtime' in settings else None
+        self.crawltype = settings['crawltype'] if 'crawltype' in settings else  'full'
+        self.crawlitem = [ 'thread', 'message'] #todo, use configuration
 
         self.trycolorizelogs() # monkey patching to have color in the logs.
 
         super(AlphabayForum, self).__init__(*args, **kwargs)
 
-    def make_request(self, reqtype,args=None):
+    def make_request(self, reqtype,  **kwargs):
         
-        if args and 'url' in args:
-            args['url'] = self.make_url(args['url'])
+        if 'url' in kwargs:
+            kwargs['url'] = self.make_url(kwargs['url'])
 
         if reqtype == 'index':
             req = Request(self.make_url('index'))
@@ -68,18 +74,23 @@ class AlphabayForum(scrapy.Spider):
                 'redirect' : self.ressource('index') 
             }
 
-            if args and 'captcha_question_hash' in args:
-                data['captcha_question_hash'] = args['captcha_question_hash']
+            if 'captcha_question_hash' in kwargs:
+                data['captcha_question_hash'] = kwargs['captcha_question_hash']
 
-            if args and 'captcha_question_answer' in args:
-                data['captcha_question_answer'] = args['captcha_question_answer']
+            if 'captcha_question_answer' in kwargs:
+                data['captcha_question_answer'] = kwargs['captcha_question_answer']
             
             req = FormRequest(self.make_url('login-postform'), formdata=data, callback=self.handle_login_response, dont_filter=True)
-            req.method = 'POST'
-            req.meta['req_once_logged'] = args['req_once_logged']
+            req.method = 'POST' # Has to be uppercase !
+            req.meta['req_once_logged'] = kwargs['req_once_logged']
 
         elif reqtype in  ['forumlisting', 'userprofile']:
-            req = Request(args['url'])
+            req = Request(kwargs['url'])
+        elif reqtype == 'thread':
+            req = Request(kwargs['url'])
+            req.meta['threadid'] = kwargs['threadid']
+        else:
+            raise Exception('Unsuported request type ' + reqtype)
 
 
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
@@ -107,65 +118,102 @@ class AlphabayForum(scrapy.Spider):
         yield self.make_request('index')
    
     def parse(self, response):
+        #self.printstats()
         if not self.islogged(response):
             if self.logintrial > settings['MAX_LOGIN_RETRY']:
                 raise Exception("Too many failed login trials. Giving up.")
             self.logger.info("Trying to login.")
             self.logintrial += 1
-            yield self.make_request(reqtype='dologin', args={'req_once_logged' : response.request});  # We try to login and save the original request
+            yield self.make_request(reqtype='dologin', req_once_logged=response.request);  # We try to login and save the original request
         else : 
             self.logintrial = 0
 
             if response.meta['reqtype'] == 'index':
                 links = response.css("li.forum h3.nodeTitle a::attr(href)")
                 for link in links:
-                    yield self.make_request(reqtype='forumlisting', args={'url':link.extract()})
+                    yield self.make_request(reqtype='forumlisting', url=link.extract())
             elif  response.meta['reqtype'] == 'forumlisting':
-                threaddivs = response.css("li.discussionListItem")
-                for threaddiv in threaddivs:
-                    try:
-                        last_message_datestr = threaddiv.css(".lastPostInfo .DateTime::text").extract_first()
-                        last_message_datetime = AlphabayDatetimeParser.tryparse(last_message_datestr)
-                        if not last_message_datetime:
-                            raise Exception("Could not parse time string : " + last_message_datestr)
-                    
-                        link = threaddiv.css(".title a.PreviewTooltip")
-                        url = link.xpath("@href").extract_first()
-                        title = link.xpath("text()").extract_first()
-                        author_username = threaddiv.css(".username::text").extract_first()
-                        author_url = threaddiv.css(".username::attr(href)").extract_first()
-
-                        #if author_url:
-                        #    yield self.make_request('userprofile',  args={'url': author_url})
-
-                        try:
-                            m = re.match('threads/([^/]+)(/page-\d+)?', urlparse(url).query.strip('/'))
-                            threadid = m.group(1)
-                        except Exception as e:
-                            raise Exception("Could not extract thread id from url. " + e.message)
-
-                        threaditem = items.Thread(
-                            threadid = threadid,
-                            title = title,
-                            relativeurl = url,
-                            fullurl = self.make_url(url),
-                            last_update = last_message_datetime,
-                            author_username = author_username
-                            )
-
-                        yield threaditem
-                        
-
-                    except Exception as e:
-                        self.logger.error("Failed parsing response forumlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
-                        continue
-                
-                self.marshall.flush(models.Thread)
-
+                for x in self.parse_forumlisting(response) : yield x
+                     
             elif response.meta['reqtype'] == 'userprofile':
                 pass
 
+            elif response.meta['reqtype'] == 'thread':
+                for x in self.parse_thread(response) : yield x 
 
+
+    def parse_forumlisting(self, response):
+        threaddivs = response.css("li.discussionListItem")
+        oldestthread_datetime = datetime.now()
+        for threaddiv in threaddivs:
+            try:
+                threaditem = items.Thread();
+                last_message_datestr        = threaddiv.css(".lastPostInfo .DateTime::text").extract_first()
+                threaditem['last_update']   = AlphabayDatetimeParser.tryparse(last_message_datestr)
+                oldestthread_datetime       = threaditem['last_update']  # We assume that threads are ordered by time.
+                if not threaditem['last_update']:
+                    raise Exception("Could not parse time string : " + last_message_datestr)
+            
+                link                            = threaddiv.css(".title a.PreviewTooltip")
+                url                             = link.xpath("@href").extract_first()
+                threaditem['relativeurl']       = url
+                threaditem['fullurl']           = self.make_url(url)
+                threaditem['title']             = link.xpath("text()").extract_first()
+                threaditem['author_username']   = threaddiv.css(".username::text").extract_first()
+                author_url = threaddiv.css(".username::attr(href)").extract_first()
+                
+                try:
+                    m = re.match('threads/([^/]+)(/page-\d+)?', urlparse(url).query.strip('/'))
+                    threaditem['threadid'] = m.group(1)
+                except Exception as e:
+                    raise Exception("Could not extract thread id from url. " + e.message)
+
+                if author_url and 'userprofile' in self.crawlitem: # If not crawled, an empty entry will be created if not exist in the database by the mapper to ensure respect of foreign key.
+                    yield self.make_request('userprofile',  url = author_url)
+
+                if url and 'thread' in self.crawlitem: 
+                    yield self.make_request('thread', url=url, threadid=threaditem['threadid'])
+
+                yield threaditem # sends data to pipelne
+                
+
+            except Exception as e:
+                self.logger.error("Failed parsing response forumlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
+                continue
+        
+        self.marshall.flush(models.Thread)  # Flush threads to database.
+        
+        # Parse next page.
+        actualpage = response.css(".PageNav")
+        nextpageurl = actualpage.xpath('//*[contains(concat(" ", normalize-space(@class), " "), "currentPage")=1]/following-sibling::a[1]/@href').extract_first()
+        
+        if nextpageurl and self.shouldcrawl(oldestthread_datetime): #No record time to provide here.
+            yield self.make_request(reqtype='forumlisting', url = nextpageurl)  
+
+    def parse_thread(self, response):
+        threadid = response.meta['threadid']
+        for message in response.css(".messageList .message"):
+
+            msgitem = items.Message();
+            try:
+                try:
+                    fullid = message.xpath("@id").extract_first()
+                    msgitem['postid'] = re.match("post-(\d+)", fullid).group(1)
+                except:
+                    raise Exception("Can't extract post id. " + e.message)
+
+                msgitem['author_username'] = message.css(".messageDetails .username::text").extract_first()
+                msgitem['posted_on'] = AlphabayDatetimeParser.tryparse(message.css(".messageDetails .DateTime::attr(title)").extract_first())
+                textnode = message.css(".messageContent .messageText")
+                msgitem['contenthtml'] = textnode.extract_first()
+                msgitem['contenttext'] = ''.join(textnode.xpath("text()").extract())
+                msgitem['threadid'] = threadid
+            except Exception as e:
+                self.logger.error("Failed parsing response for thread at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
+
+            yield msgitem
+
+        self.marshall.flush(models.Message)
 
     def handle_login_response(self, response):
         if self.islogged(response):
@@ -196,17 +244,19 @@ class AlphabayForum(scrapy.Spider):
                             self.marshall.add(db_question)
                         answer = LoginQuestion.answer(question)
                         self.logger.info('Trying to guess the answer. Best bet is : "' + answer + '"')
-                    yield self.make_request(reqtype='dologin', args={'req_once_logged' : response.meta['req_once_logged'], 'captcha_question_hash' : qhash, 'captcha_question_answer' : answer});  # We try to login and save the original request
+                    yield self.make_request(reqtype='dologin', req_once_logged= response.meta['req_once_logged'], captcha_question_hash=qhash, captcha_question_answer=answer);  # We try to login and save the original request
 
                 else : 
                     self.logger.warning("Login failed. A new login form has been given, but with no captcha. Trying again.")
-                    yield self.make_request(reqtype='dologin', args={'req_once_logged' : response.meta['req_once_logged']});  # We try to login and save the original request
+                    yield self.make_request(reqtype='dologin', req_once_logged=response.meta['req_once_logged']);  # We try to login and save the original request
 
             else :
                 self.logger.error("Login failed and no login form has been given. Retrying")
-                yield self.make_request(reqtype='dologin', args={'req_once_logged' : response.meta['req_once_logged']});  # We try to login and save the original request
+                yield self.make_request(reqtype='dologin', req_once_logged=response.meta['req_once_logged']);  # We try to login and save the original request
                 
             # Send new login request
+    def printstats(self):
+        print self.crawler.stats.get_stats()
         
     def islogged(self, response):
         logged = False
@@ -233,3 +283,24 @@ class AlphabayForum(scrapy.Spider):
             self.logger.logger.parent.handlers[0].setFormatter(colorformatter)
         except:
             pass
+
+    def shouldcrawl(self, recordtime=None, dbrecordtime=None):
+        if self.crawltype == 'full':
+            return True
+        elif self.crawltype == 'delta':
+            return isinvalidated(recordtime, dbrecordtime)
+        else:
+            raise Exception("Unknown crawl type :" + self.crawltype )
+
+    def isinvalidated(self, ecordtime=None, dbrecordtime=None):
+        if not recordtime:
+            return True
+        else:
+            if self.fromtime:
+                return (self.fromtime < recordtime)
+            else:
+                if not dbrecordtime:
+                    return True
+                else:
+                    return (dbrecordtime < recordtime)
+

@@ -45,11 +45,12 @@ class Thread(Model):
 
 class Message(Model):
 	id = PrimaryKeyField()
+	forum = ForeignKeyField(Forum, related_name='threads', db_column='forum')
 	external_id = CharField()
 	thread = ForeignKeyField(Thread, related_name='messages', db_column='thread')
 	author = ForeignKeyField(User, related_name='messages', db_column='author')
-	sha256 = CharField()
-	content = TextField()
+	contenttext = TextField()
+	contenthtml = TextField()
 	posted_on = DateTimeField()
 
 	class Meta:

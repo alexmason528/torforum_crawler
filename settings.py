@@ -24,6 +24,8 @@ DEATHBYCAPTHA = {
 	'password' : 'h3GnHQNxgdty'
 }
 
+MARSHAL = {'enablecache' : True } 	#Custom caching system for orm
+
 MAX_LOGIN_RETRY = 3
 ALPHABAYFORUM = alphabayforum.settings.settings
 DATABASE = database.settings.settings
