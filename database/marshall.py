@@ -2,7 +2,7 @@ from torforum_crawler.database.orm.models import *
 import torforum_crawler.database as database
 import inspect
 from peewee import *
-from scrapy.conf import settings
+from scrapy import settings
 from torforum_crawler.database.cache import Cache
 
 

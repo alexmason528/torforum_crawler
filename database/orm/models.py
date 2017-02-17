@@ -21,6 +21,9 @@ class User(Model):
 	class Meta:
 		database = db.proxy 
 		db_table = 'user'
+		indexes = (
+ 			(('forum', 'username'), True),	# unique index
+			)
 
 
 class Thread(Model):
@@ -45,7 +48,7 @@ class Thread(Model):
 
 class Message(Model):
 	id = PrimaryKeyField()
-	forum = ForeignKeyField(Forum, related_name='threads', db_column='forum')
+	forum = ForeignKeyField(Forum, related_name='messages', db_column='forum')
 	external_id = CharField()
 	thread = ForeignKeyField(Thread, related_name='messages', db_column='thread')
 	author = ForeignKeyField(User, related_name='messages', db_column='author')
@@ -56,6 +59,9 @@ class Message(Model):
 	class Meta:
 		database = db.proxy 
 		db_table = 'message'
+		indexes = (
+			(('forum', 'external_id'), True),	# unique index
+		)
 
 
 
@@ -69,5 +75,9 @@ class CaptchaQuestion(Model):
 	class Meta:
 		database = db.proxy # We assign the proxy object and we'll switch it for a real connection in the configuration.
 		db_table = 'captcha_question'
+		indexes = (
+			(('forum', 'hash'), True),	# unique index
+		)		
+
 
 
