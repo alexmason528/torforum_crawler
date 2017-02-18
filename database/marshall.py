@@ -1,8 +1,8 @@
 from torforum_crawler.database.orm.models import *
-import torforum_crawler.database as database
+import torforum_crawler.database.db as db
 import inspect
 from peewee import *
-from scrapy import settings
+from scrapy.conf import settings
 from torforum_crawler.database.cache import Cache
 
 
@@ -36,7 +36,6 @@ class Marshall:
 			self.cache.reload(User, User.forum == self.forum)
 			self.cache.reload(Thread, Thread.forum == self.forum)
 
-
 	def add(self, obj):
 		self.assertismodelclass(obj.__class__)
 		queuename = obj.__class__.__name__
@@ -44,24 +43,29 @@ class Marshall:
 			self.queues[queuename] = []
 		self.queues[queuename].append(obj)
 
-	def get(self, modeltype, keyval):
+	def get(self, modeltype, *args, **kwargs):
 		if self.enablecache:
-			cachedval = self.cache.read(modeltype, keyval)
+			cachedval = self.cache.readobj(modeltype(**kwargs))	# Create an object 
+  #   			import pdb; pdb.set_trace() 
+
 			if cachedval:
+				self.spider.logger.debug("Cache hit : Read " + modeltype.__name__ + " with params " + str(kwargs))
 				return cachedval
+			else:
+				self.spider.logger.debug("Cache miss for " + modeltype.__name__ + " with params " + str(kwargs))
 
-		keyfield = modeltype._meta.fields[self.cache.getkey(modeltype)]
-		return modeltype.get(keyfield == keyval)
+		return modeltype.get(**kwargs)
 
-	def get_or_create(self, modeltype, *args, **kwargs):
+	def get_or_create(self, modeltype, **kwargs):
 		if self.enablecache:
-			modelname = modeltype.__name__
-			if self.cache.getkey(modeltype) not in kwargs:
-				raise Exception("Cannot get_or_create " + modeltype + " because " + keyfield + " is not specified.")
-			keyval = kwargs[self.cache.getkey(modeltype)]
-			cached_value = self.cache.read(modeltype, keyval)
+			cached_value = self.cache.readobj(modeltype(**kwargs))
+
 			if cached_value:
+				self.spider.logger.debug("Cache hit : Read " + modeltype.__name__ + " with params " + str(kwargs))
 				return cached_value
+			else:
+				self.spider.logger.debug("Cache miss for " + modeltype.__name__ + " with params " + str(kwargs))
+
 		
 		obj, created = modeltype.get_or_create(**kwargs)
 		if self.enablecache:
@@ -79,17 +83,23 @@ class Marshall:
 		queue = self.queues[modeltype.__name__]
 
 		if len(queue) > 0 :
-			with database.db.proxy.atomic():
+			with db.proxy.atomic():
 				data = list(map(lambda x: (x._data) , queue)) # Extract a list of dict from our Model queue
 				for idx in range(0, len(data), chunksize):
 					q = modeltype.insert_many(data[idx:idx+chunksize])
-					sql = self.add_onduplicate_key(q, modeltype._meta.fields)  # Manually add "On duplicate key update"
+					updateablefields = {}
+					for fieldname in modeltype._meta.fields:
+						field = modeltype._meta.fields[fieldname]
+						if not isinstance(field, PrimaryKeyField):
+							updateablefields[fieldname] = field
+							
+					sql = self.add_onduplicate_key(q, updateablefields)  # Manually add "On duplicate key update"
 					db.proxy.execute_sql(sql[0], sql[1])
 
 
 			if self.enablecache:
 				self.cache.bulkwrite(queue)
-				self.cache.reloadmodels(queue)	# Retrieve AutoIncrement id
+				self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
 				
 		self.queues[modeltype.__name__] = []
 

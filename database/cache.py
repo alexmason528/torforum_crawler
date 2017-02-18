@@ -18,27 +18,39 @@ class Cache:
 	def __init__(self):
 		self.cachedata = {}
 
-	def unsafewrite(self, obj):
+	def unsafewrite(self, obj, *fieldlist):
 		fieldname, cacheid = self.getcacheid(obj)
+		table = obj._meta.db_table
 		if not cacheid:
 			raise ValueError("Cannot write to cache object of type "  + obj.__class__.__name__ + " no usable id to identify the record.")
-		self.cachedata[obj.__class__.__name__][cacheid] = obj
+		if len(fieldlist) == 0 :
+			self.cachedata[table][cacheid] = obj
+		else:
+			for field in fieldlist:	#Partial copy
+				self.cachedata[table][cacheid]._data[field.name] = obj._data[field.name]	# Copy a single field from obj to the object stored in cache. (ob1.x = obj2.x)
+
 
 	def unsaferead(self, modeltype, cacheid):
-		if cacheid in self.cachedata[modeltype.__name__]:
-			if cacheid in self.cachedata[modeltype.__name__]:
-				return self.cachedata[modeltype.__name__][cacheid]
+		table = modeltype._meta.db_table
+		if table in self.cachedata:
+			if cacheid in self.cachedata[table]:
+				return self.cachedata[table][cacheid]
+
+	def readobj(self, obj):
+		fieldname, cacheid = self.getcacheid(obj)
+		return self.read(obj.__class__, cacheid)
+
 
 	# For a specific Model, returns the unique key used to cache the object.
 	# return (fieldname, cacheid) 
 	# fieldname is the name of the field used as a key. Can be a string for single key or a tuple for composite key
 	# cacheid is the value used as the index in the cache. Can be anything (literal, string, tuple)
 
-	def getcacheid(self,obj):
+	def getcacheid(self, obj):
 		objclass = obj.__class__
 		self.assertismodelclass(objclass)
-		if objclass.__name__ in self.cachekey:
-			fieldname = self.cachekey[objclass.__name__]
+		if objclass._meta.db_table in self.cachekey:
+			fieldname = self.cachekey[objclass._meta.db_table]
 			cacheid = self.read_index_value(obj, fieldname)
 			return (fieldname, cacheid)
 
@@ -53,22 +65,29 @@ class Cache:
 			cacheid = self.read_index_value(obj, fieldname)
 			if cacheid:
 				return (fieldname, cacheid)
+
+		raise ValueError("Trying to obtain the cache id from bbject " + obj.__class__.__name__ + " but no key data is usable. Cotnent : " + str(obj._data))
 	
+	# extract the value of the index from an object. index can be single field name or tuple of field name for composite key.
 	def read_index_value(self, obj, idx):
 		if isinstance(idx, tuple):	# we are dealing with a composite key
 			complete = True
 			keyval = tuple()
 			for idx in idx :
 				if idx in obj._data:
-					keyval += (obj._data[idx],)	# Append to tuple
+					keyval += (self.getfield_or_primarykey(obj._data[idx]),)	# Append to tuple
 				else:
 					complete  = False
 					break
 			return keyval if complete else None 
 		elif isinstance(idx, str): 		# Single key
 			if idx in obj._data:
-				return obj._data[idx]
+				return self.getfield_or_primarykey(obj._data[idx])
 
+	def getfield_or_primarykey(self, val):
+		if issubclass(val.__class__, Model):		# It's a foreign key. Get the primary key
+			val = val._data[val._meta.primary_key]
+		return val
 
 
 	def read(self, modeltype, keyval):
@@ -76,27 +95,25 @@ class Cache:
 		self.init_ifnotexist(modeltype)
 		return self.unsaferead(modeltype, keyval)		
 
-	def write(self, obj):
+	def write(self, obj,*fieldlist):
 		self.assertismodelclass(obj.__class__)
 		self.init_ifnotexist(obj.__class__)
-		self.unsafewrite(obj)
+		self.unsafewrite(obj,*fieldlist)
 
-	def bulkwrite(self, objlist):
+	def bulkwrite(self, objlist, *fieldlist):
 		for obj in objlist: 
-			self.assertismodelclass(obj.__class__)
-			self.init_ifnotexist(obj.__class__)				
-			self.unsafewrite(obj)
+			self.write(obj, *fieldlist)
 
 	def init_ifnotexist(self, modeltype):
-		if not modeltype.__name__ in self.cachedata:
-			self.cachedata[modeltype.__name__] = {}
+		if not modeltype._meta.db_table in self.cachedata:
+			self.cachedata[modeltype._meta.db_table] = {}
 	
-	def reload(self, modeltype, whereclause):
+	def reload(self, modeltype, whereclause, *fieldlist):
 		self.assertismodelclass(modeltype)
 		self.init_ifnotexist(modeltype)
 		objects = modeltype.select().where(whereclause)
 		for obj in objects:
-			self.unsafewrite(obj)
+			self.unsafewrite(obj, *fieldlist)
 
 	def assertismodelclass(self, modeltype):
 		if not inspect.isclass(modeltype):
@@ -104,7 +121,7 @@ class Cache:
 		elif not issubclass(modeltype, Model):
 			raise Exception("Given type must be a subclass of PeeWee.Model")
 
-	def reloadmodels(self, objlist):
+	def reloadmodels(self, objlist, *fieldlist):
 		objtype = None
 		chunksize = 100
 		cacheid_per_fieldname = {}
@@ -126,7 +143,7 @@ class Cache:
 				for idx in range(0, len(cacheidlist), chunksize):
 					data = cacheidlist[idx:idx+100]
 					if isinstance(fieldname, str): #single key
-						self.reload(modeltype, modeltype._meta.fields[fieldname] << data)
+						self.reload(modeltype, modeltype._meta.fields[fieldname] << data, *fieldlist)
 
 					elif isinstance(fieldname, tuple): # composite key. Peewee doesn't support that easily, we have to do some manual work
 						whereclause = '('+','.join(map(lambda x: "`%s`" % x, fieldname))+')'  # (`col1`, `col2`)
@@ -134,7 +151,7 @@ class Cache:
 						flatdata = []
 						for entry in data: 
 							flatdata += list(entry)
-						self.reload(objtype, SQL(whereclause, *flatdata))
+						self.reload(objtype, SQL(whereclause, *flatdata), *fieldlist)
 					else:
 						raise ValueError("Doesn't know how to reload object of type " + obj.__class__.__name__ + " with cache field : " + fieldname)
 

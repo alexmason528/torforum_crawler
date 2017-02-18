@@ -51,19 +51,18 @@ class map2db(object):
 		self.drop_if_empty(item, 'contenthtml')
 		self.drop_if_empty(item, 'threadid')
 
-		dbmsg.thread = spider.marshall.get(models.Thread, item['threadid'])	#Thread should exist in database
+		dbmsg.thread = spider.marshall.get(models.Thread, forum =spider.marshall.forum, external_id = item['threadid'])	#Thread should exist in database
 		dbmsg.forum = dbmsg.thread.forum
 		dbmsg.author = spider.marshall.get_or_create(models.User, forum=spider.marshall.forum, username= item['author_username'])
 		dbmsg.external_id = item['postid']
+		if dbmsg.external_id == '142791':
+			spider.logger.critical("Found it ")
 		
 		dbmsg.contenttext= item['contenttext']
 		dbmsg.contenthtml= item['contenthtml']
 
 		if 'posted_on' in item:
 			dbmsg.posted_on = item['posted_on']
-
-		with open("temp.log", 'w+') as f:
-			f.write(str(dbmsg.thread._data))
 		
 		return dbmsg
 
