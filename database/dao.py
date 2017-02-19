@@ -4,14 +4,15 @@ import inspect
 from peewee import *
 from scrapy.conf import settings
 from torforum_crawler.database.cache import Cache
+from scrapy import crawler
 
 
 # This object is meant to stand between the application and the database.
 # The reason of its existence is :
 # 	- Centralized pre-insert, pre-read operation (monkey patch as well)
 # 	- Ease to use of a cache with the ORM.
-# One instance of Marshall should be use per spider.	
-class Marshall:
+# One instance of DatabaseDAO should be use per spider.	
+class DatabaseDAO:
 
 	def __init__(self, spider):
 
@@ -23,7 +24,8 @@ class Marshall:
 		except:
 			self.enablecache = True
 
-		db.init(settings['DATABASE']); 
+		db.init(settings['DATABASE']);
+
 
 		try:
 			self.forum = Forum.get(spider=spider.name)
@@ -36,7 +38,8 @@ class Marshall:
 			self.cache.reload(User, User.forum == self.forum)
 			self.cache.reload(Thread, Thread.forum == self.forum)
 
-	def add(self, obj):
+
+	def enqueue(self, obj):
 		self.assertismodelclass(obj.__class__)
 		queuename = obj.__class__.__name__
 		if queuename not in self.queues:
@@ -72,7 +75,7 @@ class Marshall:
 			self.cache.write(obj)
 		return obj
 
-
+	# Bulk insert a batch of data within a queue
 	def flush(self, modeltype):
 		self.assertismodelclass(modeltype)
 		chunksize = 100
@@ -92,15 +95,27 @@ class Marshall:
 						field = modeltype._meta.fields[fieldname]
 						if not isinstance(field, PrimaryKeyField):
 							updateablefields[fieldname] = field
-							
+
 					sql = self.add_onduplicate_key(q, updateablefields)  # Manually add "On duplicate key update"
-					db.proxy.execute_sql(sql[0], sql[1])
+					try:
+						with db.proxy.atomic():
+							db.proxy.execute_sql(sql[0], sql[1])
+						if self.enablecache:
+							self.cache.bulkwrite(queue)
+							self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
+					except Exception as e:
+						filename = "%s_queuedump.txt" % (modeltype.__name__)
+						msg = "%s : Flushing %s data failed. Dumping queue data to %s.\nError is %s." % (self.__class__.__name__, modeltype.__name__, filename, str(e))
+						self.spider.logger.error(msg)
+						try:
+							with open(filename, 'w+') as f:
+								for obj in queue:
+									f.write(str(obj._data))
+						except:
+							pass
 
+						self.spider.crawler.engine.close_spider(self.spider, msg)
 
-			if self.enablecache:
-				self.cache.bulkwrite(queue)
-				self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
-				
 		self.queues[modeltype.__name__] = []
 
 	#Monkey patch to handle peewee's limitation for MySQL "On duplicate key update" close.

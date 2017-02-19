@@ -21,7 +21,7 @@ import traceback
 import re
 from peewee import *
 import torforum_crawler.alphabayforum.items as items
-from torforum_crawler.database.marshall import Marshall
+from torforum_crawler.database.dao import DatabaseDAO
 from datetime import datetime
 
 class AlphabayForum(scrapy.Spider):
@@ -35,7 +35,7 @@ class AlphabayForum(scrapy.Spider):
     custom_settings = {
         'ITEM_PIPELINES': {
             'torforum_crawler.alphabayforum.pipelines.map2db.map2db': 400,  # Convert from Items to Models
-            'torforum_crawler.pipelines.save2db.save2db': 401   # Sends models to Marshall. Marshall must be explicitly flushed from spider.  self.marshall.flush(Model)
+            'torforum_crawler.pipelines.save2db.save2db': 401   # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
         }
     }
 
@@ -46,8 +46,8 @@ class AlphabayForum(scrapy.Spider):
         self.username = self.alphabay_settings['logins'][0]['username']  #todo use login manager
 
 
-        self.marshall = Marshall(self)
-        self.forum = self.marshall.forum  # Get back the ORM object representing the forum we are crawling.
+        self.dao = DatabaseDAO(self)
+        self.forum = self.dao.forum  # Get back the ORM object representing the forum we are crawling.
         self.fromtime = settings['fromtime'] if 'fromtime' in settings else None
         self.crawltype = settings['crawltype'] if 'crawltype' in settings else  'full'
         self.crawlitem = [ 'thread', 'message'] #todo, use configuration
@@ -86,7 +86,7 @@ class AlphabayForum(scrapy.Spider):
 
         elif reqtype in  ['forumlisting', 'userprofile']:
             req = Request(kwargs['url'])
-        elif reqtype == 'thread':
+        elif reqtype == 'threadpage':
             req = Request(kwargs['url'])
             req.meta['threadid'] = kwargs['threadid']
         else:
@@ -138,13 +138,14 @@ class AlphabayForum(scrapy.Spider):
             elif response.meta['reqtype'] == 'userprofile':
                 pass
 
-            elif response.meta['reqtype'] == 'thread':
-                for x in self.parse_thread(response) : yield x 
+            elif response.meta['reqtype'] == 'threadpage':
+                for x in self.parse_threadpage(response) : yield x 
 
 
     def parse_forumlisting(self, response):
         threaddivs = response.css("li.discussionListItem")
         oldestthread_datetime = datetime.now()
+        request_buffer = []
         for threaddiv in threaddivs:
             try:
                 threaditem = items.Thread();
@@ -164,15 +165,16 @@ class AlphabayForum(scrapy.Spider):
                 
                 try:
                     m = re.match('threads/([^/]+)(/page-\d+)?', urlparse(url).query.strip('/'))
-                    threaditem['threadid'] = m.group(1)
+                    m2 = re.match("(.+\.)?(\d+)$", m.group(1))
+                    threaditem['threadid'] = m2.group(2)
                 except Exception as e:
-                    raise Exception("Could not extract thread id from url. " + e.message)
+                    raise Exception("Could not extract thread id from url : %s. \n %s " % (url, e.message))
 
                 if author_url and 'userprofile' in self.crawlitem: # If not crawled, an empty entry will be created if not exist in the database by the mapper to ensure respect of foreign key.
-                    yield self.make_request('userprofile',  url = author_url)
+                    request_buffer.append( self.make_request('userprofile',  url = author_url))
 
                 if url and 'thread' in self.crawlitem: 
-                    yield self.make_request('thread', url=url, threadid=threaditem['threadid'])
+                    request_buffer.append( self.make_request('threadpage', url=url, threadid=threaditem['threadid'])) # First page of thread
 
                 yield threaditem # sends data to pipelne
                 
@@ -181,16 +183,19 @@ class AlphabayForum(scrapy.Spider):
                 self.logger.error("Failed parsing response forumlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
                 continue
         
-        self.marshall.flush(models.Thread)  # Flush threads to database.
-        
         # Parse next page.
-        actualpage = response.css(".PageNav")
-        nextpageurl = actualpage.xpath('//*[contains(concat(" ", normalize-space(@class), " "), "currentPage")=1]/following-sibling::a[1]/@href').extract_first()
-        
+        nextpageurl =  response.xpath("//nav//a[contains(., 'Next >')]/@href").extract_first()
         if nextpageurl and self.shouldcrawl(oldestthread_datetime): #No record time to provide here.
-            yield self.make_request(reqtype='forumlisting', url = nextpageurl)  
+            request_buffer.append( self.make_request(reqtype='forumlisting', url = nextpageurl)  )
+        
+        self.dao.flush(models.Thread)  # Flush threads to database.
 
-    def parse_thread(self, response):
+        #We yield requests AFTER writing to database. This will avoid race condition that could lead to foreign key violation. (Thread post linked to a thread not written yet.)
+        for request in request_buffer:  
+            yield request
+
+
+    def parse_threadpage(self, response):
         threadid = response.meta['threadid']
         for message in response.css(".messageList .message"):
 
@@ -201,24 +206,29 @@ class AlphabayForum(scrapy.Spider):
                     msgitem['postid'] = re.match("post-(\d+)", fullid).group(1)
                 except:
                     raise Exception("Can't extract post id. " + e.message)
-
                 msgitem['author_username'] = message.css(".messageDetails .username::text").extract_first()
                 msgitem['posted_on'] = AlphabayDatetimeParser.tryparse(message.css(".messageDetails .DateTime::attr(title)").extract_first())
-                textnode = message.css(".messageContent .messageText")
+                textnode = message.css(".messageContent")
                 msgitem['contenthtml'] = textnode.extract_first()
-                msgitem['contenttext'] = ''.join(textnode.xpath("text()").extract())
+                msgitem['contenttext'] = ''.join(textnode.xpath("*//text()[normalize-space(.)]").extract()).strip()
                 msgitem['threadid'] = threadid
             except Exception as e:
                 self.logger.error("Failed parsing response for thread at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
 
             yield msgitem
 
-        self.marshall.flush(models.Message)
+        self.dao.flush(models.Message)
+        nextpageurl =  response.xpath("//nav//a[contains(., 'Next >')]/@href").extract_first()
+
+        if nextpageurl:
+            yield self.make_request("threadpage", url=nextpageurl, threadid=threadid)
+
+        #Start looking for next page.
 
     def handle_login_response(self, response):
         if self.islogged(response):
             self.logger.info('Login success, continuing where we were.')
-            self.marshall.flush(models.CaptchaQuestion)
+            self.dao.flush(models.CaptchaQuestion)
             if response.meta['req_once_logged']:
                 yield response.meta['req_once_logged']
             else:
@@ -233,7 +243,7 @@ class AlphabayForum(scrapy.Spider):
                     qhash = captcha.css("input[name='captcha_question_hash']::attr(value)").extract_first()   # This hash is not repetitive
                     dbhash = hashlib.sha256(question).hexdigest() # This hash is reusable
                     self.logger.info('Login failed. A captcha question has been asked.  Question : "' + question + '"')  
-                    db_question = self.marshall.get_or_create(models.CaptchaQuestion, forum=self.forum, hash=dbhash)
+                    db_question = self.dao.get_or_create(models.CaptchaQuestion, forum=self.forum, hash=dbhash)
                     answer = ""
                     if db_question.answer:
                         answer = db_question.answer
@@ -241,7 +251,7 @@ class AlphabayForum(scrapy.Spider):
                     else:
                         if not db_question.question:
                             db_question.question = question
-                            self.marshall.add(db_question)
+                            self.dao.enqueue(db_question)
                         answer = LoginQuestion.answer(question)
                         self.logger.info('Trying to guess the answer. Best bet is : "' + answer + '"')
                     yield self.make_request(reqtype='dologin', req_once_logged= response.meta['req_once_logged'], captcha_question_hash=qhash, captcha_question_answer=answer);  # We try to login and save the original request
@@ -254,9 +264,6 @@ class AlphabayForum(scrapy.Spider):
                 self.logger.error("Login failed and no login form has been given. Retrying")
                 yield self.make_request(reqtype='dologin', req_once_logged=response.meta['req_once_logged']);  # We try to login and save the original request
                 
-            # Send new login request
-    def printstats(self):
-        print self.crawler.stats.get_stats()
         
     def islogged(self, response):
         logged = False

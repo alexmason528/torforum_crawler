@@ -3,5 +3,6 @@ settings = {
 	'dbname' : 'torforum_crawler',
 	'user' : 'root',
 	'password' : 'root',
-	'charset' : 'utf8'
+	'charset' : 'utf8',
+	'timezone' : '+00:00'
 }

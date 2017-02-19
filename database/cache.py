@@ -18,6 +18,8 @@ class Cache:
 	def __init__(self):
 		self.cachedata = {}
 
+	#Write an object to the cache without checking if the cache is initilizaed or if the object is the right type.
+	# Only specified fields are written. If no fields is given, the whole object is copied.
 	def unsafewrite(self, obj, *fieldlist):
 		fieldname, cacheid = self.getcacheid(obj)
 		table = obj._meta.db_table
@@ -66,7 +68,7 @@ class Cache:
 			if cacheid:
 				return (fieldname, cacheid)
 
-		raise ValueError("Trying to obtain the cache id from bbject " + obj.__class__.__name__ + " but no key data is usable. Cotnent : " + str(obj._data))
+		raise ValueError("Trying to obtain the cache id from object %s but no key data is usable. Cotnent : %s" % (obj.__class__.__name__, str(obj._data)) )
 	
 	# extract the value of the index from an object. index can be single field name or tuple of field name for composite key.
 	def read_index_value(self, obj, idx):
@@ -121,6 +123,8 @@ class Cache:
 		elif not issubclass(modeltype, Model):
 			raise Exception("Given type must be a subclass of PeeWee.Model")
 
+	#This function will reload the cache content from the databse for the given object list.
+	# a list of fields can be given so that only these will get updated.
 	def reloadmodels(self, objlist, *fieldlist):
 		objtype = None
 		chunksize = 100

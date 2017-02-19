@@ -11,6 +11,6 @@ class save2db(object):
 		if not 'model' in item.keys():
 			raise Exception("Sent an item with no 'model' key to " + self.__class__.__name__ + " pipeline")
 	
-		spider.marshall.add(item['model'])
+		spider.dao.enqueue(item['model'])
 		return item
 		
