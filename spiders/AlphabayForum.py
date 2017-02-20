@@ -7,7 +7,6 @@ from scrapy.http import FormRequest,Request
 from scrapy.conf import settings
 import logging
 import torforum_crawler.thirdparties.deathbycaptcha as deathbycaptcha
-from pprint import pprint
 from fake_useragent import UserAgent
 import torforum_crawler.alphabayforum.helpers.LoginQuestion as LoginQuestion
 import torforum_crawler.alphabayforum.helpers.DatetimeParser as AlphabayDatetimeParser
@@ -50,7 +49,7 @@ class AlphabayForum(scrapy.Spider):
         self.forum = self.dao.forum  # Get back the ORM object representing the forum we are crawling.
         self.fromtime = settings['fromtime'] if 'fromtime' in settings else None
         self.crawltype = settings['crawltype'] if 'crawltype' in settings else  'full'
-        self.crawlitem = [ 'thread', 'message'] #todo, use configuration
+        self.crawlitem = [ 'thread', 'userprofile'] #todo, use configuration
 
         self.trycolorizelogs() # monkey patching to have color in the logs.
 
@@ -118,7 +117,6 @@ class AlphabayForum(scrapy.Spider):
         yield self.make_request('index')
    
     def parse(self, response):
-        #self.printstats()
         if not self.islogged(response):
             if self.logintrial > settings['MAX_LOGIN_RETRY']:
                 raise Exception("Too many failed login trials. Giving up.")
@@ -136,7 +134,7 @@ class AlphabayForum(scrapy.Spider):
                 for x in self.parse_forumlisting(response) : yield x
                      
             elif response.meta['reqtype'] == 'userprofile':
-                pass
+                for x in self.parse_userprofile(response) : yield x
 
             elif response.meta['reqtype'] == 'threadpage':
                 for x in self.parse_threadpage(response) : yield x 
@@ -195,7 +193,8 @@ class AlphabayForum(scrapy.Spider):
             yield request
 
 
-    def parse_threadpage(self, response):
+    # PArse messages from a thread page.
+    def parse_threadpage(self, response):   
         threadid = response.meta['threadid']
         for message in response.css(".messageList .message"):
 
@@ -206,7 +205,7 @@ class AlphabayForum(scrapy.Spider):
                     msgitem['postid'] = re.match("post-(\d+)", fullid).group(1)
                 except:
                     raise Exception("Can't extract post id. " + e.message)
-                msgitem['author_username'] = message.css(".messageDetails .username::text").extract_first()
+                msgitem['author_username'] = message.css(".messageDetails .username::text").extract_first().strip()
                 msgitem['posted_on'] = AlphabayDatetimeParser.tryparse(message.css(".messageDetails .DateTime::attr(title)").extract_first())
                 textnode = message.css(".messageContent")
                 msgitem['contenthtml'] = textnode.extract_first()
@@ -218,12 +217,70 @@ class AlphabayForum(scrapy.Spider):
             yield msgitem
 
         self.dao.flush(models.Message)
-        nextpageurl =  response.xpath("//nav//a[contains(., 'Next >')]/@href").extract_first()
 
+        if 'userprofile' in self.crawlitem:
+            userprofilelinks = response.css("a.username::attr(href)").extract()
+            userprofilelinks = list(set(userprofilelinks)) #removes duplicates
+            for link in userprofilelinks:
+                yield self.make_request('userprofile', url=self.make_url(link))
+
+        #Start looking for next page.
+        nextpageurl =  response.xpath("//nav//a[contains(., 'Next >')]/@href").extract_first()
         if nextpageurl:
             yield self.make_request("threadpage", url=nextpageurl, threadid=threadid)
 
-        #Start looking for next page.
+
+    def parse_userprofile(self, response):
+        content = response.css(".profilePage")
+        if content:
+            content= content[0]
+            useritem = items.User()
+            useritem['username'] = content.css(".username").xpath(".//text()").extract_first().strip()
+            urlparsed =  urlparse(response.url)
+            useritem['relativeurl'] = "%s?%s" % (urlparsed.path, urlparsed.query)
+            useritem['fullurl'] = response.url
+
+            try:
+                useritem['title'] = content.css(".userTitle").xpath(".//text()").extract_first().strip()
+            except:
+                pass
+            
+            try:    
+                useritem['banner'] = content.css(".userBanner").xpath(".//text()").extract_first().strip()
+            except:
+                pass
+
+            try:
+                m = re.match('members/([^/]+)', urlparse(url).query.strip('/'))
+                m2 = re.match("(.+\.)?(\d+)$", m.group(1))
+                useritem['user_id'] = m2.group(2)
+            except:
+                pass
+
+            infos = content.css(".infoBlock dl")
+            for info in infos:
+                name = info.css('dt::text').extract_first().strip()
+                try:
+                    if name == 'Last Activity:':
+                        datestr = info.css('dd .DateTime::attr(title)').extract_first().strip()
+                        useritem['last_activity'] = AlphabayDatetimeParser.tryparse(datestr)
+                    elif name == 'Joined:' :
+                        datestr = info.css('dd').xpath(".//text()").extract_first().strip()
+                        useritem['joined_on'] = AlphabayDatetimeParser.tryparse(datestr)
+                    elif name == 'Messages:':
+                        numberstr = info.css('dd').xpath(".//text()").extract_first().strip()
+                        useritem['message_count'] = int(numberstr.replace(',', ''))
+                    elif name == 'Likes Received:':
+                        numberstr = info.css('dd').xpath(".//text()").extract_first().strip()
+                        useritem['likes_received'] = int(numberstr.replace(',', ''))
+                except:
+                    pass
+
+
+            yield useritem
+
+        self.dao.flush(models.User) 
+
 
     def handle_login_response(self, response):
         if self.islogged(response):
@@ -299,7 +356,7 @@ class AlphabayForum(scrapy.Spider):
         else:
             raise Exception("Unknown crawl type :" + self.crawltype )
 
-    def isinvalidated(self, ecordtime=None, dbrecordtime=None):
+    def isinvalidated(self, recordtime=None, dbrecordtime=None):
         if not recordtime:
             return True
         else:

@@ -7,10 +7,12 @@ class map2db(object):
 
 		if type(item) == items.Thread:
 			return {'model' : self.map_thread(item, spider)}	# Sends to SaveToDB
-		if type(item) == items.Message:
+		elif type(item) == items.Message:
 			return {'model' : self.map_message(item, spider)}	# Sends to SaveToDB
+		elif type(item) == items.User:
+			return {'model' : self.map_user(item, spider)}	# Sends to SaveToDB
 		else:
-			raise Exception('Unknown item type : ' + type(item))
+			raise Exception('Unknown item type : ' + item.__class__.__name__)
 
 
 	def map_thread(self, item, spider):
@@ -77,6 +79,31 @@ class map2db(object):
 			dbmsg.posted_on = item['posted_on']
 		
 		return dbmsg
+
+	def map_user(self, item, spider):
+		self.drop_if_empty(item, 'username')
+
+		dbuser = models.User()	# Extended PeeWee object that handles properties in different table
+		dbuser.username = item['username']
+		
+		dbuser.forum = spider.dao.forum
+
+		#Proeprties with same name in model and item
+		self.set_if_exist(item, dbuser, 'relativeurl')
+		self.set_if_exist(item, dbuser, 'fullurl')
+		self.set_if_exist(item, dbuser, 'joined_on')
+		self.set_if_exist(item, dbuser, 'likes_received')
+		self.set_if_exist(item, dbuser, 'last_activity')
+		self.set_if_exist(item, dbuser, 'message_count')
+		self.set_if_exist(item, dbuser, 'user_id')
+		self.set_if_exist(item, dbuser, 'title')
+		self.set_if_exist(item, dbuser, 'banner')
+
+		return dbuser
+
+	def set_if_exist(self, item, model, field):
+		if field in item:
+			model.__setattr__(field, item[field])
 
 	def drop_if_missign(self, item, field):
 		if field not in item:

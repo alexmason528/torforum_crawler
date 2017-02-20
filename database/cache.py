@@ -29,7 +29,13 @@ class Cache:
 			self.cachedata[table][cacheid] = obj
 		else:
 			for field in fieldlist:	#Partial copy
-				self.cachedata[table][cacheid]._data[field.name] = obj._data[field.name]	# Copy a single field from obj to the object stored in cache. (ob1.x = obj2.x)
+				if isinstance(field, CompositeKey):
+					for fieldname in field.field_names:	# field_names is peewee internal
+						self.cachedata[table][cacheid]._data[fieldname] = obj._data[fieldname]	# Copy a single field from obj to the object stored in cache. (ob1.x = obj2.x)
+				else:
+					self.cachedata[table][cacheid]._data[field.name] = obj._data[field.name]	# Copy a single field from obj to the object stored in cache. (ob1.x = obj2.x)
+
+		return self.cachedata[table][cacheid]
 
 
 	def unsaferead(self, modeltype, cacheid):
@@ -60,8 +66,13 @@ class Cache:
 		for idx in objclass._meta.indexes:
 			if idx[1] == True: # unique
 				unique_idx.append(idx[0])
+		
 		if objclass._meta.primary_key:
-			unique_idx.append(objclass._meta.primary_key.name)
+			if isinstance(objclass._meta.primary_key, CompositeKey):
+				pkeyname = objclass._meta.primary_key.field_names
+			else:
+				pkeyname = objclass._meta.primary_key.name
+			unique_idx.append(pkeyname)
 
 		for fieldname in unique_idx:
 			cacheid = self.read_index_value(obj, fieldname)
@@ -100,11 +111,13 @@ class Cache:
 	def write(self, obj,*fieldlist):
 		self.assertismodelclass(obj.__class__)
 		self.init_ifnotexist(obj.__class__)
-		self.unsafewrite(obj,*fieldlist)
+		return self.unsafewrite(obj,*fieldlist)
 
 	def bulkwrite(self, objlist, *fieldlist):
+		outputlist = []
 		for obj in objlist: 
-			self.write(obj, *fieldlist)
+			outputlist.append(self.write(obj, *fieldlist))
+		return outputlist
 
 	def init_ifnotexist(self, modeltype):
 		if not modeltype._meta.db_table in self.cachedata:
@@ -114,8 +127,10 @@ class Cache:
 		self.assertismodelclass(modeltype)
 		self.init_ifnotexist(modeltype)
 		objects = modeltype.select().where(whereclause)
+		outputlist = []
 		for obj in objects:
-			self.unsafewrite(obj, *fieldlist)
+			outputlist.append(self.unsafewrite(obj, *fieldlist))
+		return outputlist
 
 	def assertismodelclass(self, modeltype):
 		if not inspect.isclass(modeltype):
@@ -133,29 +148,29 @@ class Cache:
 			modeltype = objlist[0].__class__
 			fieldname, cacheid = self.getcacheid(objlist[0])
 			for obj in objlist:
-				self.assertismodelclass(obj.__class__)			
+				self.assertismodelclass(obj.__class__)				# Sanity check
 				objtype = obj.__class__ if not objtype else objtype
 				if obj.__class__ != objtype:
 					raise ValueError("Trying to reload partial set of data of different type.")
 				
 				fieldname, cacheid = self.getcacheid(obj)
-				if fieldname not in cacheid_per_fieldname:
+				if fieldname not in cacheid_per_fieldname:	# Handle mixed object list
 					cacheid_per_fieldname[fieldname] = []
 				cacheid_per_fieldname[fieldname].append(cacheid)
-			for fieldname in cacheid_per_fieldname.keys():
+			for fieldname in cacheid_per_fieldname.keys():	
 				cacheidlist = cacheid_per_fieldname[fieldname]
-				for idx in range(0, len(cacheidlist), chunksize):
+				for idx in range(0, len(cacheidlist), chunksize):	# chunk data
 					data = cacheidlist[idx:idx+100]
 					if isinstance(fieldname, str): #single key
-						self.reload(modeltype, modeltype._meta.fields[fieldname] << data, *fieldlist)
+						return self.reload(modeltype, modeltype._meta.fields[fieldname] << data, *fieldlist)
 
 					elif isinstance(fieldname, tuple): # composite key. Peewee doesn't support that easily, we have to do some manual work
-						whereclause = '('+','.join(map(lambda x: "`%s`" % x, fieldname))+')'  # (`col1`, `col2`)
+						whereclause = '('+','.join(map(lambda x: "`%s`" % modeltype._meta.fields[x].db_column, fieldname))+')'  # (`col1`, `col2`)
 						whereclause += " in (" + ','.join(map(lambda entry: '('+','.join(map(lambda val: '%s', entry )) + ')', data)) + ")"   # in ((%s,%s), (%s, %s), ...)
 						flatdata = []
 						for entry in data: 
 							flatdata += list(entry)
-						self.reload(objtype, SQL(whereclause, *flatdata), *fieldlist)
+						return self.reload(objtype, SQL(whereclause, *flatdata), *fieldlist)
 					else:
 						raise ValueError("Doesn't know how to reload object of type " + obj.__class__.__name__ + " with cache field : " + fieldname)
 
