@@ -69,14 +69,17 @@ CREATE TABLE `message` (
   `posted_on` timestamp NULL DEFAULT NULL,
   `modified_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `forum` bigint(11) NOT NULL,
+  `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `message_forum_extid_unique` (`forum`,`external_id`(255)),
   KEY `message_user_idx` (`author`),
   KEY `message_thread_idx` (`thread`),
   KEY `message_forum_idx` (`forum`),
-  CONSTRAINT `message_forum` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `message_thread` FOREIGN KEY (`thread`) REFERENCES `thread` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `message_user` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `message_scrape_fk_idx` (`scrape`),
+  CONSTRAINT `message_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `message_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `message_thread_fk` FOREIGN KEY (`thread`) REFERENCES `thread` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `message_user_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=627221 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -107,12 +110,15 @@ CREATE TABLE `message_propval` (
   `message` bigint(11) NOT NULL,
   `data` text,
   `modified_on` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`propkey`,`message`),
   KEY `message_propval_msg` (`message`),
   KEY `message_propval_msgkey_index` (`propkey`,`message`),
+  KEY `message_propval_scrape_index` (`scrape`),
   KEY `message_propval_modifiedon_index` (`modified_on`),
-  CONSTRAINT `message_propkey` FOREIGN KEY (`propkey`) REFERENCES `message_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `message_propval_msg` FOREIGN KEY (`message`) REFERENCES `message` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `message_propkey_fk` FOREIGN KEY (`propkey`) REFERENCES `message_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `message_propval_msg_fk` FOREIGN KEY (`message`) REFERENCES `message` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `message_propval_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -124,14 +130,14 @@ CREATE TABLE `message_propval` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER message_propval_audit 
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER message_propval_before_update_audit 
     BEFORE UPDATE ON message_propval
     FOR EACH ROW 
 BEGIN
  	insert into `message_propvalaudit`
- 		(`modified_on`, `message`, `propkey`, `data`)
+ 		(`modified_on`, `message`, `propkey`, `data`, `scrape`)
  	values
- 		(OLD.`modified_on`, OLD.`message`, OLD.`propkey`, OLD.`data`);
+ 		(OLD.`modified_on`, OLD.`message`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
  END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -151,12 +157,32 @@ CREATE TABLE `message_propvalaudit` (
   `message` bigint(11) NOT NULL,
   `data` text,
   `modified_on` datetime NOT NULL,
-  KEY `message_propaudit_user_idx` (`message`),
-  KEY `message_prophistory_propkey_idx` (`propkey`),
-  KEY `message_prophistory_messagekey_index` (`message`,`propkey`),
+  `scrape` bigint(11) DEFAULT NULL,
   KEY `message_propvalaudit_modifiedon_index` (`modified_on`),
+  KEY `message_propvalaudit_scrape_index` (`scrape`),
+  KEY `message_propvalaudit_user_idx` (`message`),
+  KEY `message_propvalaudit_propkey_idx` (`propkey`),
+  KEY `message_propvalaudit_messagekey_index` (`message`,`propkey`),
+  CONSTRAINT `message_prophistory_message` FOREIGN KEY (`message`) REFERENCES `message` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_prophistory_propkey` FOREIGN KEY (`propkey`) REFERENCES `message_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `message_prophistory_user` FOREIGN KEY (`message`) REFERENCES `message` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `message_prophistory_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `scrape`
+--
+
+DROP TABLE IF EXISTS `scrape`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `scrape` (
+  `id` bigint(11) NOT NULL AUTO_INCREMENT,
+  `start` datetime DEFAULT NULL,
+  `end` datetime DEFAULT NULL,
+  `success` tinyint(4) DEFAULT NULL,
+  `error` text,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -177,12 +203,15 @@ CREATE TABLE `thread` (
   `fullurl` text,
   `last_update` timestamp NULL DEFAULT NULL,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_forum_externalid` (`forum`,`external_id`(255)) USING BTREE,
   KEY `thread_forum_idx` (`forum`),
   KEY `thread_author_idx` (`author`),
-  CONSTRAINT `thread_author` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `thread_forum` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `thread_scrape_idx` (`scrape`),
+  CONSTRAINT `thread_author_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `thread_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `thread_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=184555 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -199,10 +228,13 @@ CREATE TABLE `user` (
   `username` varchar(255) DEFAULT NULL,
   `relativeurl` text,
   `fullurl` text,
+  `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `forum_username` (`forum`,`username`),
   KEY `author_forum_idx` (`forum`),
-  CONSTRAINT `author_forum` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `user_scrape_fk_idx` (`scrape`),
+  CONSTRAINT `user_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `user_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=334215 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -232,12 +264,15 @@ CREATE TABLE `user_propval` (
   `user` bigint(11) NOT NULL,
   `data` text,
   `modified_on` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`propkey`,`user`),
   KEY `user_propval_user_idx` (`user`),
   KEY `user_propval_userkey_index` (`user`,`propkey`),
   KEY `user_propvap_modifiedon_index` (`modified_on`),
-  CONSTRAINT `user_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `user_propval_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `user_propval_scrape_fk_idx` (`scrape`),
+  CONSTRAINT `user_propkey_key_fk` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `user_propval_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `user_propval_user_fk` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -249,14 +284,14 @@ CREATE TABLE `user_propval` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER  user_propval_before_update
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER user_propval_before_update_audit 
     BEFORE UPDATE ON user_propval
     FOR EACH ROW 
 BEGIN
  	insert into `user_propvalaudit`
- 		(`modified_on`, `user`, `propkey`, `data`)
+ 		(`modified_on`, `user`, `propkey`, `data`, `scrape`)
  	values
- 		(OLD.`modified_on`, OLD.`user`, OLD.`propkey`, OLD.`data`);
+ 		(OLD.`modified_on`, OLD.`user`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
  END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -276,12 +311,15 @@ CREATE TABLE `user_propvalaudit` (
   `user` bigint(11) NOT NULL,
   `data` text,
   `modified_on` datetime NOT NULL,
+  `scrape` bigint(11) DEFAULT NULL,
   KEY `user_propvalaudit_user_idx` (`user`),
   KEY `user_propvalaudit_propkey_idx` (`propkey`),
   KEY `user_propvalaudit_userkey_index` (`user`,`propkey`),
-  KEY `user_user_propvalaudit_modifiedon_index` (`modified_on`),
-  CONSTRAINT `user_prophistory_propkey` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `user_prophistory_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `user_provalaudit_scrape_fk_idx` (`scrape`),
+  KEY `user_propvalaudit_modifiedon_index` (`modified_on`),
+  CONSTRAINT `user_propvalaudit_propkey_fk` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `user_propvalaudit_user_fk` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `user_provalaudit_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -294,4 +332,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-02-23 22:52:16
+-- Dump completed on 2017-02-23 23:28:35
