@@ -52,10 +52,10 @@ class DatabaseDAO:
 		cachedval = self.cache.readobj(modeltype(**kwargs))	# Create an object 
 
 		if cachedval:
-			self.spider.logger.debug("Cache hit : Read " + modeltype.__name__ + " with params " + str(kwargs))
+			self.spider.logger.debug("Cache hit : Read %s with params %s" %( modeltype.__name__, str(kwargs)))
 			return cachedval
 		else:
-			self.spider.logger.debug("Cache miss for " + modeltype.__name__ + " with params " + str(kwargs))
+			self.spider.logger.debug("Cache miss for %s with params %s " % (modeltype.__name__, str(kwargs) ))
 
 		#todo : Get properties for BasePropertyOwnerModel
 		obj = modeltype.get(**kwargs)
@@ -69,10 +69,10 @@ class DatabaseDAO:
 		cached_value = self.cache.readobj(modeltype(**kwargs))
 
 		if cached_value:
-			self.spider.logger.debug("Cache hit : Read " + modeltype.__name__ + " with params " + str(kwargs))
+			self.spider.logger.debug("Cache hit : Read %s with params %s " % (modeltype.__name__, str(kwargs)))
 			return cached_value
 		else:
-			self.spider.logger.debug("Cache miss for " + modeltype.__name__ + " with params " + str(kwargs))
+			self.spider.logger.debug("Cache miss for %s with params %s " % (modeltype.__name__, str(kwargs) ))
 
 		#todo : Get properties for BasePropertyOwnerModel
 		obj, created = modeltype.get_or_create(**kwargs)
@@ -85,7 +85,7 @@ class DatabaseDAO:
 		self.assertismodelclass(modeltype)
 		chunksize = 100
 		if modeltype.__name__ not in self.queues:
-			self.spider.logger.debug("Trying to flush a queue of "+ modeltype.__name__ +" that has never been filled before.")
+			self.spider.logger.debug("Trying to flush a queue of %s that has never been filled before." % modeltype.__name__ )
 			return
 
 		queue = self.queues[modeltype.__name__]
@@ -110,12 +110,12 @@ class DatabaseDAO:
 						reloadeddata = self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
 						flushed = True
 
-					except Exception as e:
+					except Exception as e:	#We have a nasty error. Dumps useful data to a file.
 						filename = "%s_queuedump.txt" % (modeltype.__name__)
 						msg = "%s : Flushing %s data failed. Dumping queue data to %s.\nError is %s." % (self.__class__.__name__, modeltype.__name__, filename, str(e))
 						self.spider.logger.error("%s\n %s" % (msg, traceback.format_exc()))
 						try:
-							with open(filename, 'w+') as f:
+							with open(filename, 'w+') as f:	
 								for obj in queue:
 									f.write(str(obj._data))
 						except:
@@ -125,8 +125,8 @@ class DatabaseDAO:
 
 		# Push fields that correspond to a property
 		if flushed:
-			if issubclass(modeltype, BasePropertyOwnerModel):	# Our class a a property table defined
-				if len(reloadeddata) > 0:
+			if issubclass(modeltype, BasePropertyOwnerModel):	# Our class has a property table defined (propkey/propval)
+				if reloadeddata and len(reloadeddata) > 0:
 					for obj in reloadeddata:
 						props = obj.getproperties()
 						for prop in props:

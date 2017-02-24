@@ -251,7 +251,7 @@ class AlphabayForum(scrapy.Spider):
                 pass
 
             try:
-                m = re.match('members/([^/]+)', urlparse(url).query.strip('/'))
+                m = re.match('members/([^/]+)', urlparse(response.url).query.strip('/'))
                 m2 = re.match("(.+\.)?(\d+)$", m.group(1))
                 useritem['user_id'] = m2.group(2)
             except:

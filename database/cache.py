@@ -53,27 +53,27 @@ class Cache:
 	# return (fieldname, cacheid) 
 	# fieldname is the name of the field used as a key. Can be a string for single key or a tuple for composite key
 	# cacheid is the value used as the index in the cache. Can be anything (literal, string, tuple)
-
 	def getcacheid(self, obj):
 		objclass = obj.__class__
 		self.assertismodelclass(objclass)
-		if objclass._meta.db_table in self.cachekey:
+		if objclass._meta.db_table in self.cachekey:	# Property that can be set in the Cache class to avoid "guessing"
 			fieldname = self.cachekey[objclass._meta.db_table]
 			cacheid = self.read_index_value(obj, fieldname)
 			return (fieldname, cacheid)
 
-		unique_idx = []
-		for idx in objclass._meta.indexes:
+		unique_idx = []	
+		for idx in objclass._meta.indexes:	# Find unique keys in model 
 			if idx[1] == True: # unique
 				unique_idx.append(idx[0])
 		
-		if objclass._meta.primary_key:
+		if objclass._meta.primary_key:	# Find the primary keys
 			if isinstance(objclass._meta.primary_key, CompositeKey):
 				pkeyname = objclass._meta.primary_key.field_names
 			else:
 				pkeyname = objclass._meta.primary_key.name
 			unique_idx.append(pkeyname)
 
+		# Use the first match between unique and primary key as the cache id.
 		for fieldname in unique_idx:
 			cacheid = self.read_index_value(obj, fieldname)
 			if cacheid:
@@ -143,7 +143,7 @@ class Cache:
 	def reloadmodels(self, objlist, *fieldlist):
 		objtype = None
 		chunksize = 100
-		cacheid_per_fieldname = {}
+		cacheid_per_fieldname = {} # objects in objlist might have different keys. We will osrt them in this object to avoid making incoherent SQL
 		if len(objlist) > 0 :
 			modeltype = objlist[0].__class__
 			fieldname, cacheid = self.getcacheid(objlist[0])
@@ -153,11 +153,11 @@ class Cache:
 				if obj.__class__ != objtype:
 					raise ValueError("Trying to reload partial set of data of different type.")
 				
-				fieldname, cacheid = self.getcacheid(obj)
-				if fieldname not in cacheid_per_fieldname:	# Handle mixed object list
+				fieldname, cacheid = self.getcacheid(obj)	# Get the cache id of the ovject
+				if fieldname not in cacheid_per_fieldname:	# Create the container for the key
 					cacheid_per_fieldname[fieldname] = []
 				cacheid_per_fieldname[fieldname].append(cacheid)
-			for fieldname in cacheid_per_fieldname.keys():	
+			for fieldname in cacheid_per_fieldname.keys():	# For each cache id found before.
 				cacheidlist = cacheid_per_fieldname[fieldname]
 				for idx in range(0, len(cacheidlist), chunksize):	# chunk data
 					data = cacheidlist[idx:idx+100]
