@@ -134,10 +134,13 @@ DELIMITER ;;
     BEFORE UPDATE ON message_propval
     FOR EACH ROW 
 BEGIN
- 	insert into `message_propvalaudit`
- 		(`modified_on`, `message`, `propkey`, `data`, `scrape`)
- 	values
- 		(OLD.`modified_on`, OLD.`message`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	IF NEW.`data` <> OLD.`data`
+	THEN  
+		insert into `message_propvalaudit`
+			(`modified_on`, `message`, `propkey`, `data`, `scrape`)
+		values
+			(OLD.`modified_on`, OLD.`message`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	END IF;
  END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -183,7 +186,7 @@ CREATE TABLE `scrape` (
   `success` tinyint(4) DEFAULT NULL,
   `error` text,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -288,10 +291,13 @@ DELIMITER ;;
     BEFORE UPDATE ON user_propval
     FOR EACH ROW 
 BEGIN
- 	insert into `user_propvalaudit`
- 		(`modified_on`, `user`, `propkey`, `data`, `scrape`)
- 	values
- 		(OLD.`modified_on`, OLD.`user`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	IF NEW.`data` <> OLD.`data`
+	THEN  
+		insert into `user_propvalaudit`
+			(`modified_on`, `user`, `propkey`, `data`, `scrape`)
+		values
+			(OLD.`modified_on`, OLD.`user`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	END IF;
  END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -332,4 +338,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-02-23 23:28:35
+-- Dump completed on 2017-02-23 23:43:19
