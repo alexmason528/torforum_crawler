@@ -1,4 +1,3 @@
-import alphabayforum.settings
 import database.settings
 #from peewee import *
 # -*- coding: utf-8 -*-
@@ -14,7 +13,7 @@ import database.settings
 
 BOT_NAME = 'torforum_crawler'
 
-
+PROXY = "http://127.0.0.1:8888"
 
 SPIDER_MODULES = ['torforum_crawler.spiders']
 NEWSPIDER_MODULE = 'torforum_crawler.spiders'
@@ -24,10 +23,8 @@ DEATHBYCAPTHA = {
 	'password' : 'h3GnHQNxgdty'
 }
 
-MARSHAL = {'enablecache' : True } 	#Custom caching system for orm
-
 MAX_LOGIN_RETRY = 3
-ALPHABAYFORUM = alphabayforum.settings.settings
+
 DATABASE = database.settings.settings
 
 
@@ -63,17 +60,18 @@ ROBOTSTXT_OBEY = False
 # Enable or disable spider middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 SPIDER_MIDDLEWARES = {
-    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 100,
+    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 100
 }
 
 
-LOG_LEVEL = 'DEBUG'
+LOG_LEVEL = 'INFO'
+
 
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #DOWNLOADER_MIDDLEWARES = {
-#    'torforum_crawler.middlewares.ProxyMiddleware': 1,
+#    #'torforum_crawler.middlewares.ProxyMiddleware': 1,
 #}
 
 # Enable or disable extensions

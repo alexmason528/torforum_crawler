@@ -12,11 +12,15 @@ class BasePropertyOwnerModel(Model):
 			raise Exception("When using BasePropertyOwnerModel, Meta.valmodel must be defined")
 
 		self._properties = {}
+		self._valmodel_attributes = {}
+
 		#Intercepts kwargs for _properties that goes in our property table.
 		keytoremove = []
 		keylist = self.__class__.get_keys()
 		for k in kwargs:
 			if k in keylist:
+				if hasattr(self, k):
+					raise KeyError("%s has a field named %s but it's also linked to a property table having a key of the same name." % (self.__class__.__name__, k))
 				self._properties[k] = kwargs[k]
 				keytoremove.append(k)
 		for k in keytoremove:	# Remove entries from keywargs before passing the to the real peewee.Model
@@ -28,10 +32,15 @@ class BasePropertyOwnerModel(Model):
 	# Intercepts _properties that goes in our external property table.
 	def __setattr__(self, k ,v):
 		keylist = self.__class__.get_keys()
+
 		if k in keylist:
 			self._properties[k] = v
 		else:
 			super(BasePropertyOwnerModel, self).__setattr__(k,v)
+
+	def setproperties_attribute(self, *args, **kwargs):
+		for k in kwargs:
+			self._valmodel_attributes[k] = kwargs[k]
 
 	def getproperties(self):
 		props = [];
@@ -42,6 +51,8 @@ class BasePropertyOwnerModel(Model):
 				params['key'] =  keylist[keyname] 
 				params['data'] =  self._properties[keyname]  
 				params[self._meta.valmodel.owner.name] = self
+				for attr in self._valmodel_attributes:	# Bring back the kwargs from the object creation and pass them to the property object if it has this attribute.
+					params[attr] = self._valmodel_attributes[attr]
 				props.append(self._meta.valmodel(**params))
 		return props
 
@@ -78,6 +89,15 @@ class Forum(Model):
 		db_table = 'forum'
 
 
+class Scrape(Model):
+	id = PrimaryKeyField();
+	start = DateTimeField()
+	end = DateTimeField()
+	reason = TextField()
+
+	class Meta:
+		database = db.proxy 
+		db_table = 'scrape'
 
 
 
@@ -89,11 +109,13 @@ class UserPropertyKey(Model):
 		database = db.proxy 
 		db_table='user_propkey'
 
-DeferredUser = DeferredRelation()
+DeferredUser = DeferredRelation() #Overcome circular dependency
 class UserProperty(BasePropertyModel):
 	key = ForeignKeyField(UserPropertyKey, db_column='propkey')
 	owner = ForeignKeyField(DeferredUser,  db_column='user')
 	data = TextField()
+	scrape = ForeignKeyField(Scrape, db_column='scrape')
+
 
 	class Meta:
 		primary_key = CompositeKey('owner', 'key')
@@ -107,6 +129,7 @@ class User(BasePropertyOwnerModel):
 	username = CharField()
 	relativeurl = TextField()
 	fullurl = TextField() 
+	scrape = ForeignKeyField(Scrape, related_name='users', db_column='scrape')
 
 	class Meta:
 		database = db.proxy 
@@ -119,9 +142,7 @@ class User(BasePropertyOwnerModel):
 		valmodel = UserProperty
 		keymodel = UserPropertyKey
 
-DeferredUser.set_model(User)
-
-
+DeferredUser.set_model(User)	#Overcome circular dependency
 
 
 
@@ -134,6 +155,7 @@ class Thread(Model):
 	relativeurl = TextField()
 	fullurl = TextField()
 	last_update = DateTimeField()
+	scrape = ForeignKeyField(Scrape, related_name='threads', db_column='scrape')
 
 	updatable_fields = [title, last_update, author, relativeurl, fullurl]
 
@@ -144,7 +166,6 @@ class Thread(Model):
  			(('forum', 'external_id'), True),	# unique index
 			)
 
-
 class Message(Model):
 	id = PrimaryKeyField()
 	forum = ForeignKeyField(Forum, related_name='messages', db_column='forum')
@@ -154,6 +175,7 @@ class Message(Model):
 	contenttext = TextField()
 	contenthtml = TextField()
 	posted_on = DateTimeField()
+	scrape = ForeignKeyField(Scrape, related_name='messages', db_column='scrape')
 
 	class Meta:
 		database = db.proxy 
@@ -161,8 +183,6 @@ class Message(Model):
 		indexes = (
 			(('forum', 'external_id'), True),	# unique index
 		)
-
-
 
 class CaptchaQuestion(Model):
 	id = PrimaryKeyField()
@@ -177,6 +197,4 @@ class CaptchaQuestion(Model):
 		indexes = (
 			(('forum', 'hash'), True),	# unique index
 		)		
-
-
 

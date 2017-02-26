@@ -1,5 +1,5 @@
 from scrapy.exceptions import DropItem
-import torforum_crawler.alphabayforum.items as items
+import torforum_crawler.alphabay_forum.items as items
 from torforum_crawler.database.orm import *
 
 class map2db(object):
@@ -24,7 +24,8 @@ class map2db(object):
 		self.drop_if_empty(item, 'title')
 		self.drop_if_empty(item, 'threadid')
 
-		dbthread.forum 		= spider.dao.forum
+		dbthread.forum 		= spider.forum
+		dbthread.scrape 	= spider.scrape
 		dbthread.title 		= item['title']
 		dbthread.external_id= item['threadid']
 
@@ -37,7 +38,7 @@ class map2db(object):
 		if 'last_update' in item:	
 			dbthread.last_update= item['last_update']
 
-		dbthread.author = spider.dao.get_or_create(models.User, forum=spider.dao.forum, username= item['author_username'])
+		dbthread.author = spider.dao.get_or_create(models.User,  username= item['author_username'], forum=spider.forum, scrape=spider.scrape)
 		if not dbthread.author:
 			raise DropItem("Invalid Thread : Unable to get User from database. Cannot respect foreign key constraint.")
 		elif not dbthread.author.id :
@@ -57,14 +58,15 @@ class map2db(object):
 		self.drop_if_empty(item, 'contenthtml')
 		self.drop_if_empty(item, 'threadid')
 
-		dbmsg.thread = spider.dao.get(models.Thread, forum =spider.dao.forum, external_id = item['threadid'])	#Thread should exist in database
+		dbmsg.thread = spider.dao.get(models.Thread, forum =spider.forum, external_id = item['threadid'])	#Thread should exist in database
 		if not dbmsg.thread:
 			raise DropItem("Invalid Message : Unable to get Thread from database. Cannot respect foreign key constraint.")
 		elif not dbmsg.thread.id :
 			raise DropItem("Invalid Message : Thread foreign key was read from cache but no record Id was available. Cannot respect foreign key constraint")
 
 		dbmsg.forum = dbmsg.thread.forum
-		dbmsg.author = spider.dao.get_or_create(models.User, forum=spider.dao.forum, username= item['author_username'])
+		dbmsg.scrape = spider.scrape
+		dbmsg.author = spider.dao.get_or_create(models.User, username= item['author_username'], forum=spider.forum, scrape=spider.scrape)
 
 		if not dbmsg.author:
 			raise DropItem("Invalid Message : Unable to get User from database. Cannot respect foreign key constraint.")
@@ -86,7 +88,9 @@ class map2db(object):
 		dbuser = models.User()	# Extended PeeWee object that handles properties in different table
 		dbuser.username = item['username']
 		
-		dbuser.forum = spider.dao.forum
+		dbuser.forum = spider.forum
+		dbuser.scrape = spider.scrape
+		dbuser.setproperties_attribute(scrape = spider.scrape)  #propagate the scrape id to the UserProperty model.
 
 		#Proeprties with same name in model and item
 		self.set_if_exist(item, dbuser, 'relativeurl')

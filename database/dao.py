@@ -14,30 +14,32 @@ import traceback
 # One instance of DatabaseDAO should be use per spider.	
 class DatabaseDAO:
 
-	def __init__(self, spider):
+	def __init__(self, spider,donotcache = []):
 
 		self.queues = {}
 		self.spider = spider
 		self.cache = Cache()
 
-		#try: 
-		#	self.enablecache = settings['MARSHAL']['enablecache']
-		#except:
-		#	self.enablecache = True
+		self._donotcache = donotcache
 
 		db.init(settings['DATABASE']);
 
-
-		try:
-			self.forum = Forum.get(spider=spider.name)
-		except:
-			raise Exception("No forum entry exist in the database for spider " + spider.name)
-
+	def initiliaze(self, forum):
 		# First round to gather all existing users and threads.
 		# Will reduce significantly exchange with database.
 		#if self.enablecache:
-		self.cache.reload(User, User.forum == self.forum)
-		self.cache.reload(Thread, Thread.forum == self.forum)
+		self.cache.reload(User, User.forum == forum)
+		self.cache.reload(Thread, Thread.forum == forum)
+
+	def enable_cache(self, typelist):
+		for modeltype in typelist:
+			if modeltype in self._donotcache:
+				self._donotcache.remove(modeltype)
+
+	def disable_cache(self, typelist):
+		for modeltype in typelist:
+			if modeltype not in self._donotcache:
+				self._donotcache.append(modeltype)
 
 
 	def enqueue(self, obj):
@@ -81,7 +83,10 @@ class DatabaseDAO:
 		return obj
 
 	# Bulk insert a batch of data within a queue
-	def flush(self, modeltype):
+	def flush(self, modeltype, donotcache = False):
+
+		donotcache = donotcache or modeltype in self._donotcache
+
 		self.assertismodelclass(modeltype)
 		chunksize = 100
 		if modeltype.__name__ not in self.queues:
@@ -105,7 +110,7 @@ class DatabaseDAO:
 						with db.proxy.atomic():
 							sql = self.add_onduplicate_key(q, updateablefields)  # Manually add "On duplicate key update"
 							db.proxy.execute_sql(sql[0], sql[1])
-							#if self.enablecache:
+
 						self.cache.bulkwrite(queue)
 						reloadeddata = self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
 						flushed = True
@@ -114,12 +119,7 @@ class DatabaseDAO:
 						filename = "%s_queuedump.txt" % (modeltype.__name__)
 						msg = "%s : Flushing %s data failed. Dumping queue data to %s.\nError is %s." % (self.__class__.__name__, modeltype.__name__, filename, str(e))
 						self.spider.logger.error("%s\n %s" % (msg, traceback.format_exc()))
-						try:
-							with open(filename, 'w+') as f:	
-								for obj in queue:
-									f.write(str(obj._data))
-						except:
-							pass
+						self.dumpqueue(filename, queue)
 						self.spider.crawler.engine.close_spider(self.spider, msg)
 						
 
@@ -132,8 +132,13 @@ class DatabaseDAO:
 						for prop in props:
 							self.enqueue(prop)
 
-					self.flush(modeltype._meta.valmodel)	# Flush db properties
+					self.flush(modeltype._meta.valmodel, donotcache)	# Flush db properties
 
+		#Remove data from cache if explicitly asked not to cache. That'll save some memory
+		# We delete after inserting instead of simply preventing because we want BasePropertyOwnerModel
+		# object to successfully respect foreign key constraints with Auto Increment fields.
+		if flushed and donotcache:
+			self.cache.bulkdeleteobj(reloadeddata)	
 
 		self.queues[modeltype.__name__] = []
 
@@ -147,3 +152,11 @@ class DatabaseDAO:
 			raise Exception("Type must be a Class")
 		elif not issubclass(modeltype, Model):
 			raise Exception("Given type must be a subclass of PeeWee.Model")
+
+	def dumpqueue(self, filename, queue):
+		try:
+			with open(filename, 'w+') as f:	
+				for obj in queue:
+					f.write(str(obj._data))
+		except:
+			pass

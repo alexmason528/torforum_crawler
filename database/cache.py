@@ -18,6 +18,16 @@ class Cache:
 	def __init__(self):
 		self.cachedata = {}
 
+	def write(self, obj,*fieldlist):
+		self.assertismodelclass(obj.__class__)
+		self.init_ifnotexist(obj.__class__)
+		return self.unsafewrite(obj,*fieldlist)
+
+	def bulkwrite(self, objlist, *fieldlist):
+		outputlist = []
+		for obj in objlist: 
+			outputlist.append(self.write(obj, *fieldlist))
+		return outputlist
 	#Write an object to the cache without checking if the cache is initilizaed or if the object is the right type.
 	# Only specified fields are written. If no fields is given, the whole object is copied.
 	def unsafewrite(self, obj, *fieldlist):
@@ -43,11 +53,37 @@ class Cache:
 		if table in self.cachedata:
 			if cacheid in self.cachedata[table]:
 				return self.cachedata[table][cacheid]
+	
+	def read(self, modeltype, cacheid):
+		self.assertismodelclass(modeltype)
+		self.init_ifnotexist(modeltype)
+		return self.unsaferead(modeltype, cacheid)		
+
 
 	def readobj(self, obj):
 		fieldname, cacheid = self.getcacheid(obj)
 		return self.read(obj.__class__, cacheid)
 
+
+
+	def bulkdeleteobj(self, objlist):
+		for obj in objlist:
+			self.deleteobj(obj)
+
+	def deleteobj(self, obj):
+		fieldname, cacheid = self.getcacheid(obj)
+		self.delete(obj.__class__, cacheid)
+
+	def delete(self, modeltype, cacheid):
+		self.assertismodelclass(modeltype)
+		self.init_ifnotexist(modeltype)
+		self.unsafedelete(modeltype, cacheid)
+
+	def unsafedelete(self, modeltype, cacheid):
+		table = modeltype._meta.db_table
+		if table in self.cachedata:
+			if cacheid in self.cachedata[table]:
+				del self.cachedata[table][cacheid]
 
 	# For a specific Model, returns the unique key used to cache the object.
 	# return (fieldname, cacheid) 
@@ -102,23 +138,6 @@ class Cache:
 			val = val._data[val._meta.primary_key]
 		return val
 
-
-	def read(self, modeltype, keyval):
-		self.assertismodelclass(modeltype)
-		self.init_ifnotexist(modeltype)
-		return self.unsaferead(modeltype, keyval)		
-
-	def write(self, obj,*fieldlist):
-		self.assertismodelclass(obj.__class__)
-		self.init_ifnotexist(obj.__class__)
-		return self.unsafewrite(obj,*fieldlist)
-
-	def bulkwrite(self, objlist, *fieldlist):
-		outputlist = []
-		for obj in objlist: 
-			outputlist.append(self.write(obj, *fieldlist))
-		return outputlist
-
 	def init_ifnotexist(self, modeltype):
 		if not modeltype._meta.db_table in self.cachedata:
 			self.cachedata[modeltype._meta.db_table] = {}
@@ -160,7 +179,7 @@ class Cache:
 			for fieldname in cacheid_per_fieldname.keys():	# For each cache id found before.
 				cacheidlist = cacheid_per_fieldname[fieldname]
 				for idx in range(0, len(cacheidlist), chunksize):	# chunk data
-					data = cacheidlist[idx:idx+100]
+					data = cacheidlist[idx:idx+chunksize]
 					if isinstance(fieldname, str): #single key
 						return self.reload(modeltype, modeltype._meta.fields[fieldname] << data, *fieldlist)
 
@@ -173,4 +192,10 @@ class Cache:
 						return self.reload(objtype, SQL(whereclause, *flatdata), *fieldlist)
 					else:
 						raise ValueError("Doesn't know how to reload object of type " + obj.__class__.__name__ + " with cache field : " + fieldname)
+
+	def get_usage(self):
+		report = {}
+		for table in self.cachedata:
+			report[table] = len(self.cachedata[table])
+		return report
 

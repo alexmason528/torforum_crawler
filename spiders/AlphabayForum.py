@@ -2,58 +2,42 @@
 
 from __future__ import absolute_import
 import scrapy
-import time
 from scrapy.http import FormRequest,Request
 from scrapy.conf import settings
-import logging
-import torforum_crawler.thirdparties.deathbycaptcha as deathbycaptcha
-from fake_useragent import UserAgent
-import torforum_crawler.alphabayforum.helpers.LoginQuestion as LoginQuestion
-import torforum_crawler.alphabayforum.helpers.DatetimeParser as AlphabayDatetimeParser
 from scrapy.shell import inspect_response
-import torforum_crawler.database.db as db
+import torforum_crawler.alphabay_forum.helpers.LoginQuestion as LoginQuestion
+import torforum_crawler.alphabay_forum.helpers.DatetimeParser as AlphabayDatetimeParser
+from torforum_crawler.spiders.BaseSpider import BaseSpider
 from torforum_crawler.database.orm import *
-from torforum_crawler.ColorFormatterWrapper import ColorFormatterWrapper
-import hashlib 
+import torforum_crawler.alphabay_forum.items as items
+from datetime import datetime
 from urlparse import urlparse
+import logging
+import time
+import hashlib 
 import traceback
 import re
-from peewee import *
-import torforum_crawler.alphabayforum.items as items
-from torforum_crawler.database.dao import DatabaseDAO
-from datetime import datetime
 
-class AlphabayForum(scrapy.Spider):
+class AlphabayForum(BaseSpider):
     name = "alphabay_forum"
-
-    alphabay_settings = settings['ALPHABAYFORUM']
-    user_agent  = UserAgent().random
     logintrial = 0
-    pipeline = None  # Set by the pipeline open_spider() callback
 
     custom_settings = {
         'ITEM_PIPELINES': {
-            'torforum_crawler.alphabayforum.pipelines.map2db.map2db': 400,  # Convert from Items to Models
+            'torforum_crawler.alphabay_forum.pipelines.map2db.map2db': 400,  # Convert from Items to Models
             'torforum_crawler.pipelines.save2db.save2db': 401   # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
         }
     }
 
     def __init__(self, *args, **kwargs):
-    #  self.dbc= deathbycaptcha.SocketClient('a', 'b');
-        self.email = self.alphabay_settings['logins'][0]['email']        #todo use login manager 
-        self.password = self.alphabay_settings['logins'][0]['password']  #todo use login manager
-        self.username = self.alphabay_settings['logins'][0]['username']  #todo use login manager
+        super(self.__class__, self).__init__(*args, **kwargs)
 
-
-        self.dao = DatabaseDAO(self)
-        self.forum = self.dao.forum  # Get back the ORM object representing the forum we are crawling.
         self.fromtime = settings['fromtime'] if 'fromtime' in settings else None
-        self.crawltype = settings['crawltype'] if 'crawltype' in settings else  'full'
         self.crawlitem = [ 'thread', 'userprofile'] #todo, use configuration
 
-        self.trycolorizelogs() # monkey patching to have color in the logs.
 
-        super(AlphabayForum, self).__init__(*args, **kwargs)
+    def start_requests(self):
+        yield self.make_request('index')
 
     def make_request(self, reqtype,  **kwargs):
         
@@ -62,12 +46,13 @@ class AlphabayForum(scrapy.Spider):
 
         if reqtype == 'index':
             req = Request(self.make_url('index'))
+            req.dont_filter=True
         
         elif reqtype == 'dologin':
             data = {
-                'login' : self.email,
+                'login' : self.login['email'],
                 'register' : '0',
-                'password' : self.password,
+                'password' : self.login['password'],
                 'cookie_check' : '1',
                 '_xfToken': "",
                 'redirect' : self.ressource('index') 
@@ -82,39 +67,21 @@ class AlphabayForum(scrapy.Spider):
             req = FormRequest(self.make_url('login-postform'), formdata=data, callback=self.handle_login_response, dont_filter=True)
             req.method = 'POST' # Has to be uppercase !
             req.meta['req_once_logged'] = kwargs['req_once_logged']
+            req.dont_filter=True
 
         elif reqtype in  ['forumlisting', 'userprofile']:
             req = Request(kwargs['url'])
+
         elif reqtype == 'threadpage':
             req = Request(kwargs['url'])
             req.meta['threadid'] = kwargs['threadid']
         else:
             raise Exception('Unsuported request type ' + reqtype)
 
-
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
-        req.dont_filter=True
-        proxy = getattr(self, 'proxy', None)
-        if proxy:
-            req.meta['proxy'] = proxy
+        req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
 
         return req
-
-    def make_url(self, url):
-        endpoint = self.alphabay_settings['endpoint'].strip('/');
-        prefix = self.alphabay_settings['prefix'].strip('/');
-        if url.startswith('http'):
-            return url
-        elif url in self.alphabay_settings['ressources'] :
-            return endpoint + '/' + prefix + '/' + self.ressource(url).lstrip('/')
-        elif url.startswith('/'):
-            return endpoint + '/' +  url.lstrip('/')
-        else:
-            return endpoint + '/' + prefix + '/' + url.lstrip('/')
-
-
-    def start_requests(self):
-        yield self.make_request('index')
    
     def parse(self, response):
         if not self.islogged(response):
@@ -325,7 +292,7 @@ class AlphabayForum(scrapy.Spider):
     def islogged(self, response):
         logged = False
         username = response.css(".accountUsername::text").extract_first()
-        if username and username.strip() == self.username:
+        if username and username.strip() == self.login['username']:
             logged = True
         
         if logged:
@@ -335,36 +302,4 @@ class AlphabayForum(scrapy.Spider):
 
         return logged
 
-    def ressource(self, name):
-        if name not in self.alphabay_settings['ressources']:
-            raise Exception('Cannot access ressource ' + name + '. Ressource is not specified in config.')  
-        return self.alphabay_settings['ressources'][name]
-    
-    #Monkey patch to have color in the logs.
-    def trycolorizelogs(self):
-        try:
-            colorformatter = ColorFormatterWrapper(self.logger.logger.parent.handlers[0].formatter)
-            self.logger.logger.parent.handlers[0].setFormatter(colorformatter)
-        except:
-            pass
-
-    def shouldcrawl(self, recordtime=None, dbrecordtime=None):
-        if self.crawltype == 'full':
-            return True
-        elif self.crawltype == 'delta':
-            return isinvalidated(recordtime, dbrecordtime)
-        else:
-            raise Exception("Unknown crawl type :" + self.crawltype )
-
-    def isinvalidated(self, recordtime=None, dbrecordtime=None):
-        if not recordtime:
-            return True
-        else:
-            if self.fromtime:
-                return (self.fromtime < recordtime)
-            else:
-                if not dbrecordtime:
-                    return True
-                else:
-                    return (dbrecordtime < recordtime)
 
