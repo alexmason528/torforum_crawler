@@ -94,12 +94,13 @@ class DatabaseDAO:
 			return
 
 		queue = self.queues[modeltype.__name__]
-		flushed = False
+		success = True
 		if len(queue) > 0 :
 			with db.proxy.atomic():
-				data = list(map(lambda x: (x._data) , queue)) # Extract a list of dict from our Model queue
-				for idx in range(0, len(data), chunksize):
-					q = modeltype.insert_many(data[idx:idx+chunksize])
+				for idx in range(0, len(queue), chunksize):
+					queue_chunked = queue[idx:idx+chunksize]
+					data = list(map(lambda x: (x._data) , queue_chunked)) # Extract a list of dict from our Model queue
+					q = modeltype.insert_many(data)
 					updateablefields = {}
 					for fieldname in modeltype._meta.fields:
 						field = modeltype._meta.fields[fieldname]
@@ -107,13 +108,8 @@ class DatabaseDAO:
 							updateablefields[fieldname] = field
 
 					try:
-						with db.proxy.atomic():
-							sql = self.add_onduplicate_key(q, updateablefields)  # Manually add "On duplicate key update"
-							db.proxy.execute_sql(sql[0], sql[1])
-
-						self.cache.bulkwrite(queue)
-						reloadeddata = self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
-						flushed = True
+						sql = self.add_onduplicate_key(q, updateablefields)  # Manually add "On duplicate key update"
+						db.proxy.execute_sql(sql[0], sql[1])
 
 					except Exception as e:	#We have a nasty error. Dumps useful data to a file.
 						filename = "%s_queuedump.txt" % (modeltype.__name__)
@@ -121,24 +117,26 @@ class DatabaseDAO:
 						self.spider.logger.error("%s\n %s" % (msg, traceback.format_exc()))
 						self.dumpqueue(filename, queue)
 						self.spider.crawler.engine.close_spider(self.spider, msg)
-						
+						success = False
 
-		# Push fields that correspond to a property
-		if flushed:
-			if issubclass(modeltype, BasePropertyOwnerModel):	# Our class has a property table defined (propkey/propval)
-				if reloadeddata and len(reloadeddata) > 0:
-					for obj in reloadeddata:
-						props = obj.getproperties()
-						for prop in props:
-							self.enqueue(prop)
+			if success:
+				self.cache.bulkwrite(queue)
+				reloadeddata = self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
+				
+				if issubclass(modeltype, BasePropertyOwnerModel):	# Our class has a property table defined (propkey/propval)
+					if reloadeddata and len(reloadeddata) > 0:
+						for obj in reloadeddata:
+							props = obj.getproperties()
+							for prop in props:
+								self.enqueue(prop)
 
-					self.flush(modeltype._meta.valmodel, donotcache)	# Flush db properties
+						self.flush(modeltype._meta.valmodel, donotcache)	# Flush db properties
 
-		#Remove data from cache if explicitly asked not to cache. That'll save some memory
-		# We delete after inserting instead of simply preventing because we want BasePropertyOwnerModel
-		# object to successfully respect foreign key constraints with Auto Increment fields.
-		if flushed and donotcache:
-			self.cache.bulkdeleteobj(reloadeddata)	
+			#Remove data from cache if explicitly asked not to cache. That'll save some memory
+			# We delete after inserting instead of simply preventing because we want BasePropertyOwnerModel
+			# object to successfully respect foreign key constraints with Auto Increment fields.
+			if success and donotcache:
+				self.cache.bulkdeleteobj(reloadeddata)	
 
 		self.queues[modeltype.__name__] = []
 
