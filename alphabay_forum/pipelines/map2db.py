@@ -63,7 +63,6 @@ class map2db(object):
 		if not dbmsg.thread:
 			raise DropItem("Invalid Message : Unable to get Thread from database. Cannot respect foreign key constraint.")
 		elif not dbmsg.thread.id :
-			embed()
 			raise DropItem("Invalid Message : Thread foreign key was read from cache but no record Id was available. Cannot respect foreign key constraint")
 
 		dbmsg.forum = dbmsg.thread.forum
@@ -73,7 +72,6 @@ class map2db(object):
 		if not dbmsg.author:
 			raise DropItem("Invalid Message : Unable to get User from database. Cannot respect foreign key constraint.")
 		elif not dbmsg.author.id : # If this happens. Either data is not flush or bug.
-			embed()
 			raise DropItem("Invalid Message : Author foreign key was read from cache but no record Id was available. Cannot respect foreign key constraint")
 
 		dbmsg.external_id = item['postid']	

@@ -132,11 +132,11 @@ class DatabaseDAO:
 
 						self.flush(modeltype._meta.valmodel, donotcache)	# Flush db properties
 
-			#Remove data from cache if explicitly asked not to cache. That'll save some memory
-			# We delete after inserting instead of simply preventing because we want BasePropertyOwnerModel
-			# object to successfully respect foreign key constraints with Auto Increment fields.
-			if success and donotcache:
-				self.cache.bulkdeleteobj(reloadeddata)	
+				#Remove data from cache if explicitly asked not to cache. That'll save some memory
+				# We delete after inserting instead of simply preventing because we want BasePropertyOwnerModel
+				# object to successfully respect foreign key constraints with Auto Increment fields.
+				if donotcache:
+					self.cache.bulkdeleteobj(reloadeddata)	
 
 		self.queues[modeltype.__name__] = []
 

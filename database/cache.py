@@ -162,6 +162,7 @@ class Cache:
 	def reloadmodels(self, objlist, *fieldlist):
 		objtype = None
 		chunksize = 100
+		reloaded_data = []
 		cacheid_per_fieldname = {} # objects in objlist might have different keys. We will osrt them in this object to avoid making incoherent SQL
 		if len(objlist) > 0 :
 			modeltype = objlist[0].__class__
@@ -181,7 +182,7 @@ class Cache:
 				for idx in range(0, len(cacheidlist), chunksize):	# chunk data
 					data = cacheidlist[idx:idx+chunksize]
 					if isinstance(fieldname, str): #single key
-						return self.reload(modeltype, modeltype._meta.fields[fieldname] << data, *fieldlist)
+						reloaded_data += self.reload(modeltype, modeltype._meta.fields[fieldname] << data, *fieldlist)
 
 					elif isinstance(fieldname, tuple): # composite key. Peewee doesn't support that easily, we have to do some manual work
 						whereclause = '('+','.join(map(lambda x: "`%s`" % modeltype._meta.fields[x].db_column, fieldname))+')'  # (`col1`, `col2`)
@@ -189,10 +190,11 @@ class Cache:
 						flatdata = []
 						for entry in data: 
 							flatdata += list(entry)
-						return self.reload(objtype, SQL(whereclause, *flatdata), *fieldlist)
+						reloaded_data += self.reload(objtype, SQL(whereclause, *flatdata), *fieldlist)
 					else:
 						raise ValueError("Doesn't know how to reload object of type " + obj.__class__.__name__ + " with cache field : " + fieldname)
 
+		return reloaded_data
 	def get_usage(self):
 		report = {}
 		for table in self.cachedata:
