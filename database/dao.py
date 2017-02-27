@@ -6,6 +6,8 @@ from scrapy.conf import settings
 from torforum_crawler.database.cache import Cache
 from scrapy import crawler
 import traceback
+import logging
+from IPython import embed
 
 # This object is meant to stand between the application and the database.
 # The reason of its existence is :
@@ -21,6 +23,7 @@ class DatabaseDAO:
 		self.cache = Cache()
 
 		self._donotcache = donotcache
+		self.logger = logging.getLogger('DatabaseDAO')
 
 		db.init(settings['DATABASE']);
 
@@ -54,10 +57,10 @@ class DatabaseDAO:
 		cachedval = self.cache.readobj(modeltype(**kwargs))	# Create an object 
 
 		if cachedval:
-			self.spider.logger.debug("Cache hit : Read %s with params %s" %( modeltype.__name__, str(kwargs)))
+			self.logger.debug("Cache hit : Read %s with params %s" %( modeltype.__name__, str(kwargs)))
 			return cachedval
 		else:
-			self.spider.logger.debug("Cache miss for %s with params %s " % (modeltype.__name__, str(kwargs) ))
+			self.logger.debug("Cache miss for %s with params %s " % (modeltype.__name__, str(kwargs) ))
 
 		#todo : Get properties for BasePropertyOwnerModel
 		obj = modeltype.get(**kwargs)
@@ -71,10 +74,10 @@ class DatabaseDAO:
 		cached_value = self.cache.readobj(modeltype(**kwargs))
 
 		if cached_value:
-			self.spider.logger.debug("Cache hit : Read %s with params %s " % (modeltype.__name__, str(kwargs)))
+			self.logger.debug("Cache hit : Read %s with params %s " % (modeltype.__name__, str(kwargs)))
 			return cached_value
 		else:
-			self.spider.logger.debug("Cache miss for %s with params %s " % (modeltype.__name__, str(kwargs) ))
+			self.logger.debug("Cache miss for %s with params %s " % (modeltype.__name__, str(kwargs) ))
 
 		#todo : Get properties for BasePropertyOwnerModel
 		obj, created = modeltype.get_or_create(**kwargs)
@@ -90,7 +93,7 @@ class DatabaseDAO:
 		self.assertismodelclass(modeltype)
 		chunksize = 100
 		if modeltype.__name__ not in self.queues:
-			self.spider.logger.debug("Trying to flush a queue of %s that has never been filled before." % modeltype.__name__ )
+			self.logger.debug("Trying to flush a queue of %s that has never been filled before." % modeltype.__name__ )
 			return
 
 		queue = self.queues[modeltype.__name__]
@@ -114,7 +117,7 @@ class DatabaseDAO:
 					except Exception as e:	#We have a nasty error. Dumps useful data to a file.
 						filename = "%s_queuedump.txt" % (modeltype.__name__)
 						msg = "%s : Flushing %s data failed. Dumping queue data to %s.\nError is %s." % (self.__class__.__name__, modeltype.__name__, filename, str(e))
-						self.spider.logger.error("%s\n %s" % (msg, traceback.format_exc()))
+						self.logger.error("%s\n %s" % (msg, traceback.format_exc()))
 						self.dumpqueue(filename, queue)
 						self.spider.crawler.engine.close_spider(self.spider, msg)
 						success = False

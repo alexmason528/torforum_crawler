@@ -14,14 +14,15 @@ import os, time
 from dateutil import parser
 from IPython import embed
 import random
+import logging
 
 class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
 		super(BaseSpider, self).__init__( *args, **kwargs)
 		self.load_spider_settings()
-		self.trycolorizelogs()
-		
+		self.initlogs()
+
 		self.dao = DatabaseDAO(self, donotcache=[Message, UserProperty])
 
 		if 'timezone' in self.spider_settings:
@@ -65,6 +66,8 @@ class BaseSpider(scrapy.Spider):
 		else:
 			self.logger.info("Doing a full crawl")
 
+
+
 		self.scrape = Scrape();	# Create the new Scrape in the databse.
 		self.scrape.start = datetime.now()
 		self.scrape.forum = self.forum
@@ -77,7 +80,13 @@ class BaseSpider(scrapy.Spider):
 
 		self.SaveStats()	#Counts the items with actual Scrape ID and insert a row in the scrapestats table
 
-	def trycolorizelogs(self):
+	def initlogs(self):
+		try:
+			for logger_name in  settings['DISABLE_LOGGER'].split(','):
+				logging.getLogger(logger_name).disabled=True
+		except:
+			pass
+
 		try:
 			colorformatter = ColorFormatterWrapper(self.logger.logger.parent.handlers[0].formatter)
 			self.logger.logger.parent.handlers[0].setFormatter(colorformatter)

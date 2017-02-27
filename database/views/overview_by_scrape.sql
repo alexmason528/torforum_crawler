@@ -13,7 +13,16 @@ select
 from (
     (select `id` as 'ScrapeID', `start` as 'ScrapeStart', timediff(`end`,`start`) as 'ScrapeDuration', `reason` as 'ExitReason' from `scrape`) as s
     left join (select `scrape`, count(1) as 'User' from `user` group by `scrape`) as u on u.scrape=s.ScrapeID
-    left join (select `scrape`, count(1) as 'Message' from `message` group by `scrape`) as m on m.scrape=s.ScrapeID
+    left join (
+        select `scrape`, sum(`Message`) as 'Message' from 
+        (
+            (select `scrape`, ifnull(count(1),0) as 'Message' from `message` group by `scrape`)
+            union all
+            (select `scrape`, ifnull(count(1),0) as 'Message' from `message_audit` group by `scrape`)
+        ) as sumed_msg 
+        group by `scrape`
+
+        ) as m on m.scrape=s.ScrapeID
     left join 
     (
         select `scrape`, sum(`MessagePropVal`) as 'MessagePropVal' from 
@@ -36,4 +45,4 @@ from (
         group by sumeduv.`scrape`
     )as uv on uv.`scrape`=s.`ScrapeID`
 )
-order by `ScrapeID` desc 
+order by `ScrapeStart` desc 

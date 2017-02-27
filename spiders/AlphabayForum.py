@@ -18,6 +18,8 @@ import hashlib
 import traceback
 import re
 
+from IPython import embed
+
 class AlphabayForum(BaseSpider):
     name = "alphabay_forum"
     logintrial = 0
@@ -33,7 +35,6 @@ class AlphabayForum(BaseSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.crawlitem = [ 'thread', 'userprofile'] #todo, use configuration
-
 
     def start_requests(self):
         yield self.make_request('index')
@@ -68,7 +69,7 @@ class AlphabayForum(BaseSpider):
             req.meta['req_once_logged'] = kwargs['req_once_logged']
             req.dont_filter=True
 
-        elif reqtype in  ['forumlisting', 'userprofile']:
+        elif reqtype in  ['parse_threadlisting', 'userprofile']:
             req = Request(kwargs['url'])
 
         elif reqtype == 'threadpage':
@@ -95,9 +96,9 @@ class AlphabayForum(BaseSpider):
             if response.meta['reqtype'] == 'index':
                 links = response.css("li.forum h3.nodeTitle a::attr(href)")
                 for link in links:
-                    yield self.make_request(reqtype='forumlisting', url=link.extract())
-            elif  response.meta['reqtype'] == 'forumlisting':
-                for x in self.parse_forumlisting(response) : yield x
+                    yield self.make_request(reqtype='parse_threadlisting', url=link.extract())
+            elif  response.meta['reqtype'] == 'parse_threadlisting':
+                for x in self.parse_threadlisting(response) : yield x
                      
             elif response.meta['reqtype'] == 'userprofile':
                 for x in self.parse_userprofile(response) : yield x
@@ -106,7 +107,7 @@ class AlphabayForum(BaseSpider):
                 for x in self.parse_threadpage(response) : yield x 
 
 
-    def parse_forumlisting(self, response):
+    def parse_threadlisting(self, response):
         threaddivs = response.css("li.discussionListItem")
         oldestthread_datetime = datetime.now()
         request_buffer = []
@@ -119,8 +120,13 @@ class AlphabayForum(BaseSpider):
                 if not threaditem['last_update']:
                     raise Exception("Could not parse time string : " + last_message_datestr)
             
-                link                            = threaddiv.css(".title a.PreviewTooltip")
-                url                             = link.xpath("@href").extract_first()
+                link    = threaddiv.css(".title a.PreviewTooltip")
+                url     = link.xpath("@href").extract_first()
+                navspan = threaddiv.css("span.itemPageNav") #Nav buttons means many page. Start with the last one for delta crawl.
+                request_url = url
+                if navspan: 
+                    request_url = navspan.css("a")[-1].xpath("@href").extract_first();   # Get last page url
+
                 threaditem['relativeurl']       = url
                 threaditem['fullurl']           = self.make_url(url)
                 threaditem['title']             = link.xpath("text()").extract_first()
@@ -132,20 +138,19 @@ class AlphabayForum(BaseSpider):
                 if author_url and 'userprofile' in self.crawlitem: # If not crawled, an empty entry will be created if not exist in the database by the mapper to ensure respect of foreign key.
                     request_buffer.append( self.make_request('userprofile',  url = author_url))
 
-                if url and self.shouldcrawl(threaditem['last_update']): 
-                    request_buffer.append( self.make_request('threadpage', url=url, threadid=threaditem['threadid'])) # First page of thread
+                if request_url and self.shouldcrawl(threaditem['last_update']):  # If new post in thread
+                    request_buffer.append( self.make_request('threadpage', url=request_url, threadid=threaditem['threadid'])) # First page of thread
 
                 yield threaditem # sends data to pipelne
                 
-
             except Exception as e:
-                self.logger.error("Failed parsing response forumlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
+                self.logger.error("Failed parsing response parse_threadlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
                 continue
         
         # Parse next page.
         nextpageurl =  response.xpath("//nav//a[contains(., 'Next >')]/@href").extract_first()
-        if nextpageurl and self.shouldcrawl(oldestthread_datetime): #No record time to provide here.
-            request_buffer.append( self.make_request(reqtype='forumlisting', url = nextpageurl)  )
+        if nextpageurl and self.shouldcrawl(oldestthread_datetime): 
+            request_buffer.append( self.make_request(reqtype='parse_threadlisting', url = nextpageurl)  )
         
         self.dao.flush(models.Thread)  # Flush threads to database.
 
@@ -153,10 +158,11 @@ class AlphabayForum(BaseSpider):
         for request in request_buffer:  
             yield request
 
-
-    # PArse messages from a thread page.
+    # Parse messages from a thread page.
     def parse_threadpage(self, response):   
         threadid = response.meta['threadid']
+
+        oldestpost_datetime = datetime.now()
         for message in response.css(".messageList .message"):
 
             msgitem = items.Message();
@@ -168,6 +174,9 @@ class AlphabayForum(BaseSpider):
                     raise Exception("Can't extract post id. " + e.message)
                 msgitem['author_username'] = message.css(".messageDetails .username::text").extract_first().strip()
                 msgitem['posted_on'] = AlphabayDatetimeParser.tryparse(message.css(".messageDetails .DateTime::attr(title)").extract_first())
+                if msgitem['posted_on']:
+                    if msgitem['posted_on'] < oldestpost_datetime:
+                        oldestpost_datetime = msgitem['posted_on']  # Get smallest date e.g. oldest
                 textnode = message.css(".messageContent")
                 msgitem['contenthtml'] = textnode.extract_first()
                 msgitem['contenttext'] = ''.join(textnode.xpath("*//text()[normalize-space(.)]").extract()).strip()
@@ -185,10 +194,11 @@ class AlphabayForum(BaseSpider):
             for link in userprofilelinks:
                 yield self.make_request('userprofile', url=self.make_url(link))
 
-        #Start looking for next page.
-        nextpageurl =  response.xpath("//nav//a[contains(., 'Next >')]/@href").extract_first()
-        if nextpageurl:
-            yield self.make_request("threadpage", url=nextpageurl, threadid=threadid)
+        #Start looking for previous page.
+        if self.shouldcrawl(oldestpost_datetime):   # Will be false if delta crawl and date is too big 
+            prevpageurl =  response.xpath("//nav//a[contains(., '< Prev')]/@href").extract_first()
+            if prevpageurl:
+                yield self.make_request("threadpage", url=prevpageurl, threadid=threadid)
 
 
     def parse_userprofile(self, response):
@@ -242,7 +252,6 @@ class AlphabayForum(BaseSpider):
 
         self.dao.flush(models.User) 
 
-
     def handle_login_response(self, response):
         if self.islogged(response):
             self.logger.info('Login success, continuing where we were.')
@@ -282,7 +291,6 @@ class AlphabayForum(BaseSpider):
                 self.logger.error("Login failed and no login form has been given. Retrying")
                 yield self.make_request(reqtype='dologin', req_once_logged=response.meta['req_once_logged']);  # We try to login and save the original request
                 
-        
     def islogged(self, response):
         logged = False
         username = response.css(".accountUsername::text").extract_first()
@@ -295,7 +303,6 @@ class AlphabayForum(BaseSpider):
             self.logger.debug("Not Logged In")
 
         return logged
-
 
     def read_threadid_from_url(self, url):
         try:
