@@ -225,3 +225,15 @@ class CaptchaQuestion(Model):
 			(('forum', 'hash'), True),	# unique index
 		)		
 
+class ScrapeStat(Model):
+	scrape = ForeignKeyField(Scrape, related_name='stats', db_column='scrape')
+	thread = BigIntegerField()
+	message = BigIntegerField()
+	users = BigIntegerField()
+	message_propval = BigIntegerField()
+	user_propval = BigIntegerField()
+
+	class Meta : 
+		database = db.proxy
+		db_table = 'scrapestat'
+

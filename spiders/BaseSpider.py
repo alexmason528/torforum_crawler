@@ -12,7 +12,7 @@ from importlib import import_module
 from fake_useragent import UserAgent
 import os, time
 from dateutil import parser
-
+from IPython import embed
 import random
 
 class BaseSpider(scrapy.Spider):
@@ -70,12 +70,12 @@ class BaseSpider(scrapy.Spider):
 		self.scrape.forum = self.forum
 		self.scrape.save();
 
-
-
 	def closed( self, reason ):
 		self.scrape.end = datetime.now();
 		self.scrape.reason = reason
 		self.scrape.save()
+
+		self.SaveStats()	#Counts the items with actual Scrape ID and insert a row in the scrapestats table
 
 	def trycolorizelogs(self):
 		try:
@@ -166,6 +166,19 @@ class BaseSpider(scrapy.Spider):
 			self.login = self.spider_settings['logins'][key]
 		
 		return self.login
+
+
+	def SaveStats(self):
+		stats = ScrapeStat(scrape=self.scrape)
+
+		stats.thread = Thread.select(fn.COUNT(Thread.id).alias('n')).where(Thread.scrape == self.scrape).first().n
+		stats.message = Message.select(fn.COUNT(Message.id).alias('n')).where(Message.scrape == self.scrape).first().n
+		stats.message_propval = MessageProperty.select(fn.COUNT(1).alias('n')).where(MessageProperty.scrape == self.scrape).first().n
+		stats.users = User.select(fn.COUNT(User.id).alias('n')).where(User.scrape == self.scrape).first().n
+		stats.user_propval = UserProperty.select(fn.COUNT(1).alias('n')).where(UserProperty.scrape == self.scrape).first().n
+		
+		stats.save()
+
 
 
 	

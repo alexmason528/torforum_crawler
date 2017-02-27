@@ -80,7 +80,7 @@ CREATE TABLE `message` (
   CONSTRAINT `message_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `message_thread_fk` FOREIGN KEY (`thread`) REFERENCES `thread` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_user_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=9336 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -109,7 +109,7 @@ CREATE TABLE `message_propval` (
   `propkey` bigint(11) NOT NULL,
   `message` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`propkey`,`message`),
   KEY `message_propval_msg` (`message`),
@@ -159,7 +159,7 @@ CREATE TABLE `message_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `message` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime NOT NULL,
+  `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) DEFAULT NULL,
   KEY `message_propvalaudit_modifiedon_index` (`modified_on`),
   KEY `message_propvalaudit_scrape_index` (`scrape`),
@@ -173,6 +173,27 @@ CREATE TABLE `message_propvalaudit` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Temporary table structure for view `overview_by_scrape`
+--
+
+DROP TABLE IF EXISTS `overview_by_scrape`;
+/*!50001 DROP VIEW IF EXISTS `overview_by_scrape`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+/*!50001 CREATE TABLE `overview_by_scrape` (
+  `ScrapeId` tinyint NOT NULL,
+  `ScrapeStart` tinyint NOT NULL,
+  `ScrapeDuration` tinyint NOT NULL,
+  `ExitReason` tinyint NOT NULL,
+  `Thread` tinyint NOT NULL,
+  `Message` tinyint NOT NULL,
+  `MessagePropVal` tinyint NOT NULL,
+  `User` tinyint NOT NULL,
+  `UserPropVal` tinyint NOT NULL
+) ENGINE=MyISAM */;
+SET character_set_client = @saved_cs_client;
+
+--
 -- Table structure for table `scrape`
 --
 
@@ -181,11 +202,33 @@ DROP TABLE IF EXISTS `scrape`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `scrape` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `start` datetime DEFAULT NULL,
-  `end` datetime DEFAULT NULL,
+  `start` timestamp NULL DEFAULT NULL,
+  `end` timestamp NULL DEFAULT NULL,
   `reason` text,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=84 DEFAULT CHARSET=utf8;
+  `forum` bigint(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `scrape_forum_fk_idx` (`forum`),
+  CONSTRAINT `scrape_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `scrapestat`
+--
+
+DROP TABLE IF EXISTS `scrapestat`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `scrapestat` (
+  `scrape` bigint(11) NOT NULL,
+  `thread` bigint(20) DEFAULT NULL,
+  `message` bigint(20) DEFAULT NULL,
+  `users` bigint(20) DEFAULT NULL,
+  `message_propval` bigint(20) DEFAULT NULL,
+  `user_propval` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`scrape`),
+  CONSTRAINT `stats_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -214,7 +257,7 @@ CREATE TABLE `thread` (
   CONSTRAINT `thread_author_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `thread_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `thread_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=18325 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -237,7 +280,7 @@ CREATE TABLE `user` (
   KEY `user_scrape_fk_idx` (`scrape`),
   CONSTRAINT `user_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=11692 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -265,7 +308,7 @@ CREATE TABLE `user_propval` (
   `propkey` bigint(11) NOT NULL,
   `user` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`propkey`,`user`),
   KEY `user_propval_user_idx` (`user`),
@@ -315,7 +358,7 @@ CREATE TABLE `user_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `user` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime NOT NULL,
+  `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) DEFAULT NULL,
   KEY `user_propvalaudit_user_idx` (`user`),
   KEY `user_propvalaudit_propkey_idx` (`propkey`),
@@ -327,6 +370,25 @@ CREATE TABLE `user_propvalaudit` (
   CONSTRAINT `user_provalaudit_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Final view structure for view `overview_by_scrape`
+--
+
+/*!50001 DROP TABLE IF EXISTS `overview_by_scrape`*/;
+/*!50001 DROP VIEW IF EXISTS `overview_by_scrape`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8 */;
+/*!50001 SET character_set_results     = utf8 */;
+/*!50001 SET collation_connection      = utf8_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 */
+/*!50001 VIEW `overview_by_scrape` AS select ifnull(`s`.`ScrapeID`,0) AS `ScrapeId`,ifnull(`s`.`ScrapeStart`,0) AS `ScrapeStart`,`s`.`ScrapeDuration` AS `ScrapeDuration`,`s`.`ExitReason` AS `ExitReason`,ifnull(`t`.`Thread`,0) AS `Thread`,ifnull(`m`.`Message`,0) AS `Message`,ifnull(`mv`.`MessagePropVal`,0) AS `MessagePropVal`,ifnull(`u`.`User`,0) AS `User`,ifnull(`uv`.`UserPropVal`,0) AS `UserPropVal` from (((((((select `torforum_crawler`.`scrape`.`id` AS `ScrapeID`,`torforum_crawler`.`scrape`.`start` AS `ScrapeStart`,timediff(`torforum_crawler`.`scrape`.`end`,`torforum_crawler`.`scrape`.`start`) AS `ScrapeDuration`,`torforum_crawler`.`scrape`.`reason` AS `ExitReason` from `torforum_crawler`.`scrape`)) `s` left join (select `torforum_crawler`.`user`.`scrape` AS `scrape`,count(1) AS `User` from `torforum_crawler`.`user` group by `torforum_crawler`.`user`.`scrape`) `u` on((`u`.`scrape` = `s`.`ScrapeID`))) left join (select `torforum_crawler`.`message`.`scrape` AS `scrape`,count(1) AS `Message` from `torforum_crawler`.`message` group by `torforum_crawler`.`message`.`scrape`) `m` on((`m`.`scrape` = `s`.`ScrapeID`))) left join (select `sumedmv`.`scrape` AS `scrape`,sum(`sumedmv`.`MessagePropVal`) AS `MessagePropVal` from ((select `torforum_crawler`.`message_propval`.`scrape` AS `scrape`,ifnull(count(1),0) AS `MessagePropVal` from `torforum_crawler`.`message_propval` group by `torforum_crawler`.`message_propval`.`scrape`) union all (select `torforum_crawler`.`message_propvalaudit`.`scrape` AS `scrape`,ifnull(count(1),0) AS `MessagePropVal` from `torforum_crawler`.`message_propvalaudit` group by `torforum_crawler`.`message_propvalaudit`.`scrape`)) `sumedmv` group by `sumedmv`.`scrape`) `mv` on((`mv`.`scrape` = `s`.`ScrapeID`))) left join (select `torforum_crawler`.`thread`.`scrape` AS `scrape`,count(1) AS `Thread` from `torforum_crawler`.`thread` group by `torforum_crawler`.`thread`.`scrape`) `t` on((`t`.`scrape` = `s`.`ScrapeID`))) left join (select `sumeduv`.`scrape` AS `scrape`,sum(`sumeduv`.`UserPropVal`) AS `UserPropVal` from ((select `torforum_crawler`.`user_propval`.`scrape` AS `scrape`,ifnull(count(1),0) AS `UserPropVal` from `torforum_crawler`.`user_propval` group by `torforum_crawler`.`user_propval`.`scrape`) union all (select `torforum_crawler`.`user_propvalaudit`.`scrape` AS `scrape`,ifnull(count(1),0) AS `UserPropVal` from `torforum_crawler`.`user_propvalaudit` group by `torforum_crawler`.`user_propvalaudit`.`scrape`)) `sumeduv` group by `sumeduv`.`scrape`) `uv` on((`uv`.`scrape` = `s`.`ScrapeID`))) order by ifnull(`s`.`ScrapeID`,0) desc */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -337,4 +399,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-02-26  1:20:36
+-- Dump completed on 2017-02-26 21:42:37
