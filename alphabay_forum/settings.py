@@ -1,5 +1,5 @@
 settings = {
-	'timezone' : '+00:00',
+	'timezone' : 'UTC',
 	'endpoint' : 'http://pwoah7foa6au2pul.onion',
 	'prefix' : 'forum',
 	'ressources' : {

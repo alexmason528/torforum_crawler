@@ -94,6 +94,8 @@ class Scrape(Model):
 	start = DateTimeField()
 	end = DateTimeField()
 	reason = TextField()
+	forum = ForeignKeyField(Forum, related_name='scrapes', db_column='forum')
+
 
 	class Meta:
 		database = db.proxy 
@@ -166,6 +168,30 @@ class Thread(Model):
  			(('forum', 'external_id'), True),	# unique index
 			)
 
+
+
+class MessagePropertyKey(Model):
+	id = PrimaryKeyField()
+	name = CharField()
+
+	class Meta:
+		database = db.proxy 
+		db_table='message_propkey'
+
+DeferredMessage = DeferredRelation() #Overcome circular dependency
+
+class MessageProperty(BasePropertyModel):
+	key = ForeignKeyField(UserPropertyKey, db_column='propkey')
+	owner = ForeignKeyField(DeferredUser,  db_column='message')
+	data = TextField()
+	scrape = ForeignKeyField(Scrape, db_column='scrape')
+
+
+	class Meta:
+		primary_key = CompositeKey('owner', 'key')
+		database = db.proxy 
+		db_table='message_propval'
+
 class Message(Model):
 	id = PrimaryKeyField()
 	forum = ForeignKeyField(Forum, related_name='messages', db_column='forum')
@@ -183,6 +209,7 @@ class Message(Model):
 		indexes = (
 			(('forum', 'external_id'), True),	# unique index
 		)
+DeferredMessage.set_model(Message)	#Overcome circular dependency
 
 class CaptchaQuestion(Model):
 	id = PrimaryKeyField()

@@ -10,6 +10,8 @@ from torforum_crawler.ColorFormatterWrapper import ColorFormatterWrapper
 
 from importlib import import_module
 from fake_useragent import UserAgent
+import os, time
+from dateutil import parser
 
 import random
 
@@ -23,7 +25,9 @@ class BaseSpider(scrapy.Spider):
 		self.dao = DatabaseDAO(self, donotcache=[Message, UserProperty])
 
 		if 'timezone' in self.spider_settings:
-			db.set_timezone(self.spider_settings['timezone'])
+			os.environ['TZ'] = self.spider_settings['timezone']	# Set environment timezone.
+			time.tzset()
+			db.set_timezone() # Sync db timezone with environment.
 		
 		try:
 			self.forum = Forum.get(spider=self.name)
@@ -43,9 +47,30 @@ class BaseSpider(scrapy.Spider):
 			if 'PROXY' in settings:
 				self.proxy = settings['PROXY']
 
-		self.scrape = Scrape();	# PeeWee model
+		self.lastscrape = Scrape.select().where(Scrape.forum == self.forum and Scrape.end.is_null(False) and Scrape.reason=='finished').order_by(Scrape.start.desc()).first()
+
+		self.fromtime = None;	# When doing a delta scrape, use this time as a reference
+		if 'fromtime' in settings:
+			if isinstance(settings['fromtime'], str):
+				self.fromtime = parser.parse(settings['fromtime'])
+			elif isinstance(datetime, settings['fromtime']):
+				self.fromtime = settings['fromtime']
+			else:
+				raise ValueError("Cannot interpret timezone %s" % str(settings['fromtime']))
+		elif self.lastscrape:
+			self.fromtime = self.lastscrape.start
+
+		if self.crawltype == 'delta' and self.fromtime:
+			self.logger.info("Doing a delta crawl. Time reference is %s %s" % (str(self.fromtime), os.environ['TZ']))
+		else:
+			self.logger.info("Doing a full crawl")
+
+		self.scrape = Scrape();	# Create the new Scrape in the databse.
 		self.scrape.start = datetime.now()
+		self.scrape.forum = self.forum
 		self.scrape.save();
+
+
 
 	def closed( self, reason ):
 		self.scrape.end = datetime.now();
@@ -88,7 +113,13 @@ class BaseSpider(scrapy.Spider):
 		if self.crawltype == 'full':
 			return True
 		elif self.crawltype == 'delta':
-			return isinvalidated(recordtime, dbrecordtime)
+			val =self.isinvalidated(recordtime, dbrecordtime)
+			if val:
+				self.logger.debug('Record dated from %s is considered invalidated. Crawling' % (str(recordtime)))
+			else:
+				self.logger.debug('Record dated from %s is considered up to date. Do not crawl' % (str(recordtime)))
+
+			return val
 		else:
 			raise Exception("Unknown crawl type :" + self.crawltype )
 
@@ -137,5 +168,6 @@ class BaseSpider(scrapy.Spider):
 		return self.login
 
 
+	
 
 

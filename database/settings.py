@@ -4,5 +4,5 @@ settings = {
 	'user' : 'root',
 	'password' : 'root',
 	'charset' : 'utf8',
-	'timezone' : '+00:00'
+	#'timezone' : 'UTC' 
 }

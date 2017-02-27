@@ -32,7 +32,6 @@ class AlphabayForum(BaseSpider):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
-        self.fromtime = settings['fromtime'] if 'fromtime' in settings else None
         self.crawlitem = [ 'thread', 'userprofile'] #todo, use configuration
 
 
@@ -128,17 +127,12 @@ class AlphabayForum(BaseSpider):
                 threaditem['author_username']   = threaddiv.css(".username::text").extract_first()
                 author_url = threaddiv.css(".username::attr(href)").extract_first()
                 
-                try:
-                    m = re.match('threads/([^/]+)(/page-\d+)?', urlparse(url).query.strip('/'))
-                    m2 = re.match("(.+\.)?(\d+)$", m.group(1))
-                    threaditem['threadid'] = m2.group(2)
-                except Exception as e:
-                    raise Exception("Could not extract thread id from url : %s. \n %s " % (url, e.message))
+                threaditem['threadid'] = self.read_threadid_from_url(url)
 
                 if author_url and 'userprofile' in self.crawlitem: # If not crawled, an empty entry will be created if not exist in the database by the mapper to ensure respect of foreign key.
                     request_buffer.append( self.make_request('userprofile',  url = author_url))
 
-                if url and 'thread' in self.crawlitem: 
+                if url and self.shouldcrawl(threaditem['last_update']): 
                     request_buffer.append( self.make_request('threadpage', url=url, threadid=threaditem['threadid'])) # First page of thread
 
                 yield threaditem # sends data to pipelne
@@ -301,5 +295,14 @@ class AlphabayForum(BaseSpider):
             self.logger.debug("Not Logged In")
 
         return logged
+
+
+    def read_threadid_from_url(self, url):
+        try:
+            m = re.match('threads/([^/]+)(/page-\d+)?', urlparse(url).query.strip('/'))
+            m2 = re.match("(.+\.)?(\d+)$", m.group(1))
+            return m2.group(2)
+        except Exception as e:
+            raise Exception("Could not extract thread id from url : %s. \n %s " % (url, e.message))
 
 
