@@ -173,10 +173,13 @@ class AlphabayForum(BaseSpider):
                 except:
                     raise Exception("Can't extract post id. " + e.message)
                 msgitem['author_username'] = message.css(".messageDetails .username::text").extract_first().strip()
-                msgitem['posted_on'] = AlphabayDatetimeParser.tryparse(message.css(".messageDetails .DateTime::attr(title)").extract_first())
+                msgitem['posted_on'] = self.read_message_datetime(message.css(".messageDetails .DateTime"))
                 if msgitem['posted_on']:
                     if msgitem['posted_on'] < oldestpost_datetime:
                         oldestpost_datetime = msgitem['posted_on']  # Get smallest date e.g. oldest
+
+                if not msgitem['posted_on']:
+                    embed()
                 textnode = message.css(".messageContent")
                 msgitem['contenthtml'] = textnode.extract_first()
                 msgitem['contenttext'] = ''.join(textnode.xpath("*//text()[normalize-space(.)]").extract()).strip()
@@ -311,5 +314,22 @@ class AlphabayForum(BaseSpider):
             return m2.group(2)
         except Exception as e:
             raise Exception("Could not extract thread id from url : %s. \n %s " % (url, e.message))
+
+    def read_message_datetime(self, div):
+        title = div.xpath("@title")
+        if title:
+            return AlphabayDatetimeParser.tryparse(title.extract_first())
+
+        datestring = div.xpath("@data-datestring").extract_first()
+        timestring = div.xpath("@data-timestring").extract_first()
+
+        if datestring and timestring:
+            return AlphabayDatetimeParser.tryparse("%s %s" % (datestring, timestring))
+
+        text = div.xpath(".//text()").extract_first()
+        if text:
+            return AlphabayDatetimeParser.tryparse(text)
+
+
 
 
