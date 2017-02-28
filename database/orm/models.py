@@ -226,10 +226,17 @@ class CaptchaQuestion(Model):
 		)		
 
 class ScrapeStat(Model):
+	id = PrimaryKeyField()
 	scrape = ForeignKeyField(Scrape, related_name='stats', db_column='scrape')
+	logtime = DateTimeField()
+	request_sent = BigIntegerField()
+	request_bytes = BigIntegerField()
+	response_received = BigIntegerField()
+	response_bytes = BigIntegerField()
+	item_scraped = BigIntegerField()
 	thread = BigIntegerField()
 	message = BigIntegerField()
-	users = BigIntegerField()
+	user = BigIntegerField()
 	message_propval = BigIntegerField()
 	user_propval = BigIntegerField()
 

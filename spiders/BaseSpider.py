@@ -6,6 +6,7 @@ from datetime import datetime
 from scrapy.conf import settings
 from torforum_crawler.database.dao import DatabaseDAO
 from torforum_crawler.database import db
+from torforum_crawler.statthread import StatThread
 from torforum_crawler.ColorFormatterWrapper import ColorFormatterWrapper
 
 from importlib import import_module
@@ -15,6 +16,9 @@ from dateutil import parser
 from IPython import embed
 import random
 import logging
+import threading
+
+from twisted.internet import reactor
 
 class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
@@ -66,6 +70,9 @@ class BaseSpider(scrapy.Spider):
 		else:
 			self.logger.info("Doing a full crawl")
 
+		self.statsinterval = 30
+		if 'statsinterval' in settings:
+			self.statsinterval = int(settings['statsinterval'])
 
 
 		self.scrape = Scrape();	# Create the new Scrape in the databse.
@@ -73,12 +80,20 @@ class BaseSpider(scrapy.Spider):
 		self.scrape.forum = self.forum
 		self.scrape.save();
 
+
+		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
+		#self.statthread.start()
+
 	def closed( self, reason ):
 		self.scrape.end = datetime.now();
 		self.scrape.reason = reason
 		self.scrape.save()
 
-		self.SaveStats()	#Counts the items with actual Scrape ID and insert a row in the scrapestats table
+		if self.savestat_taskid:
+			self.savestat_taskid.cancel()
+		self.savestats()
+		
+
 
 	def initlogs(self):
 		try:
@@ -177,17 +192,27 @@ class BaseSpider(scrapy.Spider):
 		return self.login
 
 
-	def SaveStats(self):
-		stats = ScrapeStat(scrape=self.scrape)
+	def savestats(self):
+		stat = ScrapeStat(scrape=self.scrape)
 
-		stats.thread = Thread.select(fn.COUNT(Thread.id).alias('n')).where(Thread.scrape == self.scrape).first().n
-		stats.message = Message.select(fn.COUNT(Message.id).alias('n')).where(Message.scrape == self.scrape).first().n
-		stats.message_propval = MessageProperty.select(fn.COUNT(1).alias('n')).where(MessageProperty.scrape == self.scrape).first().n
-		stats.users = User.select(fn.COUNT(User.id).alias('n')).where(User.scrape == self.scrape).first().n
-		stats.user_propval = UserProperty.select(fn.COUNT(1).alias('n')).where(UserProperty.scrape == self.scrape).first().n
-		
-		stats.save()
+		stat.thread 			= self.dao.stats[Thread] if Thread in self.dao.stats else 0
+		stat.message 			= self.dao.stats[Message] if Message in self.dao.stats else 0
+		stat.message_propval 	= self.dao.stats[MessageProperty] if MessageProperty in self.dao.stats else 0
+		stat.user 				= self.dao.stats[User] if User in self.dao.stats else 0
+		stat.user_propval 		= self.dao.stats[UserProperty] if UserProperty in self.dao.stats else 0
 
+		stat.request_sent = self.crawler.stats.get_value('downloader/request_count') or 0
+		stat.request_bytes = self.crawler.stats.get_value('downloader/request_bytes') or 0
+		stat.response_received = self.crawler.stats.get_value('downloader/response_count') or 0
+		stat.response_bytes = self.crawler.stats.get_value('downloader/response_bytes') or 0
+		stat.item_scraped = self.crawler.stats.get_value('item_scraped_count') or 0
+
+		stat.save()
+
+	def savestats_handler(self):
+		self.savestat_taskid = None
+		self.savestats()
+		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
 
 
 	

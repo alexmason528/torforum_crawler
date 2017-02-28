@@ -21,6 +21,7 @@ class DatabaseDAO:
 		self.queues = {}
 		self.spider = spider
 		self.cache = Cache()
+		self.stats = {}
 
 		self._donotcache = donotcache
 		self.logger = logging.getLogger('DatabaseDAO')
@@ -97,6 +98,7 @@ class DatabaseDAO:
 			return
 
 		queue = self.queues[modeltype.__name__]
+
 		success = True
 		if len(queue) > 0 :
 			with db.proxy.atomic():
@@ -123,6 +125,10 @@ class DatabaseDAO:
 						success = False
 
 			if success:
+				if modeltype not in self.stats:
+					self.stats[modeltype] = 0
+				self.stats[modeltype] += len(queue)
+				
 				self.cache.bulkwrite(queue)
 				reloadeddata = self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
 				

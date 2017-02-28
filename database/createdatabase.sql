@@ -80,7 +80,7 @@ CREATE TABLE `message` (
   CONSTRAINT `message_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `message_thread_fk` FOREIGN KEY (`thread`) REFERENCES `thread` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_user_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13435 DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -258,7 +258,7 @@ CREATE TABLE `scrape` (
   PRIMARY KEY (`id`),
   KEY `scrape_forum_fk_idx` (`forum`),
   CONSTRAINT `scrape_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -269,14 +269,23 @@ DROP TABLE IF EXISTS `scrapestat`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `scrapestat` (
+  `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `scrape` bigint(11) NOT NULL,
+  `logtime` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `request_sent` bigint(20) DEFAULT NULL,
+  `request_bytes` bigint(20) DEFAULT NULL,
+  `response_received` bigint(20) DEFAULT NULL,
+  `response_bytes` bigint(20) DEFAULT NULL,
+  `item_scraped` bigint(20) DEFAULT NULL,
   `thread` bigint(20) DEFAULT NULL,
   `message` bigint(20) DEFAULT NULL,
-  `users` bigint(20) DEFAULT NULL,
   `message_propval` bigint(20) DEFAULT NULL,
+  `user` bigint(20) DEFAULT NULL,
   `user_propval` bigint(20) DEFAULT NULL,
-  PRIMARY KEY (`scrape`),
-  CONSTRAINT `stats_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  PRIMARY KEY (`id`),
+  KEY `scrapestat_scrape_fk_idx` (`scrape`),
+  KEY `scrapestat_scrapetime_idx` (`scrape`,`logtime`),
+  CONSTRAINT `scrapestat_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -306,7 +315,7 @@ CREATE TABLE `thread` (
   CONSTRAINT `thread_author_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `thread_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `thread_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2082 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -329,7 +338,7 @@ CREATE TABLE `user` (
   KEY `user_scrape_fk_idx` (`scrape`),
   CONSTRAINT `user_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=7269 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -448,4 +457,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-02-27  0:01:48
+-- Dump completed on 2017-02-28  0:31:36
