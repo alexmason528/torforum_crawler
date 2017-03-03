@@ -13,7 +13,10 @@ import database.settings
 
 BOT_NAME = 'torforum_crawler'
 
-PROXY = "http://127.0.0.1:8888"
+PROXIES = {	
+	"proxy1" : "http://127.0.0.1:8888"
+}
+
 
 SPIDER_MODULES = ['torforum_crawler.spiders']
 NEWSPIDER_MODULE = 'torforum_crawler.spiders'
@@ -22,6 +25,7 @@ DEATHBYCAPTHA = {
 	'username' : 'lemixtape',
 	'password' : 'h3GnHQNxgdty'
 }
+
 
 MAX_LOGIN_RETRY = 3
 

@@ -3,7 +3,6 @@
 from __future__ import absolute_import
 import scrapy
 from scrapy.http import FormRequest,Request
-from scrapy.conf import settings
 from scrapy.shell import inspect_response
 import torforum_crawler.alphabay_forum.helpers.LoginQuestion as LoginQuestion
 import torforum_crawler.alphabay_forum.helpers.DatetimeParser as AlphabayDatetimeParser
@@ -38,6 +37,9 @@ class AlphabayForum(BaseSpider):
 
     def start_requests(self):
         yield self.make_request('index')
+
+        for url in self.get_all_users_url():    # We refresh already known users.
+            yield self.make_request('userprofile', url=url)
 
     def make_request(self, reqtype,  **kwargs):
         
@@ -85,7 +87,7 @@ class AlphabayForum(BaseSpider):
    
     def parse(self, response):
         if not self.islogged(response):
-            if self.logintrial > settings['MAX_LOGIN_RETRY']:
+            if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
                 raise Exception("Too many failed login trials. Giving up.")
             self.logger.info("Trying to login.")
             self.logintrial += 1
@@ -105,7 +107,6 @@ class AlphabayForum(BaseSpider):
 
             elif response.meta['reqtype'] == 'threadpage':
                 for x in self.parse_threadpage(response) : yield x 
-
 
     def parse_threadlisting(self, response):
         threaddivs = response.css("li.discussionListItem")
@@ -202,7 +203,6 @@ class AlphabayForum(BaseSpider):
             prevpageurl =  response.xpath("//nav//a[contains(., '< Prev')]/@href").extract_first()
             if prevpageurl:
                 yield self.make_request("threadpage", url=prevpageurl, threadid=threadid)
-
 
     def parse_userprofile(self, response):
         content = response.css(".profilePage")

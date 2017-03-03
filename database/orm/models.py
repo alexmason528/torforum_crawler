@@ -1,7 +1,8 @@
 import torforum_crawler.database.db as db
 from peewee import *
 
-
+#Extension to peewee model that allows to make models that 
+# have some properties listed in another table respecting a predefined structure.
 class BasePropertyOwnerModel(Model):
 	keys = {}
 	keyinitialized = False
@@ -95,6 +96,7 @@ class Scrape(Model):
 	end = DateTimeField()
 	reason = TextField()
 	forum = ForeignKeyField(Forum, related_name='scrapes', db_column='forum')
+	mode = CharField();
 
 
 	class Meta:

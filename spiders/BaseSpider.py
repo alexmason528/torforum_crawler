@@ -3,7 +3,6 @@ from scrapy import signals
 from peewee import *
 from torforum_crawler.database.orm.models import *
 from datetime import datetime
-from scrapy.conf import settings
 from torforum_crawler.database.dao import DatabaseDAO
 from torforum_crawler.database import db
 from torforum_crawler.statthread import StatThread
@@ -24,65 +23,30 @@ class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
 		super(BaseSpider, self).__init__( *args, **kwargs)
+		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init()__
+
 		self.load_spider_settings()
 		self.initlogs()
 
 		self.dao = DatabaseDAO(self, donotcache=[Message, UserProperty])
+		self.set_timezone()
 
-		if 'timezone' in self.spider_settings:
-			os.environ['TZ'] = self.spider_settings['timezone']	# Set environment timezone.
-			time.tzset()
-			db.set_timezone() # Sync db timezone with environment.
-		
 		try:
 			self.forum = Forum.get(spider=self.name)
 		except:
 			raise Exception("No forum entry exist in the database for spider " + spider.name)
 
 		self.dao.initiliaze(self.forum) # Will preload some data in the database for performance gain
-
 		self.login = self.get_login()
+		self.set_proxy()
+		self.set_deltafromtime()
+		self.set_crawlmode()
+		self.register_new_scrape()
+		self.start_statistics()
 
-		self.crawltype = 'full'
-		if 'crawltype' in settings:
-			if settings['crawltype'] in ['full', 'delta']:
-				self.crawltype = settings['crawltype']
-
-		if not hasattr(self, 'proxy'):	# can be given by command line
-			if 'PROXY' in settings:
-				self.proxy = settings['PROXY']
-
-		self.lastscrape = Scrape.select().where(Scrape.forum == self.forum and Scrape.end.is_null(False) and Scrape.reason=='finished').order_by(Scrape.start.desc()).first()
-
-		self.fromtime = None;	# When doing a delta scrape, use this time as a reference
-		if 'fromtime' in settings:
-			if isinstance(settings['fromtime'], str):
-				self.fromtime = parser.parse(settings['fromtime'])
-			elif isinstance(datetime, settings['fromtime']):
-				self.fromtime = settings['fromtime']
-			else:
-				raise ValueError("Cannot interpret timezone %s" % str(settings['fromtime']))
-		elif self.lastscrape:
-			self.fromtime = self.lastscrape.start
-
-		if self.crawltype == 'delta' and self.fromtime:
-			self.logger.info("Doing a delta crawl. Time reference is %s %s" % (str(self.fromtime), os.environ['TZ']))
-		else:
-			self.logger.info("Doing a full crawl")
-
-		self.statsinterval = 30
-		if 'statsinterval' in settings:
-			self.statsinterval = int(settings['statsinterval'])
-
-
-		self.scrape = Scrape();	# Create the new Scrape in the databse.
-		self.scrape.start = datetime.now()
-		self.scrape.forum = self.forum
-		self.scrape.save();
-
-
-		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
-		#self.statthread.start()
+	@classmethod
+	def from_crawler(cls, crawler, *args, **kwargs):
+		return cls(settings = crawler.settings, *args, **kwargs)
 
 	def closed( self, reason ):
 		self.scrape.end = datetime.now();
@@ -93,11 +57,34 @@ class BaseSpider(scrapy.Spider):
 			self.savestat_taskid.cancel()
 		self.savestats()
 		
+	def set_deltafromtime(self):
+		self.lastscrape = Scrape.select().where(Scrape.forum == self.forum and Scrape.end.is_null(False) and Scrape.reason=='finished').order_by(Scrape.start.desc()).first()
 
+		self.fromtime = None;	# When doing a delta scrape, use this time as a reference
+		if 'fromtime' in self.settings:
+			if isinstance(self.settings['fromtime'], str):
+				self.fromtime = parser.parse(self.settings['fromtime'])
+			elif isinstance(datetime, self.settings['fromtime']):
+				self.fromtime = self.settings['fromtime']
+			else:
+				raise ValueError("Cannot interpret timezone %s" % str(self.settings['fromtime']))
+		elif self.lastscrape:
+			self.fromtime = self.lastscrape.start
+
+	def set_crawlmode(self):
+		self.crawlmode = 'full'
+		if 'crawlmode' in self.settings:
+			if self.settings['crawlmode'] in ['full', 'delta']:
+				self.crawlmode = self.settings['crawlmode']
+
+		if self.crawlmode == 'delta' and self.fromtime:
+			self.logger.info("Doing a delta crawl. Time reference is %s %s" % (str(self.fromtime), os.environ['TZ']))
+		else:
+			self.logger.info("Doing a full crawl")
 
 	def initlogs(self):
 		try:
-			for logger_name in  settings['DISABLE_LOGGER'].split(','):
+			for logger_name in  self.settings['DISABLE_LOGGER'].split(','):
 				logging.getLogger(logger_name).disabled=True
 		except:
 			pass
@@ -108,13 +95,46 @@ class BaseSpider(scrapy.Spider):
 		except:
 			pass
 
+	def set_proxy(self):
+		if not hasattr(self, 'proxy'):	# can be given by command line
+			if 'PROXY' in self.settings:  # proxy is the one to use. Proxies is the definition.
+				if 'PROXIES' in self.settings and self.settings['PROXY'] in self.settings['PROXIES']:
+					self.proxy = self.settings['PROXIES'][self.settings['PROXY']]
+				else:
+					raise ValueError("Proxy %s does not exist in self.settings PROXIES " % self.settings['PROXY'])
+			else:
+				if 'PROXIES' in self.settings:
+					if len(self.settings['PROXIES']) > 0:
+						first = list(self.settings['PROXIES'])[0]
+						self.proxy = self.settings['PROXIES'][first]
+
+	def set_timezone(self):
+		if 'timezone' in self.spider_settings:
+			os.environ['TZ'] = self.spider_settings['timezone']	# Set environment timezone.
+			time.tzset()
+			db.set_timezone() # Sync db timezone with environment.
+
 	def load_spider_settings(self):
 		self.spider_settings = {}
-		setting_module = "%s.%s.settings" % (settings['BOT_NAME'], self.name)
+		setting_module = "%s.%s.settings" % (self.settings['BOT_NAME'], self.name)
 		try:
 			self.spider_settings = import_module(setting_module).settings
 		except:
 			self.logger.warning("Cannot load spider specific settings from : %s" % setting_module)
+
+	def register_new_scrape(self):
+		self.scrape = Scrape();	# Create the new Scrape in the databse.
+		self.scrape.start = datetime.now()
+		self.scrape.forum = self.forum
+		self.mode = self.crawlmode;
+		self.scrape.save();		
+
+	def start_statistics(self):
+		self.statsinterval = 30
+		if 'statsinterval' in self.settings:
+			self.statsinterval = int(self.settings['statsinterval'])
+
+		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)		
 
 	def ressource(self, name):
 		if name not in self.spider_settings['ressources']:
@@ -134,9 +154,9 @@ class BaseSpider(scrapy.Spider):
 			return "%s/%s/%s" % (endpoint,prefix, url.lstrip('/'))
 
 	def shouldcrawl(self, recordtime=None, dbrecordtime=None):
-		if self.crawltype == 'full':
+		if self.crawlmode == 'full':
 			return True
-		elif self.crawltype == 'delta':
+		elif self.crawlmode == 'delta':
 			val =self.isinvalidated(recordtime, dbrecordtime)
 			if val:
 				self.logger.debug('Record dated from %s is considered invalidated. Crawling' % (str(recordtime)))
@@ -145,7 +165,7 @@ class BaseSpider(scrapy.Spider):
 
 			return val
 		else:
-			raise Exception("Unknown crawl type :" + self.crawltype )
+			raise Exception("Unknown crawl type :" + self.crawlmode )
 
 	def isinvalidated(self, recordtime=None, dbrecordtime=None):
 		if not recordtime:
@@ -163,33 +183,73 @@ class BaseSpider(scrapy.Spider):
 	#Return the requested login information from the spier settings.
 	# attribute "login" must be given (-a login="paramValue" using the CLI)
 	# attribute can be a numerical index or the login dict key. If not specified, a random entry is returned
-	def get_login(self, force_new = False):
-		if force_new or not hasattr(self, 'login') :
+	def get_login(self):
+		if not hasattr(self.__class__, 'taken_logins'):
+			self.__class__.taken_logins = {}	# Initialise that
+
+		if not hasattr(self, 'login') or isinstance(self.login, str) or isinstance(self.login, list):
 			if 'logins' not in self.spider_settings:
 				raise Exception("No login defined in spider settings")
 
 			if len(self.spider_settings['logins']) == 0:
 				raise Exception("Empty login list in spider settings")			
 
-			if 'login' in settings:
-				if isinstance(settings['login'], int) or settings['login'].isdigit() :
-					n = int(settings['login'])
-					if n < 0 or n >= len(self.spider_settings['logins']):
-						raise ValueError("No login information with index : %s" % settings['login'])
-					key = list(self.spider_settings['logins'])[n]
-					
-				else :
-					if settings['login'] not in self.spider_settings['logins']:
-						raise ValueError("No login information with index : %s" % settings['login'])
-					key = settings['login']
+			logininput = None;
+			if hasattr(self, 'login'):
+				logininput = self.login
+			elif 'login' in self.settings:
+				logininput = self.settings['login']
+
+			logindict = {}
+			if isinstance(logininput, list):
+				for k in logininput:
+					if k in self.spider_settings['logins']:
+						logindict[k] = self.spider_settings['logins'][k]
+					else:
+						raise ValueError("No login information with index %s" % k)
 			else:
-				n = random.randrange(0,len(self.spider_settings['logins']))
-				key = list(self.spider_settings['logins'])[n]
+				logindict = self.spider_settings['logins'];
+
+			if not logininput or isinstance(logininput, list):	#None or list
+				key = self.pick_in_list(logindict.keys(), counts=self.__class__.taken_logins)
 				self.logger.debug("Using a random login information. Returning login for key : %s" % (key))
+				
+			elif isinstance(logininput, str):
+				if logininput not in logindict:
+					raise ValueError("No login information with index : %s" % logininput)
+				key = logininput
+			else:
+				raise ValueError("logininput is of unsupported type %s" % str(type(logininput))) # Should never happend
 			
-			self.login = self.spider_settings['logins'][key]
-		
+			self.login = logindict[key]
+
+			if not key in self.__class__.taken_logins:
+				self.__class__.taken_logins[key] = 0
+			self.__class__.taken_logins[key] += 1
+
 		return self.login
+
+	def pick_in_list(self,items, counts=None):
+		if len(items) == 0:
+			raise ValueError("Cannot pick a value in an empty list")
+		if not counts:
+			n= random.randrange(0,len(items))
+			return list(items)[n]
+
+		for item in items:
+			if item not in counts:
+				counts[item] = 0
+
+		count_min = 99999999
+		selected_key = None
+		for k in counts:
+			if counts[k]<count_min:
+				count_min = counts[k]
+				selected_key = k
+
+		return selected_key
+	
+
 
 
 	def savestats(self):
@@ -201,11 +261,11 @@ class BaseSpider(scrapy.Spider):
 		stat.user 				= self.dao.stats[User] if User in self.dao.stats else 0
 		stat.user_propval 		= self.dao.stats[UserProperty] if UserProperty in self.dao.stats else 0
 
-		stat.request_sent = self.crawler.stats.get_value('downloader/request_count') or 0
-		stat.request_bytes = self.crawler.stats.get_value('downloader/request_bytes') or 0
-		stat.response_received = self.crawler.stats.get_value('downloader/response_count') or 0
-		stat.response_bytes = self.crawler.stats.get_value('downloader/response_bytes') or 0
-		stat.item_scraped = self.crawler.stats.get_value('item_scraped_count') or 0
+		stat.request_sent 		= self.crawler.stats.get_value('downloader/request_count') or 0
+		stat.request_bytes 		= self.crawler.stats.get_value('downloader/request_bytes') or 0
+		stat.response_received 	= self.crawler.stats.get_value('downloader/response_count') or 0
+		stat.response_bytes 	= self.crawler.stats.get_value('downloader/response_bytes') or 0
+		stat.item_scraped 		= self.crawler.stats.get_value('item_scraped_count') or 0
 
 		stat.save()
 
@@ -213,6 +273,20 @@ class BaseSpider(scrapy.Spider):
 		self.savestat_taskid = None
 		self.savestats()
 		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
+
+	def get_all_users_url(self):
+		page = 1
+		pagesize = 200;
+		while True:
+			userblock = User.select().where(User.forum == self.forum and User.relativeurl.is_null(False)).paginate(page, pagesize)
+			for user in userblock:
+				yield self.make_url(user.relativeurl)
+			if len(userblock) < pagesize:
+				break;
+			page += 1
+
+
+
 
 
 	
