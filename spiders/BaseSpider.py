@@ -23,6 +23,7 @@ class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
 		super(BaseSpider, self).__init__( *args, **kwargs)
+		self.indexmode=False
 		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init()__
 
 		self.load_spider_settings()
@@ -40,47 +41,68 @@ class BaseSpider(scrapy.Spider):
 		self.login = self.get_login()
 		self.set_proxy()
 		self.set_deltafromtime()
-		self.set_crawlmode()
+		self.set_deltamode()
+		self.set_indexingmode()
 		self.register_new_scrape()
 		self.start_statistics()
 
 	@classmethod
 	def from_crawler(cls, crawler, *args, **kwargs):
-		return cls(settings = crawler.settings, *args, **kwargs)
+		spider = cls(*args, settings = crawler.settings,**kwargs)
+		spider.crawler = crawler
+		return spider
 
 	def closed( self, reason ):
 		self.scrape.end = datetime.now();
 		self.scrape.reason = reason
 		self.scrape.save()
 
+		if self.process_created:
+			self.process.end = datetime.now()
+			self.process.save()
+
 		if self.savestat_taskid:
 			self.savestat_taskid.cancel()
 		self.savestats()
 		
+	#Check settings and database to figure wh
 	def set_deltafromtime(self):
 		self.lastscrape = Scrape.select().where(Scrape.forum == self.forum and Scrape.end.is_null(False) and Scrape.reason=='finished').order_by(Scrape.start.desc()).first()
 
-		self.fromtime = None;	# When doing a delta scrape, use this time as a reference
-		if 'fromtime' in self.settings:
-			if isinstance(self.settings['fromtime'], str):
-				self.fromtime = parser.parse(self.settings['fromtime'])
-			elif isinstance(datetime, self.settings['fromtime']):
-				self.fromtime = self.settings['fromtime']
+		self.deltafromtime = None;	# When doing a delta scrape, use this time as a reference
+		if 'deltafromtime' in self.settings:
+			if isinstance(self.settings['deltafromtime'], str):
+				self.deltafromtime = parser.parse(self.settings['deltafromtime'])
+			elif isinstance(datetime, self.settings['deltafromtime']):
+				self.deltafromtime = self.settings['deltafromtime']
 			else:
-				raise ValueError("Cannot interpret timezone %s" % str(self.settings['fromtime']))
+				raise ValueError("Cannot interpret timezone %s" % str(self.settings['deltafromtime']))
 		elif self.lastscrape:
-			self.fromtime = self.lastscrape.start
+			self.deltafromtime = self.lastscrape.start
 
-	def set_crawlmode(self):
-		self.crawlmode = 'full'
-		if 'crawlmode' in self.settings:
-			if self.settings['crawlmode'] in ['full', 'delta']:
-				self.crawlmode = self.settings['crawlmode']
+	#Check settings and attributes to define if we do a Full or Delta crawl.
+	def set_deltamode(self):
+		self.deltamode = False
+		if 'deltamode' in self.settings:
+			self.deltamode = self.settings['deltamode']
 
-		if self.crawlmode == 'delta' and self.fromtime:
-			self.logger.info("Doing a delta crawl. Time reference is %s %s" % (str(self.fromtime), os.environ['TZ']))
+		if not self.deltafromtime and self.deltamode == True:
+			self.deltamode = False
+			self.logger.warning("Delta crawl was requested, but no time reference is available. Switching to full crawl.")
+
+		if self.deltamode == True:
+			self.logger.info("Doing a delta crawl. Time reference is %s %s" % (str(self.deltafromtime), os.environ['TZ']))
 		else:
 			self.logger.info("Doing a full crawl")
+
+		if self.deltamode == False:
+			self.deltafromtime = None
+
+
+	def set_indexingmode(self):
+		self.indexingmode = False
+		if 'indexingmode' in self.settings:
+			self.indexingmode = self.settings['indexingmode']
 
 	def initlogs(self):
 		try:
@@ -123,10 +145,22 @@ class BaseSpider(scrapy.Spider):
 			self.logger.warning("Cannot load spider specific settings from : %s" % setting_module)
 
 	def register_new_scrape(self):
+		self.process_created=False 	# Indicates that this spider created the process entry. Will be responsible of adding end date
+		if not self.process:	# Can be created by a script and passed to the constructor
+			self.process = Process()
+			self.process.start = datetime.now()
+			self.process.pid = os.getpid()
+			self.process.cmdline = ' '.join(sys.argv)
+			self.process.save()
+			self.process_created = True
+
 		self.scrape = Scrape();	# Create the new Scrape in the databse.
 		self.scrape.start = datetime.now()
+		self.scrape.process = self.process
 		self.scrape.forum = self.forum
-		self.mode = self.crawlmode;
+		self.scrape.deltamode = self.deltamode;
+		self.scrape.deltafromtime = self.deltafromtime;
+		self.scrape.indexingmode = self.indexingmode
 		self.scrape.save();		
 
 	def start_statistics(self):
@@ -154,9 +188,9 @@ class BaseSpider(scrapy.Spider):
 			return "%s/%s/%s" % (endpoint,prefix, url.lstrip('/'))
 
 	def shouldcrawl(self, recordtime=None, dbrecordtime=None):
-		if self.crawlmode == 'full':
+		if self.deltamode == False:
 			return True
-		elif self.crawlmode == 'delta':
+		else:
 			val =self.isinvalidated(recordtime, dbrecordtime)
 			if val:
 				self.logger.debug('Record dated from %s is considered invalidated. Crawling' % (str(recordtime)))
@@ -164,15 +198,14 @@ class BaseSpider(scrapy.Spider):
 				self.logger.debug('Record dated from %s is considered up to date. Do not crawl' % (str(recordtime)))
 
 			return val
-		else:
-			raise Exception("Unknown crawl type :" + self.crawlmode )
+
 
 	def isinvalidated(self, recordtime=None, dbrecordtime=None):
 		if not recordtime:
 			return True
 		else:
-			if self.fromtime:
-				return (self.fromtime < recordtime)
+			if self.deltafromtime:
+				return (self.deltafromtime < recordtime)
 			else:
 				if not dbrecordtime:
 					return True
@@ -240,17 +273,15 @@ class BaseSpider(scrapy.Spider):
 			if item not in counts:
 				counts[item] = 0
 
-		count_min = 99999999
+		count_min = None
 		selected_key = None
 		for k in counts:
-			if counts[k]<count_min:
+			if counts[k]<count_min or count_min == None:
 				count_min = counts[k]
 				selected_key = k
 
 		return selected_key
 	
-
-
 
 	def savestats(self):
 		stat = ScrapeStat(scrape=self.scrape)
@@ -275,9 +306,10 @@ class BaseSpider(scrapy.Spider):
 		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
 
 	def get_all_users_url(self):
+
 		page = 1
 		pagesize = 200;
-		while True:
+		while False:
 			userblock = User.select().where(User.forum == self.forum and User.relativeurl.is_null(False)).paginate(page, pagesize)
 			for user in userblock:
 				yield self.make_url(user.relativeurl)

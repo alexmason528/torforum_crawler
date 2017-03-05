@@ -90,14 +90,28 @@ class Forum(Model):
 		db_table = 'forum'
 
 
+class Process(Model):
+	id = PrimaryKeyField();
+	start = DateTimeField()
+	end = DateTimeField()
+	pid = IntegerField()
+	cmdline = TextField()
+	
+	class Meta:
+		database = db.proxy 
+		db_table = 'process'
+
+
 class Scrape(Model):
 	id = PrimaryKeyField();
 	start = DateTimeField()
 	end = DateTimeField()
 	reason = TextField()
 	forum = ForeignKeyField(Forum, related_name='scrapes', db_column='forum')
-	mode = CharField();
-
+	process = ForeignKeyField(Process, related_name='scrapes', db_column='process')
+	deltamode = BooleanField();
+	deltafromtime = DateTimeField()
+	indexingmode = BooleanField()
 
 	class Meta:
 		database = db.proxy 

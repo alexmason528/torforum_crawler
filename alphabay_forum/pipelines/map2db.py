@@ -39,7 +39,8 @@ class map2db(object):
 		if 'last_update' in item:	
 			dbthread.last_update= item['last_update']
 
-		dbthread.author = spider.dao.get_or_create(models.User,  username= item['author_username'], forum=spider.forum, scrape=spider.scrape)
+		dbthread.author = spider.dao.get_or_create(models.User,  username= item['author_username'], forum=spider.forum) # Unique key here
+		dbthread.scrape = spider.scrape
 		if not dbthread.author:
 			raise DropItem("Invalid Thread : Unable to get User from database. Cannot respect foreign key constraint.")
 		elif not dbthread.author.id :
@@ -65,9 +66,10 @@ class map2db(object):
 		elif not dbmsg.thread.id :
 			raise DropItem("Invalid Message : Thread foreign key was read from cache but no record Id was available. Cannot respect foreign key constraint")
 
-		dbmsg.forum = dbmsg.thread.forum
-		dbmsg.scrape = spider.scrape
-		dbmsg.author = spider.dao.get_or_create(models.User, username= item['author_username'], forum=spider.forum, scrape=spider.scrape)
+		dbmsg.forum 	= dbmsg.thread.forum
+		dbmsg.scrape 	= spider.scrape
+		dbmsg.author 	= spider.dao.get_or_create(models.User, username= item['author_username'], forum=spider.forum) # Make sur only unique key in constructor
+		dbmsg.scrape	= spider.scrape
 
 		if not dbmsg.author:
 			raise DropItem("Invalid Message : Unable to get User from database. Cannot respect foreign key constraint.")
@@ -75,8 +77,8 @@ class map2db(object):
 			raise DropItem("Invalid Message : Author foreign key was read from cache but no record Id was available. Cannot respect foreign key constraint")
 
 		dbmsg.external_id = item['postid']	
-		dbmsg.contenttext= item['contenttext']
-		dbmsg.contenthtml= item['contenthtml']
+		dbmsg.contenttext = item['contenttext']
+		dbmsg.contenthtml = item['contenthtml']
 
 		if 'posted_on' in item:
 			dbmsg.posted_on = item['posted_on']

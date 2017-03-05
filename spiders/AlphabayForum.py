@@ -34,6 +34,7 @@ class AlphabayForum(BaseSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.crawlitem = [ 'thread', 'userprofile'] #todo, use configuration
+        self.temp = 0
 
     def start_requests(self):
         yield self.make_request('index')
@@ -86,6 +87,11 @@ class AlphabayForum(BaseSpider):
         return req
    
     def parse(self, response):
+        #self.temp +=1
+
+        #if self.temp > 10 and self.indexingmode:
+        #    self.crawler.engine.close_spider(self, "Temp test")
+
         if not self.islogged(response):
             if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
                 raise Exception("Too many failed login trials. Giving up.")

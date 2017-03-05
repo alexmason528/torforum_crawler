@@ -75,13 +75,14 @@ class DatabaseDAO:
 		cached_value = self.cache.readobj(modeltype(**kwargs))
 
 		if cached_value:
-			self.logger.debug("Cache hit : Read %s with params %s " % (modeltype.__name__, str(kwargs)))
+			self.logger.debug("Cache hit : Read %s with params %s " % (modeltype.__name__, str(kwargs)) )
 			return cached_value
 		else:
-			self.logger.debug("Cache miss for %s with params %s " % (modeltype.__name__, str(kwargs) ))
+			self.logger.debug("Cache miss for %s with params %s " % (modeltype.__name__, str(kwargs)) )
 
 		#todo : Get properties for BasePropertyOwnerModel
-		obj, created = modeltype.get_or_create(**kwargs)
+		with db.proxy.atomic():
+			obj, created = modeltype.get_or_create(**kwargs)
 		#if self.enablecache:
 		self.cache.write(obj)
 		return obj
