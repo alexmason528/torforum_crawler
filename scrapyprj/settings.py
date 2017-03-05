@@ -68,8 +68,8 @@ SPIDER_MIDDLEWARES = {
 }
 
 
-LOG_LEVEL = 'DEBUG'
-DISABLE_LOGGER  = 'DatabaseDAO,scrapy.core.scraper,peewee'
+LOG_LEVEL = 'INFO'
+#DISABLE_LOGGER  = 'peewee,scrapy.core.scraper'
 
 
 

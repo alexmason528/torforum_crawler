@@ -15,7 +15,8 @@ from IPython import embed
 import random
 import logging
 import threading
-from Queue import Queue
+import math
+
 
 from twisted.internet import reactor
 
@@ -56,7 +57,15 @@ class BaseSpider(scrapy.Spider):
 
 	def configure_thread_indexing(self):
 		self.__class__._indexed_threads_page = 1
-		self.__class__._indexed_threads_queue = Queue()
+		
+		if not hasattr(self.__class__,'_next_spider_number'):
+			self.__class__._next_spider_number = 0
+
+
+
+
+		if not hasattr(self, 'spidercount'):
+			self.spidercount=1
 
 		if not hasattr(self, 'indexingscrape'):
 			self.indexingscrape = None
@@ -71,6 +80,26 @@ class BaseSpider(scrapy.Spider):
 				else:
 					raise ValueError('Setting indexingmode is of unsupported type %s ' % (str(type(self.settings['indexingmode']))))
 
+			if not hasattr(self.__class__, '_total_thread_count' ):
+				self.__class__._total_thread_count = None
+
+
+		if self.should_use_already_scraped_threads():
+			self._spider_number = self.__class__._next_spider_number
+			self.__class__._next_spider_number += 1
+
+			if not self.__class__._total_thread_count:
+				self.logger.debug("Reading number of threads")
+				self.__class__._total_thread_count = Thread.select(fn.count(1).alias('n')).where(Thread.scrape == self.indexingscrape).get().n
+				self.logger.debug("Counted %s" % self.__class__._total_thread_count)
+			
+			self._thread_per_spider = int(math.ceil(float(self.__class__._total_thread_count) / float(self.spidercount)))
+			self.logger.info("Will read %s threads per spider" % (self._thread_per_spider))
+		else:
+			self._thread_per_spider = 0
+			self._spider_number = 0	
+
+				
 
 	def should_use_already_scraped_threads(self):
 		if self.indexingmode == True:	# Scraping now, not already scraped.
@@ -83,20 +112,31 @@ class BaseSpider(scrapy.Spider):
 
 	def indexed_thread(self):	# Generator reading indexed thread by chunks
 		pagesize = 100
-		if not self.thread_already_indexed():
-			self.logger.error("Trying to read thread previously indexed, but no scrape ID available")
+		if self.indexingmode:
+			self.logger.error("Trying to read thread previously indexed, but we actually are in indexing mode.")
 
-		if len(self.__class__._indexed_threads_queue) == 0:	# Shared between all spiders from same class
+		if not self.indexingscrape:
+			self.logger.error("Trying to read thread previously indexed, but no scrape ID used dureing indexing is available.")
+		
+		pageindex = 0
+		while True:
+			offset = self._spider_number * self._thread_per_spider + pagesize*pageindex
+			offset = max(min(offset, (self._spider_number+1) * self._thread_per_spider), 0)
+			limit = max(min(pagesize, (self._spider_number+1) * self._thread_per_spider - offset),0)
+			if limit==0:
+				return
+
 			self.logger.debug("Reading a page of already indexed threads.")
 
-			thread_page = Thread.select().where(Thread.scrape == self.indexingscrape).paginate(self.__class__._indexed_threads_page, pagesize)
+			thread_page = Thread.select().where(Thread.scrape == self.indexingscrape).limit(limit).offset(offset)
+			pageindex += 1
+			self.logger.debug("Got %s threads" % str(len(thread_page)))
+			if len(thread_page) == 0:
+				return
+
+
 			for thread in thread_page:
-				self.__class__._indexed_threads_queue.put(thread)
-
-			self.__class__._indexed_threads_page += 1
-
-		if not self.__class__._indexed_threads_queue.empty():
-			yield self.__class__._indexed_threads_queue.get()
+				yield thread
 
 	#Called by Scrapy Engine when spider is closed
 	def closed( self, reason ):	

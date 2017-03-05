@@ -109,14 +109,12 @@ class AlphabayForum(BaseSpider):
     def parse_index(self, response):
         if self.should_use_already_scraped_threads(): # Threads have been indexed before us. Read from database
             for thread in self.indexed_thread():
-                self.logger.critical("Scrape id %s is requesting : %s " % (str(self.scrape.id), thread.fullurl))
                 yield self.make_request(reqtype='threadpage', url=thread.fullurl, threadid=thread.external_id)
         
         else:  # Find the threads by ourselves.
             links = response.css("li.forum h3.nodeTitle a::attr(href)")
             for link in links:
                 yield self.make_request(reqtype='parse_threadlisting', url=link.extract())
-                #self.crawler.engine.close_spider(self, "Temp test")
 
 
     def parse_threadlisting(self, response):

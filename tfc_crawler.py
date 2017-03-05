@@ -59,6 +59,7 @@ if __name__ == '__main__':
 
 	indexingscrape = None
 	if args.instances > 1:
+		settings.set('indexingmode', True)
 		crawlerprocess.crawl(args.spider, process=dbprocess)	# Indexing spider task is in the queue
 		indexingscrape = Scrape.select().where(Scrape.process == dbprocess).get()
 
@@ -66,7 +67,8 @@ if __name__ == '__main__':
 	
 	spider_attributes = {
 		'dbprocess' : dbprocess,
-		'indexingscrape' : indexingscrape
+		'indexingscrape' : indexingscrape,
+		'spidercount' : args.instances
 	}
 
 
