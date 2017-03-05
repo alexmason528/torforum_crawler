@@ -1,21 +1,21 @@
 import scrapy
 from scrapy import signals
 from peewee import *
-from torforum_crawler.database.orm.models import *
+from scrapyprj.database.orm.models import *
 from datetime import datetime
-from torforum_crawler.database.dao import DatabaseDAO
-from torforum_crawler.database import db
-from torforum_crawler.statthread import StatThread
-from torforum_crawler.ColorFormatterWrapper import ColorFormatterWrapper
+from scrapyprj.database.dao import DatabaseDAO
+from scrapyprj.database import db
+from scrapyprj.ColorFormatterWrapper import ColorFormatterWrapper
 
 from importlib import import_module
 from fake_useragent import UserAgent
-import os, time
+import os, time, sys
 from dateutil import parser
 from IPython import embed
 import random
 import logging
 import threading
+from Queue import Queue
 
 from twisted.internet import reactor
 
@@ -23,13 +23,12 @@ class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
 		super(BaseSpider, self).__init__( *args, **kwargs)
-		self.indexmode=False
-		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init()__
+		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init__()
 
 		self.load_spider_settings()
 		self.initlogs()
 
-		self.dao = DatabaseDAO(self, donotcache=[Message, UserProperty])
+		self.dao = DatabaseDAO(self, donotcache=[Message, UserProperty])	# Save some RAM. We usually don't have to read these obejct form the DB, just write.
 		self.set_timezone()
 
 		try:
@@ -39,10 +38,13 @@ class BaseSpider(scrapy.Spider):
 
 		self.dao.initiliaze(self.forum) # Will preload some data in the database for performance gain
 		self.login = self.get_login()
+		
+	
 		self.set_proxy()
 		self.set_deltafromtime()
 		self.set_deltamode()
-		self.set_indexingmode()
+		self.configure_thread_indexing()
+		self.set_itemtocrawl()
 		self.register_new_scrape()
 		self.start_statistics()
 
@@ -52,7 +54,52 @@ class BaseSpider(scrapy.Spider):
 		spider.crawler = crawler
 		return spider
 
-	def closed( self, reason ):
+	def configure_thread_indexing(self):
+		self.__class__._indexed_threads_page = 1
+		self.__class__._indexed_threads_queue = Queue()
+
+		if not hasattr(self, 'indexingscrape'):
+			self.indexingscrape = None
+
+		if not hasattr(self, 'indexingmode'):
+			self.indexingmode = False
+			if 'indexingmode' in self.settings:
+				if isinstance(self.settings['indexingmode'], str):
+					self.indexingmode = True if self.settings['indexingmode'] == 'True' else False
+				elif isinstance(self.settings['indexingmode'], bool):
+					self.indexingmode = self.settings['indexingmode']
+				else:
+					raise ValueError('Setting indexingmode is of unsupported type %s ' % (str(type(self.settings['indexingmode']))))
+
+
+	def should_use_already_scraped_threads(self):
+		if self.indexingmode == True:	# Scraping now, not already scraped.
+			return False
+
+		if self.indexingscrape == None:	# Will happen if launched from scrapy command line and not crawler script
+			return False
+
+		return True
+
+	def indexed_thread(self):	# Generator reading indexed thread by chunks
+		pagesize = 100
+		if not self.thread_already_indexed():
+			self.logger.error("Trying to read thread previously indexed, but no scrape ID available")
+
+		if len(self.__class__._indexed_threads_queue) == 0:	# Shared between all spiders from same class
+			self.logger.debug("Reading a page of already indexed threads.")
+
+			thread_page = Thread.select().where(Thread.scrape == self.indexingscrape).paginate(self.__class__._indexed_threads_page, pagesize)
+			for thread in thread_page:
+				self.__class__._indexed_threads_queue.put(thread)
+
+			self.__class__._indexed_threads_page += 1
+
+		if not self.__class__._indexed_threads_queue.empty():
+			yield self.__class__._indexed_threads_queue.get()
+
+	#Called by Scrapy Engine when spider is closed
+	def closed( self, reason ):	
 		self.scrape.end = datetime.now();
 		self.scrape.reason = reason
 		self.scrape.save()
@@ -99,10 +146,16 @@ class BaseSpider(scrapy.Spider):
 			self.deltafromtime = None
 
 
-	def set_indexingmode(self):
-		self.indexingmode = False
-		if 'indexingmode' in self.settings:
-			self.indexingmode = self.settings['indexingmode']
+	def set_itemtocrawl(self):
+		allitems = ['message', 'user', 'thread']
+		if not hasattr(self, 'itemtocrawl'):
+			self.itemtocrawl = allitems
+
+		if 'itemtocrawl' in self.settings:
+			if isinstance(self.settings['itemtocrawl'], str):
+				self.itemtocrawl = 	self.settings['itemtocrawl'].split(',')
+			else:
+				self.itemtocrawl = allitems
 
 	def initlogs(self):
 		try:
@@ -146,7 +199,7 @@ class BaseSpider(scrapy.Spider):
 
 	def register_new_scrape(self):
 		self.process_created=False 	# Indicates that this spider created the process entry. Will be responsible of adding end date
-		if not self.process:	# Can be created by a script and passed to the constructor
+		if not hasattr(self, 'process'):	# Can be created by a script and passed to the constructor
 			self.process = Process()
 			self.process.start = datetime.now()
 			self.process.pid = os.getpid()
@@ -168,7 +221,7 @@ class BaseSpider(scrapy.Spider):
 		if 'statsinterval' in self.settings:
 			self.statsinterval = int(self.settings['statsinterval'])
 
-		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)		
+		self.savestats_handler()	
 
 	def ressource(self, name):
 		if name not in self.spider_settings['ressources']:
@@ -292,11 +345,11 @@ class BaseSpider(scrapy.Spider):
 		stat.user 				= self.dao.stats[User] if User in self.dao.stats else 0
 		stat.user_propval 		= self.dao.stats[UserProperty] if UserProperty in self.dao.stats else 0
 
-		stat.request_sent 		= self.crawler.stats.get_value('downloader/request_count') or 0
-		stat.request_bytes 		= self.crawler.stats.get_value('downloader/request_bytes') or 0
-		stat.response_received 	= self.crawler.stats.get_value('downloader/response_count') or 0
-		stat.response_bytes 	= self.crawler.stats.get_value('downloader/response_bytes') or 0
-		stat.item_scraped 		= self.crawler.stats.get_value('item_scraped_count') or 0
+		stat.request_sent 		= self.crawler.stats.get_value('downloader/request_count') or 0 if hasattr(self, 'crawler') else 0
+		stat.request_bytes 		= self.crawler.stats.get_value('downloader/request_bytes') or 0 if hasattr(self, 'crawler') else 0
+		stat.response_received 	= self.crawler.stats.get_value('downloader/response_count') or 0 if hasattr(self, 'crawler') else 0
+		stat.response_bytes 	= self.crawler.stats.get_value('downloader/response_bytes') or 0 if hasattr(self, 'crawler') else 0
+		stat.item_scraped 		= self.crawler.stats.get_value('item_scraped_count') or 0 if hasattr(self, 'crawler') else 0
 
 		stat.save()
 

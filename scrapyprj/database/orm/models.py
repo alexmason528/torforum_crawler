@@ -1,4 +1,4 @@
-import torforum_crawler.database.db as db
+import scrapyprj.database.db as db
 from peewee import *
 
 #Extension to peewee model that allows to make models that 

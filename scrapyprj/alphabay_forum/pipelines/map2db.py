@@ -1,6 +1,6 @@
 from scrapy.exceptions import DropItem
-import torforum_crawler.alphabay_forum.items as items
-from torforum_crawler.database.orm import *
+import scrapyprj.alphabay_forum.items as items
+from scrapyprj.database.orm import *
 from IPython import embed
 
 class map2db(object):

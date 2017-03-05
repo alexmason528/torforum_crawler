@@ -1,5 +1,5 @@
-from torforum_crawler.database.orm.models import *
-import torforum_crawler.database as database
+from scrapyprj.database.orm.models import *
+import scrapyprj.database as database
 import inspect
 from peewee import *
 from scrapy import settings

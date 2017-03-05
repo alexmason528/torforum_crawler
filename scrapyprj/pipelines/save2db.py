@@ -1,8 +1,8 @@
 from scrapy.exceptions import DropItem
-import torforum_crawler.alphabay_forum.items as items
-from torforum_crawler.database.orm import *
-import torforum_crawler.database as database
-import torforum_crawler.database.db as db
+import scrapyprj.alphabay_forum.items as items
+from scrapyprj.database.orm import *
+import scrapyprj.database as database
+import scrapyprj.database.db as db
 import peewee
 
 class save2db(object):

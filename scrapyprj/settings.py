@@ -2,7 +2,7 @@ import database.settings
 #from peewee import *
 # -*- coding: utf-8 -*-
 
-# Scrapy settings for torforum_crawler project
+# Scrapy settings for scrapyprj project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -11,15 +11,15 @@ import database.settings
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = 'torforum_crawler'
+BOT_NAME = 'scrapyprj'
 
 PROXIES = {	
 	"proxy1" : "http://127.0.0.1:8888"
 }
 
 
-SPIDER_MODULES = ['torforum_crawler.spiders']
-NEWSPIDER_MODULE = 'torforum_crawler.spiders'
+SPIDER_MODULES = ['scrapyprj.spiders']
+NEWSPIDER_MODULE = 'scrapyprj.spiders'
 
 DEATHBYCAPTHA = {
 	'username' : 'lemixtape',
@@ -33,7 +33,7 @@ DATABASE = database.settings.settings
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'torforum_crawler (+http://www.yourdomain.com)'
+#USER_AGENT = 'scrapyprj (+http://www.yourdomain.com)'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
@@ -69,13 +69,14 @@ SPIDER_MIDDLEWARES = {
 
 
 LOG_LEVEL = 'DEBUG'
+DISABLE_LOGGER  = 'DatabaseDAO,scrapy.core.scraper,peewee'
 
 
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #DOWNLOADER_MIDDLEWARES = {
-#    #'torforum_crawler.middlewares.ProxyMiddleware': 1,
+#    #'scrapyprj.middlewares.ProxyMiddleware': 1,
 #}
 
 # Enable or disable extensions
@@ -87,7 +88,7 @@ LOG_LEVEL = 'DEBUG'
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 #ITEM_PIPELINES = {
-#    'torforum_crawler.pipelines.SomePipeline': 300,
+#    'scrapyprj.pipelines.SomePipeline': 300,
 #}
 
 # Enable and configure the AutoThrottle extension (disabled by default)

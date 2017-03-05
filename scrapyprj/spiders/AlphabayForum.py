@@ -4,11 +4,11 @@ from __future__ import absolute_import
 import scrapy
 from scrapy.http import FormRequest,Request
 from scrapy.shell import inspect_response
-import torforum_crawler.alphabay_forum.helpers.LoginQuestion as LoginQuestion
-import torforum_crawler.alphabay_forum.helpers.DatetimeParser as AlphabayDatetimeParser
-from torforum_crawler.spiders.BaseSpider import BaseSpider
-from torforum_crawler.database.orm import *
-import torforum_crawler.alphabay_forum.items as items
+import scrapyprj.alphabay_forum.helpers.LoginQuestion as LoginQuestion
+import scrapyprj.alphabay_forum.helpers.DatetimeParser as AlphabayDatetimeParser
+from scrapyprj.spiders.BaseSpider import BaseSpider
+from scrapyprj.database.orm import *
+import scrapyprj.alphabay_forum.items as items
 from datetime import datetime
 from urlparse import urlparse
 import logging
@@ -25,22 +25,21 @@ class AlphabayForum(BaseSpider):
 
     custom_settings = {
         'ITEM_PIPELINES': {
-            'torforum_crawler.alphabay_forum.pipelines.map2db.map2db': 400,  # Convert from Items to Models
-            'torforum_crawler.pipelines.save2db.save2db': 401   # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
+            'scrapyprj.alphabay_forum.pipelines.map2db.map2db': 400,  # Convert from Items to Models
+            'scrapyprj.pipelines.save2db.save2db': 401   # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
         }
     }
 
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
-        self.crawlitem = [ 'thread', 'userprofile'] #todo, use configuration
         self.temp = 0
 
     def start_requests(self):
         yield self.make_request('index')
 
-        for url in self.get_all_users_url():    # We refresh already known users.
-            yield self.make_request('userprofile', url=url)
+        #for url in self.get_all_users_url():    # We refresh already known users.
+        #    yield self.make_request('userprofile', url=url)
 
     def make_request(self, reqtype,  **kwargs):
         
@@ -87,11 +86,6 @@ class AlphabayForum(BaseSpider):
         return req
    
     def parse(self, response):
-        #self.temp +=1
-
-        #if self.temp > 10 and self.indexingmode:
-        #    self.crawler.engine.close_spider(self, "Temp test")
-
         if not self.islogged(response):
             if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
                 raise Exception("Too many failed login trials. Giving up.")
@@ -102,9 +96,7 @@ class AlphabayForum(BaseSpider):
             self.logintrial = 0
 
             if response.meta['reqtype'] == 'index':
-                links = response.css("li.forum h3.nodeTitle a::attr(href)")
-                for link in links:
-                    yield self.make_request(reqtype='parse_threadlisting', url=link.extract())
+                for x in self.parse_index(response) : yield x
             elif  response.meta['reqtype'] == 'parse_threadlisting':
                 for x in self.parse_threadlisting(response) : yield x
                      
@@ -113,6 +105,19 @@ class AlphabayForum(BaseSpider):
 
             elif response.meta['reqtype'] == 'threadpage':
                 for x in self.parse_threadpage(response) : yield x 
+
+    def parse_index(self, response):
+        if self.should_use_already_scraped_threads(): # Threads have been indexed before us. Read from database
+            for thread in self.indexed_thread():
+                self.logger.critical("Scrape id %s is requesting : %s " % (str(self.scrape.id), thread.fullurl))
+                yield self.make_request(reqtype='threadpage', url=thread.fullurl, threadid=thread.external_id)
+        
+        else:  # Find the threads by ourselves.
+            links = response.css("li.forum h3.nodeTitle a::attr(href)")
+            for link in links:
+                yield self.make_request(reqtype='parse_threadlisting', url=link.extract())
+                #self.crawler.engine.close_spider(self, "Temp test")
+
 
     def parse_threadlisting(self, response):
         threaddivs = response.css("li.discussionListItem")
@@ -142,7 +147,7 @@ class AlphabayForum(BaseSpider):
                 
                 threaditem['threadid'] = self.read_threadid_from_url(url)
 
-                if author_url and 'userprofile' in self.crawlitem: # If not crawled, an empty entry will be created if not exist in the database by the mapper to ensure respect of foreign key.
+                if author_url: # If not crawled, an empty entry will be created if not exist in the database by the mapper to ensure respect of foreign key.
                     request_buffer.append( self.make_request('userprofile',  url = author_url))
 
                 if request_url and self.shouldcrawl(threaditem['last_update']):  # If new post in thread
@@ -161,9 +166,13 @@ class AlphabayForum(BaseSpider):
         
         self.dao.flush(models.Thread)  # Flush threads to database.
 
+        
         #We yield requests AFTER writing to database. This will avoid race condition that could lead to foreign key violation. (Thread post linked to a thread not written yet.)
         for request in request_buffer:  
             yield request
+
+
+            
 
     # Parse messages from a thread page.
     def parse_threadpage(self, response):   
@@ -185,8 +194,6 @@ class AlphabayForum(BaseSpider):
                     if msgitem['posted_on'] < oldestpost_datetime:
                         oldestpost_datetime = msgitem['posted_on']  # Get smallest date e.g. oldest
 
-                if not msgitem['posted_on']:
-                    embed()
                 textnode = message.css(".messageContent")
                 msgitem['contenthtml'] = textnode.extract_first()
                 msgitem['contenttext'] = ''.join(textnode.xpath("*//text()[normalize-space(.)]").extract()).strip()
@@ -198,11 +205,12 @@ class AlphabayForum(BaseSpider):
 
         self.dao.flush(models.Message)
 
-        if 'userprofile' in self.crawlitem:
-            userprofilelinks = response.css("a.username::attr(href)").extract()
-            userprofilelinks = list(set(userprofilelinks)) #removes duplicates
-            for link in userprofilelinks:
-                yield self.make_request('userprofile', url=self.make_url(link))
+        
+        
+        userprofilelinks = response.css("a.username::attr(href)").extract()
+        userprofilelinks = list(set(userprofilelinks)) #removes duplicates
+        for link in userprofilelinks:
+            yield self.make_request('userprofile', url=self.make_url(link))
 
         #Start looking for previous page.
         if self.shouldcrawl(oldestpost_datetime):   # Will be false if delta crawl and date is too big 
@@ -306,9 +314,7 @@ class AlphabayForum(BaseSpider):
         if username and username.strip() == self.login['username']:
             logged = True
         
-        if logged:
-            self.logger.debug("Logged In")
-        else:
+        if not logged:
             self.logger.debug("Not Logged In")
 
         return logged

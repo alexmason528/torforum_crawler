@@ -1,9 +1,9 @@
-from torforum_crawler.database.orm.models import *
-import torforum_crawler.database.db as db
+from scrapyprj.database.orm.models import *
+import scrapyprj.database.db as db
 import inspect
 from peewee import *
 from scrapy.conf import settings
-from torforum_crawler.database.cache import Cache
+from scrapyprj.database.cache import Cache
 from scrapy import crawler
 import traceback
 import logging
