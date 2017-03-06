@@ -439,7 +439,7 @@ class BaseSpider(scrapy.Spider):
 		cnt = self.get_counter(name, isglobal=isglobal)
 		cnt[key] += val
 		cnt[key] = max(cnt[key], 0)
-		self.logger.critical("Counter updated! %s = %s" % (name, cnt))
+		self.logger.debug("Counter updated: %s = %s" % (name, cnt))
 
 	def get_counter(self, name, key=None, isglobal=False):
 		self._initialize_counter(name, isglobal=isglobal)
