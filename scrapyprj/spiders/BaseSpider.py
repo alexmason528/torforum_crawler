@@ -17,6 +17,8 @@ import logging
 import threading
 import math
 from scrapy import signals
+from Queue import Queue
+import itertools as it
 
 
 from twisted.internet import reactor
@@ -26,11 +28,11 @@ class BaseSpider(scrapy.Spider):
 	def __init__(self, *args, **kwargs):
 		super(BaseSpider, self).__init__( *args, **kwargs)
 		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init__()
-
+		
 		self.load_spider_settings()
 		self.initlogs()
 
-		self.dao = DatabaseDAO(self, donotcache=[Message, UserProperty])	# Save some RAM. We usually don't have to read these obejct form the DB, just write.
+		self.dao = DatabaseDAO(self, donotcache=[Message, UserProperty])	# Save some RAM. We usually don't have to read these object form the DB, just write.
 		self.set_timezone()
 
 		try:
@@ -41,7 +43,6 @@ class BaseSpider(scrapy.Spider):
 		self.dao.initiliaze(self.forum) # Will preload some data in the database for performance gain
 		self.configure_login()
 		
-	
 		self.configure_proxy()
 		self.set_deltafromtime()
 		self.set_deltamode()
@@ -55,17 +56,39 @@ class BaseSpider(scrapy.Spider):
 		spider = cls(*args, settings = crawler.settings,**kwargs)
 		spider.crawler = crawler
 		crawler.signals.connect(spider.spider_closed, signal=signals.spider_closed)
+		crawler.signals.connect(spider.spider_idle, signal=signals.spider_idle)
 
 		return spider
 
-	def configure_thread_indexing(self):
-		self.__class__._indexed_threads_page = 1
-		
-		if not hasattr(self.__class__,'_next_spider_number'):
-			self.__class__._next_spider_number = 0
+	def spider_idle(self, spider):
+		thread_qty = 10
+		user_qty = 300
+		spider.logger.debug("IDLE")
+		donethread= True
 
-		if not hasattr(self, 'spidercount'):
-			self.spidercount=1
+		if self.should_use_already_scraped_threads():
+			spider.logger.info("Consuming %s thread from the previsouly indexed threads", thread_qty)
+			for req in self.generate_thread_request(thread_qty):
+				donethread = False
+				self.crawler.engine.crawl(req, spider)
+
+		if donethread:
+			spider.logger.info("Consuming %s users from known user in database", user_qty)
+			for req in self.generate_user_request(user_qty):
+				self.crawler.engine.crawl(req, spider)
+
+
+	def generate_thread_request(self, n):
+		return map(lambda x: self.make_thread_request (x), it.islice(self.consumethreads(), n)) # Reads n Thread from the Queue and convert them to request
+
+	def generate_user_request(self, n):
+		return map(lambda x: self.make_user_request (x), it.islice(self.consume_users(), n)) # Reads n Thread from the Queue and convert them to request
+
+
+	def configure_thread_indexing(self):
+		if not hasattr(self.__class__, '_threadqueue'):
+			self.__class__._threadqueue = Queue()
+		
 
 		if not hasattr(self, 'indexingscrape'):
 			self.indexingscrape = None
@@ -84,22 +107,6 @@ class BaseSpider(scrapy.Spider):
 				self.__class__._total_thread_count = None
 
 
-		if self.should_use_already_scraped_threads():
-			self._spider_number = self.__class__._next_spider_number
-			self.__class__._next_spider_number += 1
-
-			if not self.__class__._total_thread_count:
-				self.logger.debug("Reading number of threads")
-				self.__class__._total_thread_count = Thread.select(fn.count(1).alias('n')).where(Thread.scrape == self.indexingscrape).get().n
-				self.logger.debug("Counted %s" % self.__class__._total_thread_count)
-			
-			self._thread_per_spider = int(math.ceil(float(self.__class__._total_thread_count) / float(self.spidercount)))
-			self.logger.info("Will read %s threads per spider" % (self._thread_per_spider))
-		else:
-			self._thread_per_spider = 0
-			self._spider_number = 0	
-
-				
 
 	def should_use_already_scraped_threads(self):
 		if self.indexingmode == True:	# Scraping now, not already scraped.
@@ -110,33 +117,65 @@ class BaseSpider(scrapy.Spider):
 
 		return True
 
-	def indexed_thread(self):	# Generator reading indexed thread by chunks
-		pagesize = 100
+	def consumethreads(self):	# Generator reading indexed thread by chunks
+		pagesize = 5000
+		queue = self.__class__._threadqueue
+
 		if self.indexingmode:
 			self.logger.error("Trying to read thread previously indexed, but we actually are in indexing mode.")
 
 		if not self.indexingscrape:
 			self.logger.error("Trying to read thread previously indexed, but no scrape ID used dureing indexing is available.")
 		
-		pageindex = 0
+		if not hasattr(self.__class__, '_thread_pageindex'):
+			self.__class__._thread_pageindex=1
+		
 		while True:
-			offset = self._spider_number * self._thread_per_spider + pagesize*pageindex
-			offset = max(min(offset, (self._spider_number+1) * self._thread_per_spider), 0)
-			limit = max(min(pagesize, (self._spider_number+1) * self._thread_per_spider - offset),0)
-			if limit==0:
-				return
+			if queue.empty():
+				self.logger.debug("Reading a page of already indexed threads.")
 
-			self.logger.debug("Reading a page of already indexed threads.")
+				thread_page = Thread.select().where(Thread.scrape == self.indexingscrape).paginate(self.__class__._thread_pageindex, pagesize)
+				self.__class__._thread_pageindex += 1
+				self.logger.debug("Got %s threads" % str(len(thread_page)))
 
-			thread_page = Thread.select().where(Thread.scrape == self.indexingscrape).limit(limit).offset(offset)
-			pageindex += 1
-			self.logger.debug("Got %s threads" % str(len(thread_page)))
-			if len(thread_page) == 0:
-				return
+				if len(thread_page) == 0:
+					return 
+
+				for thread in thread_page:
+					queue.put(thread)
 
 
-			for thread in thread_page:
-				yield thread
+			while not queue.empty():
+				yield queue.get()
+
+	def consume_users(self):	# Generator reading indexed thread by chunks
+		pagesize = 5000
+
+		if not hasattr(self.__class__, '_userqueue'):
+			self.__class__._userqueue = Queue()
+
+		queue = self.__class__._userqueue
+
+		
+		if not hasattr(self.__class__, '_user_pageindex'):
+			self.__class__._user_pageindex=1
+		
+		while True:
+			if queue.empty():
+				self.logger.debug("Reading a page of users")
+				user_page = User.select().where(User.relativeurl.is_null(False) and ~(User.scrape << (Scrape.select(User.id).where(Scrape.process == self.process)))).paginate(self.__class__._user_pageindex, pagesize)
+				self.__class__._user_pageindex += 1
+				self.logger.debug("Got %s users" % str(len(user_page)))
+
+				if len(user_page) == 0:
+					return 
+
+				for user in user_page:
+					queue.put(user)
+
+
+			while not queue.empty():
+				yield queue.get()
 
 	#Called by Scrapy Engine when spider is closed	
 	def spider_closed(self, spider, reason):
@@ -202,6 +241,10 @@ class BaseSpider(scrapy.Spider):
 			else:
 				self.itemtocrawl = allitems
 
+		if self.indexingmode:
+			self.itemtocrawl = ['thread']
+
+
 	def initlogs(self):
 		try:
 			for logger_name in  self.settings['DISABLE_LOGGER'].split(','):
@@ -266,6 +309,8 @@ class BaseSpider(scrapy.Spider):
 		self.scrape.deltamode = self.deltamode;
 		self.scrape.deltafromtime = self.deltafromtime;
 		self.scrape.indexingmode = self.indexingmode
+		self.scrape.login = self._loginkey
+		self.scrape.proxy = self._proxy_key
 		self.scrape.save();		
 
 	def start_statistics(self):
@@ -292,7 +337,10 @@ class BaseSpider(scrapy.Spider):
 		else:
 			return "%s/%s/%s" % (endpoint,prefix, url.lstrip('/'))
 
-	def shouldcrawl(self, recordtime=None, dbrecordtime=None):
+	def shouldcrawl(self, item, recordtime=None, dbrecordtime=None):
+		if item not in self.itemtocrawl:
+			return False
+
 		if self.deltamode == False:
 			return True
 		else:
@@ -408,19 +456,6 @@ class BaseSpider(scrapy.Spider):
 		self.savestat_taskid = None
 		self.savestats()
 		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
-
-	def get_all_users_url(self):
-
-		page = 1
-		pagesize = 200;
-		while False:
-			userblock = User.select().where(User.forum == self.forum and User.relativeurl.is_null(False)).paginate(page, pagesize)
-			for user in userblock:
-				yield self.make_url(user.relativeurl)
-			if len(userblock) < pagesize:
-				break;
-			page += 1
-
 
 	def _initialize_counter(self, name, key=None, isglobal=False):
 		cls = BaseSpider if isglobal else self.__class__

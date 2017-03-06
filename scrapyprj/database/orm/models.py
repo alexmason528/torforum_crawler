@@ -112,6 +112,8 @@ class Scrape(Model):
 	deltamode = BooleanField();
 	deltafromtime = DateTimeField()
 	indexingmode = BooleanField()
+	login = CharField()
+	proxy = CharField()
 
 	class Meta:
 		database = db.proxy 

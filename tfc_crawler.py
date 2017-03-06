@@ -66,7 +66,7 @@ if __name__ == '__main__':
 	d = crawlerprocess.join()	#Get the defered call when all tasks are completed.
 	
 	spider_attributes = {
-		'dbprocess' : dbprocess,
+		'process' : dbprocess,
 		'indexingscrape' : indexingscrape,
 		'spidercount' : args.instances
 	}

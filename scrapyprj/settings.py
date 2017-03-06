@@ -69,10 +69,10 @@ SPIDER_MIDDLEWARES = {
 }
 
 
-LOG_LEVEL = 'INFO'
-#DISABLE_LOGGER  = 'peewee,scrapy.core.scraper'
+LOG_LEVEL = 'DEBUG'
+DISABLE_LOGGER  = 'peewee,scrapy.core.scraper,DatabaseDAO'
 
-
+CONCURRENT_REQUESTS = 8
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html

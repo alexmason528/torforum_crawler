@@ -21,19 +21,20 @@ from IPython import embed
 
 class AlphabayForum(BaseSpider):
     name = "alphabay_forum"
-    logintrial = 0
+    handle_httpstatus_list = [403]
+    
 
     custom_settings = {
         'ITEM_PIPELINES': {
-            'scrapyprj.alphabay_forum.pipelines.map2db.map2db': 400,  # Convert from Items to Models
-            'scrapyprj.pipelines.save2db.save2db': 401   # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
+            'scrapyprj.alphabay_forum.pipelines.map2db.map2db': 400,    # Convert from Items to Models
+            'scrapyprj.pipelines.save2db.save2db': 401                  # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
         }
     }
 
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
-        self.temp = 0
+        self.logintrial = 0
 
     def start_requests(self):
         yield self.make_request('index')
@@ -106,17 +107,17 @@ class AlphabayForum(BaseSpider):
             elif response.meta['reqtype'] == 'threadpage':
                 for x in self.parse_threadpage(response) : yield x 
 
+    def make_thread_request(self, thread):    # Has to be defined to make multi instance works.
+        return self.make_request(reqtype='threadpage', url=thread.fullurl, threadid=thread.external_id)
+
+    def make_user_request(self, user):    # Has to be defined to make multi instance works.
+        return self.make_request(reqtype='userprofile', url=self.make_url(user.relativeurl))
+
     def parse_index(self, response):
-        if self.should_use_already_scraped_threads(): # Threads have been indexed before us. Read from database
-            for thread in self.indexed_thread():
-                yield self.make_request(reqtype='threadpage', url=thread.fullurl, threadid=thread.external_id)
-        
-        else:  # Find the threads by ourselves.
+        if not self.should_use_already_scraped_threads(): # Threads have not been indexed before us.
             links = response.css("li.forum h3.nodeTitle a::attr(href)")
             for link in links:
                 yield self.make_request(reqtype='parse_threadlisting', url=link.extract())
-                self.crawler.engine.close_spider(self, "Temp test")
-
 
     def parse_threadlisting(self, response):
         threaddivs = response.css("li.discussionListItem")
@@ -146,10 +147,10 @@ class AlphabayForum(BaseSpider):
                 
                 threaditem['threadid'] = self.read_threadid_from_url(url)
 
-                if author_url: # If not crawled, an empty entry will be created if not exist in the database by the mapper to ensure respect of foreign key.
+                if author_url and self.shouldcrawl('user'): # If not crawled, an empty entry will be created if not exist in the database by the mapper to ensure respect of foreign key.
                     request_buffer.append( self.make_request('userprofile',  url = author_url))
 
-                if request_url and self.shouldcrawl(threaditem['last_update']):  # If new post in thread
+                if request_url and self.shouldcrawl('message', threaditem['last_update']):  # If new post in thread
                     request_buffer.append( self.make_request('threadpage', url=request_url, threadid=threaditem['threadid'])) # First page of thread
 
                 yield threaditem # sends data to pipelne
@@ -160,7 +161,7 @@ class AlphabayForum(BaseSpider):
         
         # Parse next page.
         nextpageurl =  response.xpath("//nav//a[contains(., 'Next >')]/@href").extract_first()
-        if nextpageurl and self.shouldcrawl(oldestthread_datetime): 
+        if nextpageurl and self.shouldcrawl('thread', oldestthread_datetime): 
             request_buffer.append( self.make_request(reqtype='parse_threadlisting', url = nextpageurl)  )
         
         self.dao.flush(models.Thread)  # Flush threads to database.
@@ -206,18 +207,22 @@ class AlphabayForum(BaseSpider):
 
         
         
-        userprofilelinks = response.css("a.username::attr(href)").extract()
-        userprofilelinks = list(set(userprofilelinks)) #removes duplicates
-        for link in userprofilelinks:
-            yield self.make_request('userprofile', url=self.make_url(link))
+        if self.shouldcrawl('user'):
+            userprofilelinks = response.css("a.username::attr(href)").extract()
+            userprofilelinks = list(set(userprofilelinks)) #removes duplicates
+            for link in userprofilelinks:
+                yield self.make_request('userprofile', url=self.make_url(link))
 
         #Start looking for previous page.
-        if self.shouldcrawl(oldestpost_datetime):   # Will be false if delta crawl and date is too big 
+        if self.shouldcrawl('message', oldestpost_datetime):   # Will be false if delta crawl and date is too big 
             prevpageurl =  response.xpath("//nav//a[contains(., '< Prev')]/@href").extract_first()
             if prevpageurl:
                 yield self.make_request("threadpage", url=prevpageurl, threadid=threadid)
 
     def parse_userprofile(self, response):
+        if response.status == 403:  #Unauthorized profile. Happen for private profiles
+            return
+
         content = response.css(".profilePage")
         if content:
             content= content[0]
