@@ -13,15 +13,10 @@ settings = {
 			'email' : 'l1522413@mvrht.com',
 			'password' : 'pqowieuryt'
 		},
-		'config1': {
-			'username' : 'dadhfbsjadbhf',
-			'email' : 'l1522413@mvrht.com',
-			'password' : 'pqowieuryt'
-		},
-		'config2': {
-			'username' : 'dadhfbsjadbhf',
-			'email' : 'l1522413@mvrht.com',
-			'password' : 'pqowieuryt'
+		'mznxbcvv': {
+			'username' : 'mznxbcvv',
+			'email' : 'l1138246@mvrht.com',
+			'password' : 'mznxbcv'
 		}
 
 	}

@@ -16,6 +16,7 @@ import random
 import logging
 import threading
 import math
+from scrapy import signals
 
 
 from twisted.internet import reactor
@@ -38,10 +39,10 @@ class BaseSpider(scrapy.Spider):
 			raise Exception("No forum entry exist in the database for spider " + spider.name)
 
 		self.dao.initiliaze(self.forum) # Will preload some data in the database for performance gain
-		self.login = self.get_login()
+		self.configure_login()
 		
 	
-		self.set_proxy()
+		self.configure_proxy()
 		self.set_deltafromtime()
 		self.set_deltamode()
 		self.configure_thread_indexing()
@@ -53,6 +54,8 @@ class BaseSpider(scrapy.Spider):
 	def from_crawler(cls, crawler, *args, **kwargs):
 		spider = cls(*args, settings = crawler.settings,**kwargs)
 		spider.crawler = crawler
+		crawler.signals.connect(spider.spider_closed, signal=signals.spider_closed)
+
 		return spider
 
 	def configure_thread_indexing(self):
@@ -60,9 +63,6 @@ class BaseSpider(scrapy.Spider):
 		
 		if not hasattr(self.__class__,'_next_spider_number'):
 			self.__class__._next_spider_number = 0
-
-
-
 
 		if not hasattr(self, 'spidercount'):
 			self.spidercount=1
@@ -138,8 +138,8 @@ class BaseSpider(scrapy.Spider):
 			for thread in thread_page:
 				yield thread
 
-	#Called by Scrapy Engine when spider is closed
-	def closed( self, reason ):	
+	#Called by Scrapy Engine when spider is closed	
+	def spider_closed(self, spider, reason):
 		self.scrape.end = datetime.now();
 		self.scrape.reason = reason
 		self.scrape.save()
@@ -151,6 +151,11 @@ class BaseSpider(scrapy.Spider):
 		if self.savestat_taskid:
 			self.savestat_taskid.cancel()
 		self.savestats()
+
+		self.add_to_counter('logins', self._loginkey, -1)
+		self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)
+
+		self.logger.info("Spider ressources released")
 		
 	#Check settings and database to figure wh
 	def set_deltafromtime(self):
@@ -210,18 +215,25 @@ class BaseSpider(scrapy.Spider):
 		except:
 			pass
 
-	def set_proxy(self):
+	def configure_proxy(self):
+		self._proxy_key = None
+
 		if not hasattr(self, 'proxy'):	# can be given by command line
 			if 'PROXY' in self.settings:  # proxy is the one to use. Proxies is the definition.
 				if 'PROXIES' in self.settings and self.settings['PROXY'] in self.settings['PROXIES']:
-					self.proxy = self.settings['PROXIES'][self.settings['PROXY']]
+					self._proxy_key = self.settings['PROXY']
 				else:
 					raise ValueError("Proxy %s does not exist in self.settings PROXIES " % self.settings['PROXY'])
 			else:
 				if 'PROXIES' in self.settings:
 					if len(self.settings['PROXIES']) > 0:
-						first = list(self.settings['PROXIES'])[0]
-						self.proxy = self.settings['PROXIES'][first]
+						#embed()
+						self._proxy_key = self.pick_in_list(self.settings['PROXIES'].keys(), counter=self.get_counter('proxies', isglobal=True))
+
+			if self._proxy_key:
+				self.proxy = self.settings['PROXIES'][self._proxy_key]
+				self.add_to_counter('proxies', self._proxy_key, 1, isglobal=True)
+				self.logger.info('Using proxy %s' % self._proxy_key)
 
 	def set_timezone(self):
 		if 'timezone' in self.spider_settings:
@@ -309,7 +321,7 @@ class BaseSpider(scrapy.Spider):
 	#Return the requested login information from the spier settings.
 	# attribute "login" must be given (-a login="paramValue" using the CLI)
 	# attribute can be a numerical index or the login dict key. If not specified, a random entry is returned
-	def get_login(self):
+	def configure_login(self):
 		if not hasattr(self.__class__, 'taken_logins'):
 			self.__class__.taken_logins = {}	# Initialise that
 
@@ -337,7 +349,7 @@ class BaseSpider(scrapy.Spider):
 				logindict = self.spider_settings['logins'];
 
 			if not logininput or isinstance(logininput, list):	#None or list
-				key = self.pick_in_list(logindict.keys(), counts=self.__class__.taken_logins)
+				key = self.pick_in_list(logindict.keys(), counter=self.get_counter('logins'))
 				self.logger.debug("Using a random login information. Returning login for key : %s" % (key))
 				
 			elif isinstance(logininput, str):
@@ -348,29 +360,28 @@ class BaseSpider(scrapy.Spider):
 				raise ValueError("logininput is of unsupported type %s" % str(type(logininput))) # Should never happend
 			
 			self.login = logindict[key]
+			self._loginkey = key
 
-			if not key in self.__class__.taken_logins:
-				self.__class__.taken_logins[key] = 0
-			self.__class__.taken_logins[key] += 1
+			self.add_to_counter('logins', self._loginkey, 1)
 
 		return self.login
 
-	def pick_in_list(self,items, counts=None):
+	def pick_in_list(self,items, counter=None):
 		if len(items) == 0:
 			raise ValueError("Cannot pick a value in an empty list")
-		if not counts:
+		if not counter:
 			n= random.randrange(0,len(items))
 			return list(items)[n]
 
 		for item in items:
-			if item not in counts:
-				counts[item] = 0
+			if item not in counter:
+				counter[item] = 0
 
 		count_min = None
 		selected_key = None
-		for k in counts:
-			if counts[k]<count_min or count_min == None:
-				count_min = counts[k]
+		for k in counter:
+			if counter[k]<count_min or count_min == None:
+				count_min = counter[k]
 				selected_key = k
 
 		return selected_key
@@ -411,9 +422,31 @@ class BaseSpider(scrapy.Spider):
 			page += 1
 
 
+	def _initialize_counter(self, name, key=None, isglobal=False):
+		cls = BaseSpider if isglobal else self.__class__
+		if not hasattr(cls, '_counters'):
+			cls._counters = {}
 
+		if not name in cls._counters:
+			cls._counters[name] = {}
 
+		if key:
+			if not key in cls._counters[name]:
+				cls._counters[name][key] = 0
 
-	
+	def add_to_counter(self, name, key, val, isglobal=False):
+		self._initialize_counter(name,key,isglobal)
+		cnt = self.get_counter(name, isglobal=isglobal)
+		cnt[key] += val
+		cnt[key] = max(cnt[key], 0)
+		self.logger.critical("Counter updated! %s = %s" % (name, cnt))
 
+	def get_counter(self, name, key=None, isglobal=False):
+		self._initialize_counter(name, isglobal=isglobal)
+		cls = BaseSpider if isglobal else self.__class__
+		
+		if not key:
+			return cls._counters[name]
+		else:
+			return cls._counters[name][key]
 

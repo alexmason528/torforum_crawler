@@ -14,7 +14,8 @@ import database.settings
 BOT_NAME = 'scrapyprj'
 
 PROXIES = {	
-	"proxy1" : "http://127.0.0.1:8888"
+	"privoxy" : "http://127.0.0.1:8118",
+	"privoxy2" : "http://127.0.0.1:8888"
 }
 
 

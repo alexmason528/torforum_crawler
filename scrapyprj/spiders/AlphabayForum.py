@@ -115,6 +115,7 @@ class AlphabayForum(BaseSpider):
             links = response.css("li.forum h3.nodeTitle a::attr(href)")
             for link in links:
                 yield self.make_request(reqtype='parse_threadlisting', url=link.extract())
+                self.crawler.engine.close_spider(self, "Temp test")
 
 
     def parse_threadlisting(self, response):
