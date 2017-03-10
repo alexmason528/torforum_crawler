@@ -79,6 +79,7 @@ class ForumSpider(scrapy.Spider):
 
 		return cls._total_known_user
 
+	# When Spider is idle, this callback is called.
 	def spider_idle(self, spider):
 		thread_qty = 10
 		user_qty = 300
@@ -104,14 +105,16 @@ class ForumSpider(scrapy.Spider):
 				self.__class__.user_poped += 1
 				self.crawler.engine.crawl(req, spider)
 
-
+	# When Idle, will read threads from indexer
 	def generate_thread_request(self, n):
 		return map(lambda x: self.make_thread_request (x), it.islice(self.consumethreads(), n)) # Reads n Thread from the Queue and convert them to request
 
+	#When Idle, will refresh known users.
 	def generate_user_request(self, n):
 		return map(lambda x: self.make_user_request (x), it.islice(self.consume_users(), n)) # Reads n Thread from the Queue and convert them to request
 
-
+	# Set the right option to correctly handle multiple instances of spiders. 
+	# First a spider is launched in indexingmode, then many instance read that the first indexer found.
 	def configure_thread_indexing(self):
 		if not hasattr(self.__class__, '_threadqueue'):
 			self.__class__._threadqueue = Queue()
@@ -225,7 +228,7 @@ class ForumSpider(scrapy.Spider):
 		
 	#Check settings and database to figure wh
 	def set_deltafromtime(self):
-		self.lastscrape = Scrape.select().where(Scrape.forum == self.forum and Scrape.end.is_null(False) and Scrape.reason=='finished').order_by(Scrape.start.desc()).first()
+		self.lastscrape = Scrape.select().where(Scrape.forum == self.forum and Scrape.end.is_null(False) and Scrape.reason=='finished').order_by(Scrape.start.desc()).first()	# todo, user first of last process
 
 		self.deltafromtime = None;	# When doing a delta scrape, use this time as a reference
 	
@@ -286,6 +289,7 @@ class ForumSpider(scrapy.Spider):
 		except:
 			pass
 
+
 	def configure_proxy(self):
 		self._proxy_key = None
 
@@ -312,6 +316,7 @@ class ForumSpider(scrapy.Spider):
 			time.tzset()
 			db.set_timezone() # Sync db timezone with environment.
 
+	# Load settings located in the spider folder.
 	def load_spider_settings(self):
 		self.spider_settings = {}
 		setting_module = "%s.spider_folder.%s.settings" % (self.settings['BOT_NAME'], self.name)
@@ -320,6 +325,7 @@ class ForumSpider(scrapy.Spider):
 		except:
 			self.logger.warning("Cannot load spider specific settings from : %s" % setting_module)
 
+	# Insert a database entry for this scrape.
 	def register_new_scrape(self):
 		self.process_created=False 	# Indicates that this spider created the process entry. Will be responsible of adding end date
 		if not hasattr(self, 'process'):	# Can be created by a script and passed to the constructor
@@ -366,6 +372,7 @@ class ForumSpider(scrapy.Spider):
 		else:
 			return "%s/%s/%s" % (endpoint,prefix, url.lstrip('/'))
 
+	# Tell if the spider should make a request r not depending on : 1) Type of record, 2) Date of record.
 	def shouldcrawl(self, item, recordtime=None, dbrecordtime=None):
 		if item not in self.itemtocrawl:
 			return False
@@ -387,7 +394,7 @@ class ForumSpider(scrapy.Spider):
 
 			return val
 
-
+	# Tell if a dated item is outdated and need to be rescraped from the site.
 	def isinvalidated(self, recordtime=None, dbrecordtime=None):
 		if not recordtime:
 			return True
@@ -450,6 +457,7 @@ class ForumSpider(scrapy.Spider):
 
 		return self.login
 
+	# Used for selection of proxy and login. We distribute usage equally, therefore the "counter" object
 	def pick_in_list(self,items, counter=None):
 		if len(items) == 0:
 			raise ValueError("Cannot pick a value in an empty list")
@@ -493,8 +501,6 @@ class ForumSpider(scrapy.Spider):
 		self.savestat_taskid = None
 		self.savestats()
 		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
-
-
 
 	#Counters : We use this to distribute logins/proxies equally between spiders.
 	def _initialize_counter(self, name, key=None, isglobal=False):
