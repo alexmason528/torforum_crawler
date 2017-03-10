@@ -19,7 +19,7 @@ import re
 
 from IPython import embed
 
-class AlphabayForum(BaseSpider):
+class AlphabayForum(ForumSpider):
     name = "alphabay_forum"
     handle_httpstatus_list = [403]
     
