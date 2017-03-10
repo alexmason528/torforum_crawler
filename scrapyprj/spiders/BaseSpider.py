@@ -56,7 +56,7 @@ class BaseSpider(scrapy.Spider):
 		spider = cls(*args, settings = crawler.settings,**kwargs)
 		spider.crawler = crawler
 		crawler.signals.connect(spider.spider_closed, signal=signals.spider_closed)
-		crawler.signals.connect(spider.spider_idle, signal=signals.spider_idle)
+		crawler.signals.connect(spider.spider_idle, signal=signals.spider_idle)			# We will fetch some users/thread that we need to re-read from the database.
 
 		return spider
 
@@ -313,6 +313,7 @@ class BaseSpider(scrapy.Spider):
 		self.scrape.proxy = self._proxy_key
 		self.scrape.save();		
 
+
 	def start_statistics(self):
 		self.statsinterval = 30
 		if 'statsinterval' in self.settings:
@@ -435,20 +436,21 @@ class BaseSpider(scrapy.Spider):
 		return selected_key
 	
 
+
 	def savestats(self):
 		stat = ScrapeStat(scrape=self.scrape)
 
-		stat.thread 			= self.dao.stats[Thread] if Thread in self.dao.stats else 0
-		stat.message 			= self.dao.stats[Message] if Message in self.dao.stats else 0
-		stat.message_propval 	= self.dao.stats[MessageProperty] if MessageProperty in self.dao.stats else 0
-		stat.user 				= self.dao.stats[User] if User in self.dao.stats else 0
-		stat.user_propval 		= self.dao.stats[UserProperty] if UserProperty in self.dao.stats else 0
+		stat.thread 			= self.dao.stats[Thread] 			if Thread 			in self.dao.stats else 0
+		stat.message 			= self.dao.stats[Message] 			if Message 			in self.dao.stats else 0
+		stat.message_propval 	= self.dao.stats[MessageProperty] 	if MessageProperty 	in self.dao.stats else 0
+		stat.user 				= self.dao.stats[User] 				if User 			in self.dao.stats else 0
+		stat.user_propval 		= self.dao.stats[UserProperty] 		if UserProperty 	in self.dao.stats else 0
 
-		stat.request_sent 		= self.crawler.stats.get_value('downloader/request_count') or 0 if hasattr(self, 'crawler') else 0
-		stat.request_bytes 		= self.crawler.stats.get_value('downloader/request_bytes') or 0 if hasattr(self, 'crawler') else 0
+		stat.request_sent 		= self.crawler.stats.get_value('downloader/request_count') 	or 0 if hasattr(self, 'crawler') else 0
+		stat.request_bytes 		= self.crawler.stats.get_value('downloader/request_bytes') 	or 0 if hasattr(self, 'crawler') else 0
 		stat.response_received 	= self.crawler.stats.get_value('downloader/response_count') or 0 if hasattr(self, 'crawler') else 0
 		stat.response_bytes 	= self.crawler.stats.get_value('downloader/response_bytes') or 0 if hasattr(self, 'crawler') else 0
-		stat.item_scraped 		= self.crawler.stats.get_value('item_scraped_count') or 0 if hasattr(self, 'crawler') else 0
+		stat.item_scraped 		= self.crawler.stats.get_value('item_scraped_count') 		or 0 if hasattr(self, 'crawler') else 0
 
 		stat.save()
 
@@ -457,6 +459,9 @@ class BaseSpider(scrapy.Spider):
 		self.savestats()
 		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
 
+
+
+	#Counters : We use this to distribute logins/proxies equally between spiders.
 	def _initialize_counter(self, name, key=None, isglobal=False):
 		cls = BaseSpider if isglobal else self.__class__
 		if not hasattr(cls, '_counters'):

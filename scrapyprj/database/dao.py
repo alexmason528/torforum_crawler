@@ -120,7 +120,7 @@ class DatabaseDAO:
 					except Exception as e:	#We have a nasty error. Dumps useful data to a file.
 						filename = "%s_queuedump.txt" % (modeltype.__name__)
 						msg = "%s : Flushing %s data failed. Dumping queue data to %s.\nError is %s." % (self.__class__.__name__, modeltype.__name__, filename, str(e))
-						self.logger.error("%s\n %s" % (msg, traceback.format_exc()))
+						self.spider.logger.error("%s\n %s" % (msg, traceback.format_exc()))
 						self.dumpqueue(filename, queue)
 						self.spider.crawler.engine.close_spider(self.spider, msg)
 						success = False

@@ -39,9 +39,6 @@ class AlphabayForum(BaseSpider):
     def start_requests(self):
         yield self.make_request('index')
 
-        #for url in self.get_all_users_url():    # We refresh already known users.
-        #    yield self.make_request('userprofile', url=url)
-
     def make_request(self, reqtype,  **kwargs):
         
         if 'url' in kwargs:
@@ -170,9 +167,6 @@ class AlphabayForum(BaseSpider):
         #We yield requests AFTER writing to database. This will avoid race condition that could lead to foreign key violation. (Thread post linked to a thread not written yet.)
         for request in request_buffer:  
             yield request
-
-
-            
 
     # Parse messages from a thread page.
     def parse_threadpage(self, response):   

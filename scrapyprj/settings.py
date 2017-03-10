@@ -14,8 +14,9 @@ import database.settings
 BOT_NAME = 'scrapyprj'
 
 PROXIES = {	
-	"privoxy" : "http://127.0.0.1:8118",
-	"privoxy2" : "http://127.0.0.1:8888"
+	"privoxy" : "http://127.0.0.1:8888",
+	#"remote" : "http://magnetoproject.com:8888",
+	"privoxy2" : "http://127.0.0.1:8119"
 }
 
 
@@ -69,10 +70,10 @@ SPIDER_MIDDLEWARES = {
 }
 
 
-LOG_LEVEL = 'DEBUG'
-DISABLE_LOGGER  = 'peewee,scrapy.core.scraper,DatabaseDAO'
+LOG_LEVEL = 'INFO'
+DISABLE_LOGGER  = 'peewee,DatabaseDAO'
 
-CONCURRENT_REQUESTS = 8
+CONCURRENT_REQUESTS = 16
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
