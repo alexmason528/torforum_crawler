@@ -444,6 +444,7 @@ class ForumSpider(scrapy.Spider):
 			
 			self.login = logindict[key]
 			self._loginkey = key
+			self.logger.info('Using login %s' % self._loginkey)
 
 			self.add_to_counter('logins', self._loginkey, 1)
 
