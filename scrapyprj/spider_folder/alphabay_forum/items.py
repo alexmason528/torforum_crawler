@@ -1,5 +1,4 @@
 import scrapy
-
 class Thread(scrapy.Item) :
 	threadid =  scrapy.Field()
 	title =  scrapy.Field()
@@ -18,6 +17,8 @@ class Message(scrapy.Item):
 
 class User(scrapy.Item):
 	username = scrapy.Field()
+	relativeurl =  scrapy.Field()
+	fullurl =  scrapy.Field()
 	joined_on = scrapy.Field()
 	likes_received = scrapy.Field()
 	last_activity = scrapy.Field()
@@ -26,5 +27,3 @@ class User(scrapy.Item):
 	user_id = scrapy.Field()
 	title = scrapy.Field()
 	banner = scrapy.Field()
-	relativeurl =  scrapy.Field()
-	fullurl =  scrapy.Field()

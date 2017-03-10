@@ -221,7 +221,7 @@ class ForumSpider(scrapy.Spider):
 		self.add_to_counter('logins', self._loginkey, -1)
 		self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)
 
-		self.logger.info("Spider ressources released")
+		self.logger.info("Spider resources released")
 		
 	#Check settings and database to figure wh
 	def set_deltafromtime(self):
@@ -314,7 +314,7 @@ class ForumSpider(scrapy.Spider):
 
 	def load_spider_settings(self):
 		self.spider_settings = {}
-		setting_module = "%s.%s.settings" % (self.settings['BOT_NAME'], self.name)
+		setting_module = "%s.spider_folder.%s.settings" % (self.settings['BOT_NAME'], self.name)
 		try:
 			self.spider_settings = import_module(setting_module).settings
 		except:
@@ -349,18 +349,18 @@ class ForumSpider(scrapy.Spider):
 
 		self.savestats_handler()	
 
-	def ressource(self, name):
-		if name not in self.spider_settings['ressources']:
-			raise Exception('Cannot access ressource ' + name + '. Ressource is not specified in spider settings.')  
-		return self.spider_settings['ressources'][name]
+	def resource(self, name):
+		if name not in self.spider_settings['resources']:
+			raise Exception('Cannot access resources ' + name + '. Ressource is not specified in spider settings.')  
+		return self.spider_settings['resources'][name]
 
 	def make_url(self, url):
 		endpoint = self.spider_settings['endpoint'].strip('/');
 		prefix = self.spider_settings['prefix'].strip('/');
 		if url.startswith('http'):
 			return url
-		elif url in self.spider_settings['ressources'] :
-			return "%s/%s/%s" % (endpoint, prefix, self.ressource(url).lstrip('/'))
+		elif url in self.spider_settings['resources'] :
+			return "%s/%s/%s" % (endpoint, prefix, self.resource(url).lstrip('/'))
 		elif url.startswith('/'):
 			return "%s/%s" % (endpoint, url.lstrip('/'))
 		else:
@@ -369,6 +369,12 @@ class ForumSpider(scrapy.Spider):
 	def shouldcrawl(self, item, recordtime=None, dbrecordtime=None):
 		if item not in self.itemtocrawl:
 			return False
+
+		if isinstance(recordtime, str):
+			recordtime = parser.parse(recordtime)
+
+		if isinstance(dbrecordtime, str):
+			dbrecordtime = parser.parse(dbrecordtime)
 
 		if self.deltamode == False:
 			return True

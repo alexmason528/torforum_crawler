@@ -4,11 +4,11 @@ from __future__ import absolute_import
 import scrapy
 from scrapy.http import FormRequest,Request
 from scrapy.shell import inspect_response
-import scrapyprj.alphabay_forum.helpers.LoginQuestion as LoginQuestion
-import scrapyprj.alphabay_forum.helpers.DatetimeParser as AlphabayDatetimeParser
+import scrapyprj.spider_folder.alphabay_forum.helpers.LoginQuestion as LoginQuestion
+import scrapyprj.spider_folder.alphabay_forum.helpers.DatetimeParser as AlphabayDatetimeParser
 from scrapyprj.spiders.ForumSpider import ForumSpider
 from scrapyprj.database.orm import *
-import scrapyprj.alphabay_forum.items as items
+import scrapyprj.spider_folder.alphabay_forum.items as items
 from datetime import datetime
 from urlparse import urlparse
 import logging
@@ -26,7 +26,7 @@ class AlphabayForum(ForumSpider):
 
     custom_settings = {
         'ITEM_PIPELINES': {
-            'scrapyprj.alphabay_forum.pipelines.map2db.map2db': 400,    # Convert from Items to Models
+            'scrapyprj.spider_folder.alphabay_forum.pipelines.map2db.map2db': 400,    # Convert from Items to Models
             'scrapyprj.pipelines.save2db.save2db': 401                  # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
         }
     }
@@ -55,7 +55,7 @@ class AlphabayForum(ForumSpider):
                 'password' : self.login['password'],
                 'cookie_check' : '1',
                 '_xfToken': "",
-                'redirect' : self.ressource('index') 
+                'redirect' : self.resource('index') 
             }
 
             if 'captcha_question_hash' in kwargs:

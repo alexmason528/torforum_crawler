@@ -1,5 +1,5 @@
 from scrapy.exceptions import DropItem
-import scrapyprj.alphabay_forum.items as items
+import scrapyprj.spider_folder.alphabay_forum.items as items
 from scrapyprj.database.orm import *
 import scrapyprj.database as database
 import scrapyprj.database.db as db

@@ -2,7 +2,7 @@ settings = {
 	'timezone' : 'UTC',
 	'endpoint' : 'http://pwoah7foa6au2pul.onion',
 	'prefix' : 'forum',
-	'ressources' : {
+	'resources' : {
 		'login-postform' : 'index.php?login/login',
 		'index' : 'index.php'
 		},
