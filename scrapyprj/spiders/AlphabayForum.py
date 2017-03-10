@@ -6,7 +6,7 @@ from scrapy.http import FormRequest,Request
 from scrapy.shell import inspect_response
 import scrapyprj.alphabay_forum.helpers.LoginQuestion as LoginQuestion
 import scrapyprj.alphabay_forum.helpers.DatetimeParser as AlphabayDatetimeParser
-from scrapyprj.spiders.BaseSpider import BaseSpider
+from scrapyprj.spiders.ForumSpider import ForumSpider
 from scrapyprj.database.orm import *
 import scrapyprj.alphabay_forum.items as items
 from datetime import datetime

@@ -23,7 +23,7 @@ import itertools as it
 
 from twisted.internet import reactor
 
-class BaseSpider(scrapy.Spider):
+class ForumSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
 		super(BaseSpider, self).__init__( *args, **kwargs)
@@ -60,21 +60,38 @@ class BaseSpider(scrapy.Spider):
 
 		return spider
 
+	def count_total_indexed_thread():
+		if not hasattr(self, '_remaining_indexed_thread_counter'):
+			self._remaining_indexed_thread_counter = None
+
+		if not self._remaining_indexed_thread_counter:
+			self._remaining_indexed_thread_counter = Thread.select(fn.count(1).alias('n')).where(Thread.scrape == self.indexingscrape).get().n
+
+		return self._remaining_indexed_thread_counter
+
 	def spider_idle(self, spider):
 		thread_qty = 10
 		user_qty = 300
 		spider.logger.debug("IDLE")
 		donethread= True
 
+		if not hasattr(self, 'thread_poped'):
+			self.thread_consumed=  0
+
+		if not hasattr(self, 'user_poped'):
+			self.thread_consumed=  0
+
 		if self.should_use_already_scraped_threads():
-			spider.logger.info("Consuming %s thread from the previsouly indexed threads", thread_qty)
+			spider.logger.info("%s known threads crawled on a total of %s. Consuming %s other from queue.", (self.thread_poped, self.count_total_indexed_thread(), thread_qty))
 			for req in self.generate_thread_request(thread_qty):
+				self.thread_poped += 1
 				donethread = False
 				self.crawler.engine.crawl(req, spider)
 
 		if donethread:
-			spider.logger.info("Consuming %s users from known user in database", user_qty)
+			spider.logger.info("%s known users crawled on a total of %s. Consuming %s other from queue.", (self.user_poped, self.count_total_indexed_thread(), thread_qty))
 			for req in self.generate_user_request(user_qty):
+				self.user_poped += 1
 				self.crawler.engine.crawl(req, spider)
 
 
