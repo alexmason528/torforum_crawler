@@ -47,12 +47,13 @@ if __name__ == '__main__':
 	db.init(settings['DATABASE']);
 
 	settings.set('login', args.login)	# List of allowed login to use
-
-	if args.mode == 'delta' and args.delta_fromtime:
+	print args
+	if args.mode == 'delta':
 		settings.set('deltamode', True)
 		settings.set('deltafromtime',args.delta_fromtime)
 	else:
 		settings.set('deltamode', False)
+
 
 	crawlerprocess = CrawlerProcess(settings)
 	dbprocess = start_dbprocess()	# Create an Process entry in the database. We'll pass this object to the spider so we knows they have been launched together.

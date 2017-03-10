@@ -60,14 +60,24 @@ class ForumSpider(scrapy.Spider):
 
 		return spider
 
-	def count_total_indexed_thread():
-		if not hasattr(self, '_remaining_indexed_thread_counter'):
-			self._remaining_indexed_thread_counter = None
+	def count_total_indexed_thread(self):
+		cls = self.__class__
+		if not hasattr(cls, '_remaining_indexed_thread_counter'):
+			cls._remaining_indexed_thread_counter = None
 
-		if not self._remaining_indexed_thread_counter:
-			self._remaining_indexed_thread_counter = Thread.select(fn.count(1).alias('n')).where(Thread.scrape == self.indexingscrape).get().n
+		if not cls._remaining_indexed_thread_counter:
+			cls._remaining_indexed_thread_counter = Thread.select(fn.count(1).alias('n')).where(Thread.scrape == self.indexingscrape).get().n
 
-		return self._remaining_indexed_thread_counter
+		return cls._remaining_indexed_thread_counter
+
+	def count_known_user(self):
+		cls = self.__class__
+		if not hasattr(cls, '_total_known_user'):
+			cls._total_known_user = None
+		if not cls._total_known_user:
+			cls._total_known_user = User.select(fn.count(1).alias('n')).where(User.relativeurl.is_null(False) and ~(User.scrape << (Scrape.select(User.id).where(Scrape.process == self.process)))).get().n
+
+		return cls._total_known_user
 
 	def spider_idle(self, spider):
 		thread_qty = 10
@@ -75,23 +85,23 @@ class ForumSpider(scrapy.Spider):
 		spider.logger.debug("IDLE")
 		donethread= True
 
-		if not hasattr(self, 'thread_poped'):
-			self.thread_consumed=  0
+		if not hasattr(self.__class__, 'thread_poped'):
+			self.__class__.thread_poped=  0
 
-		if not hasattr(self, 'user_poped'):
-			self.thread_consumed=  0
+		if not hasattr(self.__class__, 'user_poped'):
+			self.__class__.user_poped=  0
 
 		if self.should_use_already_scraped_threads():
-			spider.logger.info("%s known threads crawled on a total of %s. Consuming %s other from queue.", (self.thread_poped, self.count_total_indexed_thread(), thread_qty))
+			spider.logger.info("%s known threads crawled on a total of %s. Consuming %s from queue." % (self.__class__.thread_poped, self.count_total_indexed_thread(), thread_qty))
 			for req in self.generate_thread_request(thread_qty):
-				self.thread_poped += 1
+				self.__class__.thread_poped += 1
 				donethread = False
 				self.crawler.engine.crawl(req, spider)
 
-		if donethread:
-			spider.logger.info("%s known users crawled on a total of %s. Consuming %s other from queue.", (self.user_poped, self.count_total_indexed_thread(), thread_qty))
+		if donethread and self.should_use_already_scraped_threads():
+			spider.logger.info("%s known users crawled on a total of %s. Consuming %s from queue." % (self.__class__.user_poped, self.count_known_user(), user_qty))
 			for req in self.generate_user_request(user_qty):
-				self.user_poped += 1
+				self.__class__.user_poped += 1
 				self.crawler.engine.crawl(req, spider)
 
 
@@ -218,13 +228,14 @@ class ForumSpider(scrapy.Spider):
 		self.lastscrape = Scrape.select().where(Scrape.forum == self.forum and Scrape.end.is_null(False) and Scrape.reason=='finished').order_by(Scrape.start.desc()).first()
 
 		self.deltafromtime = None;	# When doing a delta scrape, use this time as a reference
-		if 'deltafromtime' in self.settings:
+	
+		if 'deltafromtime' in self.settings and self.settings['deltafromtime']:
 			if isinstance(self.settings['deltafromtime'], str):
 				self.deltafromtime = parser.parse(self.settings['deltafromtime'])
 			elif isinstance(datetime, self.settings['deltafromtime']):
 				self.deltafromtime = self.settings['deltafromtime']
 			else:
-				raise ValueError("Cannot interpret timezone %s" % str(self.settings['deltafromtime']))
+				raise ValueError("Cannot interpret deltafromtime %s" % str(self.settings['deltafromtime']))
 		elif self.lastscrape:
 			self.deltafromtime = self.lastscrape.start
 
