@@ -26,7 +26,7 @@ from twisted.internet import reactor
 class ForumSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
-		super(BaseSpider, self).__init__( *args, **kwargs)
+		super(ForumSpider, self).__init__( *args, **kwargs)
 		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init__()
 		
 		self.load_spider_settings()
@@ -480,7 +480,7 @@ class ForumSpider(scrapy.Spider):
 
 	#Counters : We use this to distribute logins/proxies equally between spiders.
 	def _initialize_counter(self, name, key=None, isglobal=False):
-		cls = BaseSpider if isglobal else self.__class__
+		cls = ForumSpider if isglobal else self.__class__
 		if not hasattr(cls, '_counters'):
 			cls._counters = {}
 
@@ -500,7 +500,7 @@ class ForumSpider(scrapy.Spider):
 
 	def get_counter(self, name, key=None, isglobal=False):
 		self._initialize_counter(name, isglobal=isglobal)
-		cls = BaseSpider if isglobal else self.__class__
+		cls = ForumSpider if isglobal else self.__class__
 		
 		if not key:
 			return cls._counters[name]
