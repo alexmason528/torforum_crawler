@@ -81,7 +81,7 @@ class ForumSpider(scrapy.Spider):
 
 	# When Spider is idle, this callback is called.
 	def spider_idle(self, spider):
-		thread_qty = 10
+		thread_qty = 25
 		user_qty = 300
 		spider.logger.debug("IDLE")
 		donethread= True
