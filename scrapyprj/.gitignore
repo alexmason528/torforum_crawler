@@ -1,1 +1,4 @@
 *.pyc
+scrapyprj/settings.py
+scrapyprj/database/settings.py
+
