@@ -16,6 +16,7 @@ import time
 import hashlib 
 import traceback
 import re
+import pytz
 
 from IPython import embed
 
@@ -118,13 +119,13 @@ class AlphabayForum(ForumSpider):
 
     def parse_threadlisting(self, response):
         threaddivs = response.css("li.discussionListItem")
-        oldestthread_datetime = datetime.now()
+        oldestthread_datetime = datetime.utcnow()
         request_buffer = []
         for threaddiv in threaddivs:
             try:
                 threaditem = items.Thread();
                 last_message_datestr        = threaddiv.css(".lastPostInfo .DateTime::text").extract_first()
-                threaditem['last_update']   = AlphabayDatetimeParser.tryparse(last_message_datestr)
+                threaditem['last_update']   = self.to_utc(AlphabayDatetimeParser.tryparse(last_message_datestr))
                 oldestthread_datetime       = threaditem['last_update']  # We assume that threads are ordered by time.
                 if not threaditem['last_update']:
                     raise Exception("Could not parse time string : " + last_message_datestr)
@@ -172,7 +173,7 @@ class AlphabayForum(ForumSpider):
     def parse_threadpage(self, response):   
         threadid = response.meta['threadid']
 
-        oldestpost_datetime = datetime.now()
+        oldestpost_datetime = datetime.utcnow()
         for message in response.css(".messageList .message"):
 
             msgitem = items.Message();
@@ -183,7 +184,7 @@ class AlphabayForum(ForumSpider):
                 except:
                     raise Exception("Can't extract post id. " + e.message)
                 msgitem['author_username'] = message.css(".messageDetails .username::text").extract_first().strip()
-                msgitem['posted_on'] = self.read_message_datetime(message.css(".messageDetails .DateTime"))
+                msgitem['posted_on'] = self.read_datetime_div(message.css(".messageDetails .DateTime"))
                 if msgitem['posted_on']:
                     if msgitem['posted_on'] < oldestpost_datetime:
                         oldestpost_datetime = msgitem['posted_on']  # Get smallest date e.g. oldest
@@ -248,11 +249,9 @@ class AlphabayForum(ForumSpider):
                 name = info.css('dt::text').extract_first().strip()
                 try:
                     if name == 'Last Activity:':
-                        datestr = info.css('dd .DateTime::attr(title)').extract_first().strip()
-                        useritem['last_activity'] = AlphabayDatetimeParser.tryparse(datestr)
+                        useritem['last_activity'] = self.read_datetime_div(info.css('dd .DateTime'))
                     elif name == 'Joined:' :
-                        datestr = info.css('dd').xpath(".//text()").extract_first().strip()
-                        useritem['joined_on'] = AlphabayDatetimeParser.tryparse(datestr)
+                        useritem['joined_on'] = self.read_datetime_div(info.css('dd'))
                     elif name == 'Messages:':
                         numberstr = info.css('dd').xpath(".//text()").extract_first().strip()
                         useritem['message_count'] = int(numberstr.replace(',', ''))
@@ -325,20 +324,24 @@ class AlphabayForum(ForumSpider):
         except Exception as e:
             raise Exception("Could not extract thread id from url : %s. \n %s " % (url, e.message))
 
-    def read_message_datetime(self, div):
+    def read_datetime_div(self, div):
         title = div.xpath("@title")
+        time = None
         if title:
-            return AlphabayDatetimeParser.tryparse(title.extract_first())
+            time = AlphabayDatetimeParser.tryparse(title.extract_first())
 
         datestring = div.xpath("@data-datestring").extract_first()
         timestring = div.xpath("@data-timestring").extract_first()
 
         if datestring and timestring:
-            return AlphabayDatetimeParser.tryparse("%s %s" % (datestring, timestring))
+            time = AlphabayDatetimeParser.tryparse("%s %s" % (datestring, timestring))
 
-        text = div.xpath(".//text()").extract_first()
+        text = div.xpath(".//text()").extract_first().strip()
         if text:
-            return AlphabayDatetimeParser.tryparse(text)
+            time = AlphabayDatetimeParser.tryparse(text)
+
+        if time:
+            return self.to_utc(time)
 
 
 

@@ -14,9 +14,7 @@ import database.settings
 BOT_NAME = 'scrapyprj'
 
 PROXIES = {	
-	"privoxy" : "http://127.0.0.1:8888",
-	#"remote" : "http://magnetoproject.com:8888",
-	"privoxy2" : "http://127.0.0.1:8119"
+	"privoxy" : "http://127.0.0.1:8888"
 }
 
 

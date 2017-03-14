@@ -19,6 +19,7 @@ import math
 from scrapy import signals
 from Queue import Queue
 import itertools as it
+import pytz
 
 
 from twisted.internet import reactor
@@ -60,6 +61,9 @@ class ForumSpider(scrapy.Spider):
 
 		return spider
 
+	def to_utc(self, datetime):
+		return datetime - self.timezone.localize(datetime).utcoffset()
+
 	def count_total_indexed_thread(self):
 		cls = self.__class__
 		if not hasattr(cls, '_remaining_indexed_thread_counter'):
@@ -81,9 +85,9 @@ class ForumSpider(scrapy.Spider):
 
 	# When Spider is idle, this callback is called.
 	def spider_idle(self, spider):
+		spider.logger.debug("IDLE")
 		thread_qty = 25
 		user_qty = 300
-		spider.logger.debug("IDLE")
 		donethread= True
 
 		if not hasattr(self.__class__, 'thread_poped'):
@@ -119,7 +123,6 @@ class ForumSpider(scrapy.Spider):
 		if not hasattr(self.__class__, '_threadqueue'):
 			self.__class__._threadqueue = Queue()
 		
-
 		if not hasattr(self, 'indexingscrape'):
 			self.indexingscrape = None
 
@@ -209,12 +212,12 @@ class ForumSpider(scrapy.Spider):
 
 	#Called by Scrapy Engine when spider is closed	
 	def spider_closed(self, spider, reason):
-		self.scrape.end = datetime.now();
+		self.scrape.end = datetime.utcnow();
 		self.scrape.reason = reason
 		self.scrape.save()
 
 		if self.process_created:
-			self.process.end = datetime.now()
+			self.process.end = datetime.utcnow()
 			self.process.save()
 
 		if self.savestat_taskid:
@@ -234,8 +237,8 @@ class ForumSpider(scrapy.Spider):
 	
 		if 'deltafromtime' in self.settings and self.settings['deltafromtime']:
 			if isinstance(self.settings['deltafromtime'], str):
-				self.deltafromtime = parser.parse(self.settings['deltafromtime'])
-			elif isinstance(datetime, self.settings['deltafromtime']):
+				self.deltafromtime = self.to_utc(parser.parse(self.settings['deltafromtime']))
+			elif isinstance(datetime, self.to_utc(self.settings['deltafromtime'])):
 				self.deltafromtime = self.settings['deltafromtime']
 			else:
 				raise ValueError("Cannot interpret deltafromtime %s" % str(self.settings['deltafromtime']))
@@ -253,7 +256,7 @@ class ForumSpider(scrapy.Spider):
 			self.logger.warning("Delta crawl was requested, but no time reference is available. Switching to full crawl.")
 
 		if self.deltamode == True:
-			self.logger.info("Doing a delta crawl. Time reference is %s %s" % (str(self.deltafromtime), os.environ['TZ']))
+			self.logger.info("Doing a delta crawl. Time reference is %s %s" % (str(self.deltafromtime), str(self.timezone)))
 		else:
 			self.logger.info("Doing a full crawl")
 
@@ -312,9 +315,10 @@ class ForumSpider(scrapy.Spider):
 
 	def set_timezone(self):
 		if 'timezone' in self.spider_settings:
-			os.environ['TZ'] = self.spider_settings['timezone']	# Set environment timezone.
-			time.tzset()
-			db.set_timezone() # Sync db timezone with environment.
+			self.timezone = pytz.timezone(self.spider_settings['timezone'])
+			db.set_timezone(pytz.utc) 	# Sync db timezone with environment.
+		else:
+			raise ValueError('A timezone is required. Please set one in the spider settings.')
 
 	# Load settings located in the spider folder.
 	def load_spider_settings(self):
@@ -330,14 +334,14 @@ class ForumSpider(scrapy.Spider):
 		self.process_created=False 	# Indicates that this spider created the process entry. Will be responsible of adding end date
 		if not hasattr(self, 'process'):	# Can be created by a script and passed to the constructor
 			self.process = Process()
-			self.process.start = datetime.now()
+			self.process.start = datetime.utcnow()
 			self.process.pid = os.getpid()
 			self.process.cmdline = ' '.join(sys.argv)
 			self.process.save()
 			self.process_created = True
 
 		self.scrape = Scrape();	# Create the new Scrape in the databse.
-		self.scrape.start = datetime.now()
+		self.scrape.start = datetime.utcnow()
 		self.scrape.process = self.process
 		self.scrape.forum = self.forum
 		self.scrape.deltamode = self.deltamode;
@@ -378,10 +382,10 @@ class ForumSpider(scrapy.Spider):
 			return False
 
 		if isinstance(recordtime, str):
-			recordtime = parser.parse(recordtime)
+			recordtime = self.to_utc(parser.parse(recordtime))		
 
 		if isinstance(dbrecordtime, str):
-			dbrecordtime = parser.parse(dbrecordtime)
+			dbrecordtime = self.to_utc(parser.parse(dbrecordtime))	
 
 		if self.deltamode == False:
 			return True
