@@ -97,7 +97,7 @@ DELIMITER ;;
 BEGIN
 	IF NEW.`contenttext` <> OLD.`contenttext` or NEW.`contenthtml` <> OLD.`contenthtml` or NEW.`posted_on` <> OLD.`posted_on` or NEW.`author` <> OLD.`author`
 	THEN  
-		INSERT INTO `torforum_crawler`.`message_audit`
+		INSERT INTO `message_audit`
 			(`message`,`author`,`contenttext`,`contenthtml`,`posted_on`,`modified_on`,`scrape`)
 		VALUES
 			(OLD.`id`, old.`author`, OLD.`contenttext`, OLD.`contenthtml`, OLD.`posted_on`, OLD.`modified_on`, OLD.`scrape`);
