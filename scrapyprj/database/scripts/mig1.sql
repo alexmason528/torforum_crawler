@@ -1,0 +1,1 @@
+insert into `forum` (`name`, `spider`) values ('Alphabay', 'alphabay_forum')
