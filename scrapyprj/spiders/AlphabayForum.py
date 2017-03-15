@@ -112,7 +112,7 @@ class AlphabayForum(ForumSpider):
         return self.make_request(reqtype='userprofile', url=self.make_url(user.relativeurl))
 
     def parse_index(self, response):
-        if not self.should_use_already_scraped_threads(): # Threads have not been indexed before us.
+        if self.shouldcrawl('thread'): # Threads have not been indexed before us.
             links = response.css("li.forum h3.nodeTitle a::attr(href)")
             for link in links:
                 yield self.make_request(reqtype='parse_threadlisting', url=link.extract())

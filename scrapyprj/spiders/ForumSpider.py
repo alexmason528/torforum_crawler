@@ -14,8 +14,6 @@ from dateutil import parser
 from IPython import embed
 import random
 import logging
-import threading
-import math
 from scrapy import signals
 from Queue import Queue
 import itertools as it
@@ -277,6 +275,10 @@ class ForumSpider(scrapy.Spider):
 
 		if self.indexingmode:
 			self.itemtocrawl = ['thread']
+
+		if self.should_use_already_scraped_threads():
+			self.itemtocrawl.remove('thread')
+
 
 
 	def initlogs(self):
