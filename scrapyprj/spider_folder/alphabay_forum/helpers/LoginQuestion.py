@@ -1,7 +1,7 @@
 import re
 import parser
 
-from scrapyprj.database.orm.models import CaptchaQuestion
+from scrapyprj.database.forums.orm.models import CaptchaQuestion
 from scrapyprj.thirdparties import parse_number
 
 def answer(q):

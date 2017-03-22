@@ -11,7 +11,7 @@ import scrapyprj.spider_folder.template_spider.items as items
 
 
 
-class AlphabayForum(ForumSpider):
+class TemplateSpider(ForumSpider):
     name = "template_spider"
     handle_httpstatus_list = [403]  # Leaves these response code reach our spider instead of being dropped by a middleware.
     

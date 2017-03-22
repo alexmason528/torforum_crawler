@@ -1,13 +1,11 @@
-from scrapyprj.database.orm.models import *
 import scrapyprj.database.db as db
-import inspect
 from peewee import *
-from scrapy.conf import settings
 from scrapyprj.database.cache import Cache
 from scrapy import crawler
-import traceback
+from scrapyprj.database.orm import *
 import logging
-from IPython import embed
+import inspect
+import traceback
 
 # This object is meant to stand between the application and the database.
 # The reason of its existence is :
@@ -16,24 +14,29 @@ from IPython import embed
 # One instance of DatabaseDAO should be use per spider.	
 class DatabaseDAO:
 
-	def __init__(self, spider,donotcache = []):
+	cache_configs = {
+		'forums' : {
+			'Thread' 			: ('forum', 'external_id'),	
+			'User' 				: ('forum', 'username'),
+			'CaptchaQuestion' 	: ('forum', 'hash'),
+			'Message' 			: ('forum', 'external_id')	
+		}
+	}
+
+	def __init__(self, spider, cacheconfig, donotcache = []):
+		if cacheconfig not in self.cache_configs:
+			raise ValueError("%s is not a valid cache config" % cacheconfig)
 
 		self.queues = {}
 		self.spider = spider
-		self.cache = Cache()
+		self.cache = Cache(self.cache_configs[cacheconfig])
 		self.stats = {}
 
 		self._donotcache = donotcache
 		self.logger = logging.getLogger('DatabaseDAO')
 
-		db.init(settings['DATABASE']);
-
 	def initiliaze(self, forum):
-		# First round to gather all existing users and threads.
-		# Will reduce significantly exchange with database.
-		#if self.enablecache:
-		self.cache.reload(User, User.forum == forum)
-		self.cache.reload(Thread, Thread.forum == forum)
+		pass
 
 	def enable_cache(self, typelist):
 		for modeltype in typelist:
@@ -153,7 +156,7 @@ class DatabaseDAO:
 	#Monkey patch to handle peewee's limitation for MySQL "On duplicate key update" close.
 	def add_onduplicate_key(self, q, fields):
 		sql = q.sql();
-		return (sql[0] + " on duplicate key update " + ','.join(map(lambda v: v.db_column+"=values("+v.db_column+")", fields.values())), sql[1])
+		return (sql[0] + " on duplicate key update " + ','.join(map(lambda v: v.db_column+"=values(%s)" % v.db_column, fields.values())), sql[1])
 
 	def assertismodelclass(self, modeltype):
 		if not inspect.isclass(modeltype):

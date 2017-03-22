@@ -1,4 +1,4 @@
-from scrapyprj.database.orm.models import *
+from scrapyprj.database.forums.orm.models import *
 import scrapyprj.database as database
 import inspect
 from peewee import *
@@ -8,15 +8,25 @@ class Cache:
 
 	# We can force the cache to use a specific key. Otherwise it finds what key to use searching for unique index first, then primary key.
 	# Exmaples in comments. 
-	cachekey = {
-		'Thread' : ('forum', 'external_id'),	
-		'User' : ('forum', 'username'),
-		'CaptchaQuestion' : ('forum', 'hash'),
-		'Message' : ('forum', 'external_id')	
-	}
 
-	def __init__(self):
+	cacheconfig = {}
+
+	def __init__(self, config={}):
 		self.cachedata = {}
+		self.set_config(config)
+
+	def set_config(self, config):
+		for model in config:
+			cls = globals()[model]
+			fieldlist = cls._meta.fields
+			if isinstance(config[model], str):
+				if config[model] not in fieldlist:
+					raise ValueError("Cache config is invalid. %s is not a valid field for model %s" % (config[model], model))
+			else:
+				for field in config[model]:
+					if field not in fieldlist:
+						raise ValueError("Cache config is invalid. %s is not a valid field for model %s" % (config[model], model))
+		self.cacheconfig = config
 
 	def write(self, obj,*fieldlist):
 		self.assertismodelclass(obj.__class__)
@@ -92,8 +102,8 @@ class Cache:
 	def getcacheid(self, obj):
 		objclass = obj.__class__
 		self.assertismodelclass(objclass)
-		if objclass._meta.db_table in self.cachekey:	# Property that can be set in the Cache class to avoid "guessing"
-			fieldname = self.cachekey[objclass._meta.db_table]
+		if objclass._meta.db_table in self.cacheconfig:	# Property that can be set in the Cache class to avoid "guessing"
+			fieldname = self.cacheconfig[objclass._meta.db_table]
 			cacheid = self.read_index_value(obj, fieldname)
 			return (fieldname, cacheid)
 

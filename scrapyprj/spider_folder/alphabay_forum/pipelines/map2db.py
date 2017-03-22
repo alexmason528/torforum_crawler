@@ -1,6 +1,6 @@
 from scrapy.exceptions import DropItem
 import scrapyprj.spider_folder.alphabay_forum.items as items
-from scrapyprj.database.orm import *
+from scrapyprj.database.forums.orm import *
 from IPython import embed
 
 class map2db(object):

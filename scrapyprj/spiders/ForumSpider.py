@@ -1,8 +1,9 @@
 import scrapy
 from scrapy import signals
 from peewee import *
-from scrapyprj.database.orm.models import *
+from scrapyprj.database.forums.orm.models import *
 from datetime import datetime
+from scrapyprj.database.settings import forums as dbsettings
 from scrapyprj.database.dao import DatabaseDAO
 from scrapyprj.database import db
 from scrapyprj.ColorFormatterWrapper import ColorFormatterWrapper
@@ -11,7 +12,6 @@ from importlib import import_module
 from fake_useragent import UserAgent
 import os, time, sys
 from dateutil import parser
-from IPython import embed
 import random
 import logging
 from scrapy import signals
@@ -31,7 +31,8 @@ class ForumSpider(scrapy.Spider):
 		self.load_spider_settings()
 		self.initlogs()
 
-		self.dao = DatabaseDAO(self, donotcache=[Message, UserProperty])	# Save some RAM. We usually don't have to read these object form the DB, just write.
+		db.init(dbsettings)
+		self.dao = DatabaseDAO(self, cacheconfig='forums', donotcache=[Message, UserProperty])	# Save some RAM. We usually don't have to read these object form the DB, just write.
 		self.set_timezone()
 
 		try:
@@ -39,7 +40,10 @@ class ForumSpider(scrapy.Spider):
 		except:
 			raise Exception("No forum entry exist in the database for spider " + spider.name)
 
-		self.dao.initiliaze(self.forum) # Will preload some data in the database for performance gain
+		self.dao.cache.reload(User, User.forum == self.forum)
+		self.dao.cache.reload(Thread, Thread.forum == self.forum)
+
+
 		self.configure_login()
 		
 		self.configure_proxy()
@@ -307,7 +311,6 @@ class ForumSpider(scrapy.Spider):
 			else:
 				if 'PROXIES' in self.settings:
 					if len(self.settings['PROXIES']) > 0:
-						#embed()
 						self._proxy_key = self.pick_in_list(self.settings['PROXIES'].keys(), counter=self.get_counter('proxies', isglobal=True))
 
 			if self._proxy_key:

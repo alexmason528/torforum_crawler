@@ -8,6 +8,7 @@ import scrapyprj.spider_folder.alphabay_forum.helpers.LoginQuestion as LoginQues
 import scrapyprj.spider_folder.alphabay_forum.helpers.DatetimeParser as AlphabayDatetimeParser
 from scrapyprj.spiders.ForumSpider import ForumSpider
 from scrapyprj.database.orm import *
+import scrapyprj.database.forums.orm.models as models
 import scrapyprj.spider_folder.alphabay_forum.items as items
 from datetime import datetime
 from urlparse import urlparse
