@@ -161,7 +161,7 @@ class TestMarketModels(unittest.TestCase):
 	def test_captcha_question(self):
 		market = self.create_market()
 		market.save(force_insert=True)
-		cq = CaptchaQuestion(market = market, hash='1234', question ='How are you', answer='fine')
+		cq = CaptchaQuestion(market = market, hash=self.randstring(100), question =self.randstring(100), answer=self.randstring(100))
 		cq.save(force_insert=True)
 
 		try:
