@@ -99,8 +99,6 @@ class Thread(Model):
 	last_update = DateTimeField()
 	scrape = ForeignKeyField(Scrape, related_name='threads', db_column='scrape')
 
-	updatable_fields = [title, last_update, author, relativeurl, fullurl]
-
 	class Meta:
 		database = db.proxy 
 		db_table = 'thread'

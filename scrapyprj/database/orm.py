@@ -10,6 +10,10 @@ class BasePropertyOwnerModel(Model):
 			raise Exception("When using BasePropertyOwnerModel, Meta.keymodel must be defined")
 		if not self.__class__._meta.valmodel:
 			raise Exception("When using BasePropertyOwnerModel, Meta.valmodel must be defined")
+		
+		if not hasattr(self._meta.valmodel, 'owner'):
+			raise Exception("When using BasePropertyModel, a key named 'owner' must be a foreign key to BasePropertyOwnerModel")
+
 
 		self._properties = {}
 		self._valmodel_attributes = {}
