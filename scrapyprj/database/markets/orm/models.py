@@ -96,12 +96,26 @@ class UserProperty(orm.BasePropertyModel):
 	owner = ForeignKeyField(DeferredUser,  	db_column='user')
 	data = TextField()
 	scrape = ForeignKeyField(Scrape, 		db_column='scrape')
+	modified_on = DateTimeField()
 
 
 	class Meta:
 		primary_key = CompositeKey('owner', 'key')
 		database = db.proxy 
 		db_table='user_propval'
+
+class UserPropertyAudit(orm.BasePropertyModel):
+	key = ForeignKeyField(UserPropertyKey, 	db_column='propkey')
+	owner = ForeignKeyField(DeferredUser,  	db_column='user')
+	data = TextField()
+	scrape = ForeignKeyField(Scrape, 		db_column='scrape')
+	modified_on = DateTimeField()
+
+
+	class Meta:
+		primary_key = CompositeKey('owner', 'key')
+		database = db.proxy 
+		db_table='user_propvalaudit'		
 
 
 class User(orm.BasePropertyOwnerModel):
@@ -111,6 +125,7 @@ class User(orm.BasePropertyOwnerModel):
 	relativeurl = TextField()
 	fullurl = TextField() 
 	scrape = ForeignKeyField(Scrape, related_name='users', 	db_column='scrape')
+	modified_on = DateTimeField()
 
 	class Meta:
 		database = db.proxy 
@@ -145,12 +160,25 @@ class AdsProperty(orm.BasePropertyModel):
 	owner 	= ForeignKeyField(DeferredAds,  	db_column='ads')
 	data 	= TextField()
 	scrape 	= ForeignKeyField(Scrape, 			db_column='scrape')
+	modified_on = DateTimeField()
 
 
 	class Meta:
 		primary_key = CompositeKey('owner', 'key')
 		database = db.proxy 
 		db_table='ads_propval'
+
+class AdsPropertyAudit(orm.BasePropertyModel):
+	key 	= ForeignKeyField(AdsPropertyKey, 	db_column='propkey')
+	owner 	= ForeignKeyField(DeferredAds,  	db_column='ads')
+	data 	= TextField()
+	scrape 	= ForeignKeyField(Scrape, 			db_column='scrape')
+	modified_on =  DateTimeField()
+
+	class Meta:
+		primary_key = CompositeKey('owner', 'key')
+		database = db.proxy 
+		db_table='ads_propvalaudit'
 
 
 class Ads(Model):
@@ -163,6 +191,7 @@ class Ads(Model):
 	fullurl 	= TextField()
 	last_update = DateTimeField()
 	scrape 		= ForeignKeyField(Scrape, 	related_name='ads', db_column='scrape')
+	modified_on = DateTimeField()
 
 	class Meta:
 		database = db.proxy 
@@ -195,11 +224,24 @@ class AdsFeedbackProperty(orm.BasePropertyModel):
 	owner 	= ForeignKeyField(DeferredAdsFeedback,  	db_column='feedback')
 	data 	= TextField()
 	scrape 	= ForeignKeyField(Scrape, 					db_column='scrape')
+	modified_on = DateTimeField()
 
 	class Meta:
 		primary_key = CompositeKey('owner', 'key')
 		database = db.proxy 
 		db_table='ads_feedback_propval'
+
+class AdsFeedbackPropertyAudit(orm.BasePropertyModel):
+	key 	= ForeignKeyField(AdsFeedbackPropertyKey, 	db_column='propkey')
+	owner 	= ForeignKeyField(DeferredAdsFeedback,  	db_column='feedback')
+	data 	= TextField()
+	scrape 	= ForeignKeyField(Scrape, 					db_column='scrape')
+	modified_on = DateTimeField()
+
+	class Meta:
+		primary_key = CompositeKey('owner', 'key')
+		database = db.proxy 
+		db_table='ads_feedback_propvalaudit'
 
 
 class AdsFeedback(Model):
@@ -208,6 +250,7 @@ class AdsFeedback(Model):
 	market 	= ForeignKeyField(Market, 	related_name='ads_feedback', 	db_column='market')
 	ads 	= ForeignKeyField(Ads, 		related_name='feedback', 		db_column='ads')
 	scrape 	= ForeignKeyField(Scrape, 	related_name='ads_feedback',	db_column='scrape')
+	modified_on = DateTimeField()
 
 	class Meta:
 		database = db.proxy 
@@ -236,14 +279,27 @@ DeferredSellerFeedback = DeferredRelation() #Overcome circular dependency
 
 class SellerFeedbackProperty(orm.BasePropertyModel):
 	key 	= ForeignKeyField(SellerFeedbackPropertyKey, 	db_column='propkey')
-	owner 	= ForeignKeyField(DeferredSellerFeedback,  	db_column='feedback')
+	owner 	= ForeignKeyField(DeferredSellerFeedback,  		db_column='feedback')
 	data 	= TextField()
-	scrape 	= ForeignKeyField(Scrape, 					db_column='scrape')
+	scrape 	= ForeignKeyField(Scrape, 						db_column='scrape')
+	modified_on = DateTimeField()
 
 	class Meta:
 		primary_key = CompositeKey('owner', 'key')
 		database = db.proxy 
 		db_table='seller_feedback_propval'
+
+class SellerFeedbackPropertyAudit(orm.BasePropertyModel):
+	key 	= ForeignKeyField(SellerFeedbackPropertyKey, 	db_column='propkey')
+	owner 	= ForeignKeyField(DeferredSellerFeedback,  		db_column='feedback')
+	data 	= TextField()
+	scrape 	= ForeignKeyField(Scrape, 						db_column='scrape')
+	modified_on = DateTimeField()
+
+	class Meta:
+		primary_key = CompositeKey('owner', 'key')
+		database = db.proxy 
+		db_table='seller_feedback_propvalaudit'	
 
 
 class SellerFeedback(Model):
@@ -252,6 +308,7 @@ class SellerFeedback(Model):
 	market 	= ForeignKeyField(Market, 	related_name='seller_feedback',	db_column='market')
 	seller 	= ForeignKeyField(User, 	related_name='feedback', 		db_column='seller')
 	scrape 	= ForeignKeyField(Scrape, 	related_name='seller_feedback',	db_column='scrape')
+	modified_on = DateTimeField()
 
 	class Meta:
 		database = db.proxy 
