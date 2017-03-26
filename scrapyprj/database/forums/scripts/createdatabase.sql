@@ -61,7 +61,7 @@ DROP TABLE IF EXISTS `message`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `message` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `external_id` tinytext,
+  `external_id` varchar(255),
   `thread` bigint(11) NOT NULL,
   `author` bigint(11) DEFAULT NULL,
   `contenttext` longtext,
