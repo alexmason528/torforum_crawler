@@ -213,10 +213,7 @@ class ForumSpider(BaseSpider):
 			self.savestat_taskid.cancel()
 		self.savestats()
 		
-		super(self.__class__, self).spider_closed()
-
-
-		self.logger.info("Spider resources released")
+		BaseSpider.spider_closed(self, spider, reason)
 		
 	#Check settings and database to figure wh
 	def set_deltafromtime(self):

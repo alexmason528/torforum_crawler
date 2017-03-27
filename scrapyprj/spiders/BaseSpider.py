@@ -130,7 +130,7 @@ class BaseSpider(scrapy.Spider):
 
 	def resource(self, name):
 		if name not in self.spider_settings['resources']:
-			raise Exception('Cannot access resources ' + name + '. Ressource is not specified in spider settings.')  
+			raise Exception('Cannot access resources %s. Ressource is not specified in spider settings.' % name)  
 		return self.spider_settings['resources'][name]
 
 	def make_url(self, url):
@@ -198,3 +198,10 @@ class BaseSpider(scrapy.Spider):
 
 	def to_utc(self, datetime):
 		return datetime - self.timezone.localize(datetime).utcoffset()
+
+	def spider_closed(self, spider, reason):
+		print "PATATE"
+		self.add_to_counter('logins', self._loginkey, -1)
+		self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)
+
+		self.logger.info("Spider resources released")

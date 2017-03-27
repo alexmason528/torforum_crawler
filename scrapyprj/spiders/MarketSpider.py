@@ -69,9 +69,8 @@ class MarketSpider(BaseSpider):
 			self.savestat_taskid.cancel()
 		self.savestats()
 
-		super(self.__class__, self).spider_closed()
+		BaseSpider.spider_closed(self, spider, reason)
 
-		self.logger.info("Spider resources released")
 		
 	# Insert a database entry for this scrape.
 	def register_new_scrape(self):
@@ -116,7 +115,6 @@ class MarketSpider(BaseSpider):
 		stat.seller_feedback			= self.dao.stats[SellerFeedback]			if SellerFeedback 			in self.dao.stats else 0
 		stat.seller_feedback_propval	= self.dao.stats[SellerFeedbackProperty]	if SellerFeedbackProperty 	in self.dao.stats else 0
 
-
 		stat.request_sent 		= self.crawler.stats.get_value('downloader/request_count') 	or 0 if hasattr(self, 'crawler') else 0
 		stat.request_bytes 		= self.crawler.stats.get_value('downloader/request_bytes') 	or 0 if hasattr(self, 'crawler') else 0
 		stat.response_received 	= self.crawler.stats.get_value('downloader/response_count') or 0 if hasattr(self, 'crawler') else 0
@@ -129,6 +127,3 @@ class MarketSpider(BaseSpider):
 		self.savestat_taskid = None
 		self.savestats()
 		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
-
-
-

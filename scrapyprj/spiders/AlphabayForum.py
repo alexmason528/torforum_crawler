@@ -343,10 +343,3 @@ class AlphabayForum(ForumSpider):
 
         if time:
             return self.to_utc(time)
-
-
-    def spider_closed(self):
-        self.add_to_counter('logins', self._loginkey, -1)
-        self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)        
-
-
