@@ -25,18 +25,29 @@ class MarketSpider(BaseSpider):
 	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
 		super(MarketSpider, self).__init__( *args, **kwargs)
+		self._baseclass = MarketSpider
 
 		db.init(dbsettings)
-		self.dao = DatabaseDAO(self, cacheconfig='markets', donotcache=[Message, UserProperty])	# Save some RAM. We usually don't have to read these object form the DB, just write.
+
+		if 'dao' in kwargs:
+			self.dao = kwargs['dao']
+		else:
+			self.dao = self.make_dao()
+
+		if hasattr('_request_queue', self.baseclass):
+			self.baseclass._request_queue = Queue()
+
 		self.set_timezone()
 
 		try:
-			self.forum = Forum.get(spider=self.name)
+			self.market = Market.get(spider=self.name)
 		except:
-			raise Exception("No forum entry exist in the database for spider " + spider.name)
+			raise Exception("No market entry exist in the database for spider %s" % spider.name)
 
-		self.dao.cache.reload(User, User.forum == self.forum)
-		self.dao.cache.reload(Thread, Thread.forum == self.forum)
+		if not hasattr(self._baseclass, '_cache_preloaded') or not self._baseclass._cache_preloaded:
+			self.dao.cache.reload(User, User.market == self.market)
+			self._baseclass._cache_preloaded = True
+		
 
 		self.register_new_scrape()
 		self.start_statistics()
@@ -52,9 +63,35 @@ class MarketSpider(BaseSpider):
 		return spider
 
 
-	# When Spider is idle, this callback is called.
+	def make_dao(self):
+		donotcache = [
+			AdsProperty,
+			AdsPropertyAudit,
+			AdsFeedbackProperty,
+			AdsFeedbackPropertyAudit,
+			SellerFeedbackProperty,
+			SellerFeedbackPropertyAudit
+		]
+
+		return DatabaseDAO(self, cacheconfig='markets', donotcache=donotcache)	
+
+	def enqueue_request(self, request):
+		self.baseclass._request_queue.put(request)
+
+	def consume_request(self, n):
+		i = 0
+
+		while i<n and not self.baseclass._request_queue.empty():
+			yield self.baseclass._request_queue.get()
+			i += 1
+
 	def spider_idle(self, spider):
-		pass
+		pagesize = 100
+
+		for req in self.consume_request(pagesize):
+			self.crawler.engine.crawl(req, spider)
+
+
 	#Called by Scrapy Engine when spider is closed	
 	def spider_closed(self, spider, reason):
 		self.scrape.end = datetime.utcnow();
@@ -86,10 +123,7 @@ class MarketSpider(BaseSpider):
 		self.scrape = Scrape();	# Create the new Scrape in the databse.
 		self.scrape.start = datetime.utcnow()
 		self.scrape.process = self.process
-		self.scrape.forum = self.forum
-		self.scrape.deltamode = self.deltamode;
-		self.scrape.deltafromtime = self.deltafromtime;
-		self.scrape.indexingmode = self.indexingmode
+		self.scrape.market = self.market
 		self.scrape.login = self._loginkey
 		self.scrape.proxy = self._proxy_key
 		self.scrape.save();		

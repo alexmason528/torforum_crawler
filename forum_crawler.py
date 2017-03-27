@@ -29,8 +29,6 @@ def end_dbprocess(r, dbprocess):
 	dbprocess.end = datetime.now()
 	dbprocess.save()
 
-
-
 if __name__ == '__main__':
 	
 	parser = argparse.ArgumentParser()
