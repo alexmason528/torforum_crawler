@@ -3,7 +3,8 @@ import os
 import argparse
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
-from scrapyprj.database.orm.models import *
+from scrapyprj.database.settings import forums as dbsettings
+from scrapyprj.database.forums.orm.models import *
 from scrapyprj.database import db
 from IPython import embed
 from datetime import datetime
@@ -44,7 +45,7 @@ if __name__ == '__main__':
 
 	settings = get_project_settings()
 
-	db.init(settings['DATABASE']);
+	db.init(dbsettings);
 
 	settings.set('login', args.login)	# List of allowed login to use
 	print args

@@ -20,6 +20,13 @@ class DatabaseDAO:
 			'User' 				: ('forum', 'username'),
 			'CaptchaQuestion' 	: ('forum', 'hash'),
 			'Message' 			: ('forum', 'external_id')	
+		},
+		'markets' : {
+			'Ads' 				: ('market', 'external_id'),	
+			'User' 				: ('market', 'username'),
+			'CaptchaQuestion' 	: ('market', 'hash'),
+			'AdsFeedback' 		: ('market', 'external_id'),	
+			'SellerFeedback' 	: ('market', 'external_id')
 		}
 	}
 
