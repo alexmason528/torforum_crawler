@@ -139,11 +139,17 @@ class BaseSpider(scrapy.Spider):
 		if url.startswith('http'):
 			return url
 		elif url in self.spider_settings['resources'] :
-			return "%s/%s/%s" % (endpoint, prefix, self.resource(url).lstrip('/'))
+			if prefix:
+				return "%s/%s/%s" % (endpoint, prefix, self.resource(url).lstrip('/'))
+			else:
+				return "%s/%s" % (endpoint, self.resource(url).lstrip('/'))
 		elif url.startswith('/'):
 			return "%s/%s" % (endpoint, url.lstrip('/'))
 		else:
-			return "%s/%s/%s" % (endpoint,prefix, url.lstrip('/'))
+			if prefix:
+				return "%s/%s/%s" % (endpoint,prefix, url.lstrip('/'))
+			else:
+				return "%s/%s" % (endpoint, url.lstrip('/'))
 
 
 	def initlogs(self):
@@ -200,7 +206,6 @@ class BaseSpider(scrapy.Spider):
 		return datetime - self.timezone.localize(datetime).utcoffset()
 
 	def spider_closed(self, spider, reason):
-		print "PATATE"
 		self.add_to_counter('logins', self._loginkey, -1)
 		self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)
 

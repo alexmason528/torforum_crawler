@@ -1,7 +1,7 @@
 import scrapy
 from scrapy import signals
 from peewee import *
-from scrapyprj.database.forums.orm.models import *
+from scrapyprj.database.markets.orm.models import *
 from datetime import datetime
 from scrapyprj.database.settings import markets as dbsettings
 from scrapyprj.database.dao import DatabaseDAO
@@ -34,15 +34,15 @@ class MarketSpider(BaseSpider):
 		else:
 			self.dao = self.make_dao()
 
-		if hasattr('_request_queue', self.baseclass):
-			self.baseclass._request_queue = Queue()
+		if not hasattr(self._baseclass, '_request_queue'):
+			self._baseclass._request_queue = Queue()
 
 		self.set_timezone()
 
 		try:
 			self.market = Market.get(spider=self.name)
 		except:
-			raise Exception("No market entry exist in the database for spider %s" % spider.name)
+			raise Exception("No market entry exist in the database for spider %s" % self.name)
 
 		if not hasattr(self._baseclass, '_cache_preloaded') or not self._baseclass._cache_preloaded:
 			self.dao.cache.reload(User, User.market == self.market)
@@ -76,13 +76,13 @@ class MarketSpider(BaseSpider):
 		return DatabaseDAO(self, cacheconfig='markets', donotcache=donotcache)	
 
 	def enqueue_request(self, request):
-		self.baseclass._request_queue.put(request)
+		self._baseclass._request_queue.put(request)
 
 	def consume_request(self, n):
 		i = 0
 
-		while i<n and not self.baseclass._request_queue.empty():
-			yield self.baseclass._request_queue.get()
+		while i<n and not self._baseclass._request_queue.empty():
+			yield self._baseclass._request_queue.get()
 			i += 1
 
 	def spider_idle(self, spider):

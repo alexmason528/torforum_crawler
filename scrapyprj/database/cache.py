@@ -1,8 +1,8 @@
-from scrapyprj.database.forums.orm.models import *
 import scrapyprj.database as database
 import inspect
 from peewee import *
 from scrapy import settings
+from IPython import embed
 
 class Cache:
 
@@ -17,7 +17,7 @@ class Cache:
 
 	def set_config(self, config):
 		for model in config:
-			cls = globals()[model]
+			cls = model
 			fieldlist = cls._meta.fields
 			if isinstance(config[model], str):
 				if config[model] not in fieldlist:
@@ -102,8 +102,8 @@ class Cache:
 	def getcacheid(self, obj):
 		objclass = obj.__class__
 		self.assertismodelclass(objclass)
-		if objclass._meta.db_table in self.cacheconfig:	# Property that can be set in the Cache class to avoid "guessing"
-			fieldname = self.cacheconfig[objclass._meta.db_table]
+		if objclass in self.cacheconfig:	# Property that can be set in the Cache class to avoid "guessing"
+			fieldname = self.cacheconfig[objclass]
 			cacheid = self.read_index_value(obj, fieldname)
 			return (fieldname, cacheid)
 

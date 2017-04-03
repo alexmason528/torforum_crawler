@@ -31,7 +31,7 @@ class ForumSpider(BaseSpider):
 		try:
 			self.forum = Forum.get(spider=self.name)
 		except:
-			raise Exception("No forum entry exist in the database for spider " + spider.name)
+			raise Exception("No forum entry exist in the database for spider " + self.name)
 
 		self.dao.cache.reload(User, User.forum == self.forum)
 		self.dao.cache.reload(Thread, Thread.forum == self.forum)

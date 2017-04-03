@@ -72,6 +72,12 @@ class BasePropertyOwnerModel(Model):
 			cls.keyinitialized = True
 		return cls.keys
 
+	@classmethod
+	def reset_keys(cls):
+		cls.keys = {}
+		cls.keyinitialized=False
+
+
 	class Meta:
 		keymodel = None
 		valmodel = None

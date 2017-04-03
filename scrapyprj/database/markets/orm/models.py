@@ -181,7 +181,7 @@ class AdsPropertyAudit(orm.BasePropertyModel):
 		db_table='ads_propvalaudit'
 
 
-class Ads(Model):
+class Ads(orm.BasePropertyOwnerModel):
 	id 			= PrimaryKeyField()
 	external_id = CharField()
 	market 		= ForeignKeyField(Market, 	related_name='ads', db_column='market')
@@ -199,6 +199,8 @@ class Ads(Model):
 		indexes = (
  			(('market', 'external_id'), True),	# unique index
 			)
+		valmodel = AdsProperty
+		keymodel = AdsPropertyKey		
 
 DeferredAds.set_model(Ads)	#Overcome circular dependency
 
@@ -244,7 +246,7 @@ class AdsFeedbackPropertyAudit(orm.BasePropertyModel):
 		db_table='ads_feedback_propvalaudit'
 
 
-class AdsFeedback(Model):
+class AdsFeedback(orm.BasePropertyOwnerModel):
 	id = PrimaryKeyField()
 	external_id = CharField()
 	market 	= ForeignKeyField(Market, 	related_name='ads_feedback', 	db_column='market')
@@ -258,6 +260,8 @@ class AdsFeedback(Model):
 		indexes = (
  			(('market', 'external_id'), True),	# unique index
 			)
+		valmodel = AdsFeedbackProperty
+		keymodel = AdsFeedbackPropertyKey
 
 DeferredAdsFeedback.set_model(AdsFeedback)	#Overcome circular dependency
 
@@ -302,7 +306,7 @@ class SellerFeedbackPropertyAudit(orm.BasePropertyModel):
 		db_table='seller_feedback_propvalaudit'	
 
 
-class SellerFeedback(Model):
+class SellerFeedback(orm.BasePropertyOwnerModel):
 	id = PrimaryKeyField()
 	external_id = CharField()
 	market 	= ForeignKeyField(Market, 	related_name='seller_feedback',	db_column='market')
@@ -316,6 +320,8 @@ class SellerFeedback(Model):
 		indexes = (
  			(('market', 'external_id'), True),	# unique index
 			)
+		valmodel = SellerFeedbackProperty
+		keymodel = SellerFeedbackPropertyKey
 
 DeferredSellerFeedback.set_model(SellerFeedback)	#Overcome circular dependency
 

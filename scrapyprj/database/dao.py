@@ -6,6 +6,9 @@ from scrapyprj.database.orm import *
 import logging
 import inspect
 import traceback
+import scrapyprj.database.forums.orm.models as forum_models
+import scrapyprj.database.markets.orm.models as market_models
+
 
 # This object is meant to stand between the application and the database.
 # The reason of its existence is :
@@ -16,17 +19,17 @@ class DatabaseDAO:
 
 	cache_configs = {
 		'forums' : {
-			'Thread' 			: ('forum', 'external_id'),	
-			'User' 				: ('forum', 'username'),
-			'CaptchaQuestion' 	: ('forum', 'hash'),
-			'Message' 			: ('forum', 'external_id')	
+			forum_models.Thread				: ('forum', 'external_id'),	
+			forum_models.User 				: ('forum', 'username'),
+			forum_models.CaptchaQuestion 	: ('forum', 'hash'),
+			forum_models.Message 			: ('forum', 'external_id')	
 		},
 		'markets' : {
-			'Ads' 				: ('market', 'external_id'),	
-			'User' 				: ('market', 'username'),
-			'CaptchaQuestion' 	: ('market', 'hash'),
-			'AdsFeedback' 		: ('market', 'external_id'),	
-			'SellerFeedback' 	: ('market', 'external_id')
+			market_models.Ads 				: ('market', 'external_id'),	
+			market_models.User 				: ('market', 'username'),
+			market_models.CaptchaQuestion 	: ('market', 'hash'),
+			market_models.AdsFeedback 		: ('market', 'external_id'),	
+			market_models.SellerFeedback 	: ('market', 'external_id')
 		}
 	}
 
@@ -132,7 +135,8 @@ class DatabaseDAO:
 						msg = "%s : Flushing %s data failed. Dumping queue data to %s.\nError is %s." % (self.__class__.__name__, modeltype.__name__, filename, str(e))
 						self.spider.logger.error("%s\n %s" % (msg, traceback.format_exc()))
 						self.dumpqueue(filename, queue)
-						self.spider.crawler.engine.close_spider(self.spider, msg)
+						if hasattr(self.spider, 'crawler'):
+							self.spider.crawler.engine.close_spider(self.spider, msg)
 						success = False
 
 			if success:
