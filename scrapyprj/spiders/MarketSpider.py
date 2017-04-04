@@ -15,7 +15,7 @@ import os, time, sys
 from dateutil import parser
 import random
 import logging
-from Queue import Queue
+from Queue import PriorityQueue
 import itertools as it
 import pytz
 
@@ -29,13 +29,16 @@ class MarketSpider(BaseSpider):
 
 		db.init(dbsettings)
 
+		if not hasattr(self, 'request_queue_chunk'):
+			self.request_queue_chunk = 100
+
 		if 'dao' in kwargs:
 			self.dao = kwargs['dao']
 		else:
 			self.dao = self.make_dao()
 
 		if not hasattr(self._baseclass, '_request_queue'):
-			self._baseclass._request_queue = Queue()
+			self._baseclass._request_queue = PriorityQueue()
 
 		self.set_timezone()
 
@@ -76,19 +79,19 @@ class MarketSpider(BaseSpider):
 		return DatabaseDAO(self, cacheconfig='markets', donotcache=donotcache)	
 
 	def enqueue_request(self, request):
-		self._baseclass._request_queue.put(request)
+		self._baseclass._request_queue.put( (-request.priority, request)  )	# Priority is inverted. High priority go first for scrapy. Low Priority go first for queue
 
 	def consume_request(self, n):
 		i = 0
 
 		while i<n and not self._baseclass._request_queue.empty():
-			yield self._baseclass._request_queue.get()
+			priority, request = self._baseclass._request_queue.get()
+			yield request
 			i += 1
 
 	def spider_idle(self, spider):
-		pagesize = 100
-
-		for req in self.consume_request(pagesize):
+		spider.logger.debug('Idle')
+		for req in self.consume_request(self.request_queue_chunk):
 			self.crawler.engine.crawl(req, spider)
 
 
