@@ -17,8 +17,8 @@ class DreamMarketRectangleCropper(object):
 		h,w = npimg.shape
 		vline = (np.ones([h//2,2])>0.5).astype(float) # Create lines for convolution
 		hline = (np.ones([2,w//2])>0.5).astype(float)
-		vconv = signal.convolve2d(npimg_thresh,vline)	 # Do convolution with lines. Basically cross correlations
-		hconv = signal.convolve2d(npimg_thresh,hline)
+		vconv = signal.correlate(npimg_thresh,vline)	# Do cross correlation with our lines. 
+		hconv = signal.correlate(npimg_thresh,hline)	# Lines are symetrics, so it comes back to a 2D convolution
 
 		vsumdiff = np.abs(np.diff( np.sum(hconv,1) ))		# Derivative of sum. Will make peaks where correlation changes quickly.
 		hsumdiff = np.abs(np.diff( np.sum(vconv,0) ))

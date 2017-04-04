@@ -4,32 +4,16 @@ import scrapy
 
 # Copy this file for each site to crawl.
 
-class Thread(scrapy.Item) :	
-	threadid =  scrapy.Field()
-	title =  scrapy.Field()
-	author_username =  scrapy.Field()
-	last_update =  scrapy.Field()
-	relativeurl =  scrapy.Field()
-	fullurl =  scrapy.Field()
-
-	Somefield1 = scrapy.Field()
-	Somefield2 = scrapy.Field()
-
-class Message(scrapy.Item):
-	postid = scrapy.Field()
-	threadid = scrapy.Field()
-	author_username = scrapy.Field()
-	posted_on = scrapy.Field()
-	contenttext = scrapy.Field()
-	contenthtml = scrapy.Field()
-
-	Somefield1 = scrapy.Field()
-	Somefield2 = scrapy.Field()
-
-class User(scrapy.Item):
-	username = scrapy.Field()
-	relativeurl =  scrapy.Field()
-	fullurl =  scrapy.Field()
-
-	Somefield1 = scrapy.Field()
-	Somefield2 = scrapy.Field()
+class Ads(scrapy.Item) :
+	vendor_username = scrapy.Field()
+	offer_id = scrapy.Field()
+	title = scrapy.Field()
+	price = scrapy.Field()
+	ships_to = scrapy.Field()	
+	ships_from = scrapy.Field()
+	escrow = scrapy.Field()	
+	description = scrapy.Field()
+	category = scrapy.Field()
+	shipping_options = scrapy.Field()
+	relative_url = scrapy.Field()
+	full_url = scrapy.Field()

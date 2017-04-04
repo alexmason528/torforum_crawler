@@ -210,3 +210,6 @@ class BaseSpider(scrapy.Spider):
 		self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)
 
 		self.logger.info("Spider resources released")
+
+	def get_text(self, node):
+		return ''.join(node.xpath(".//text()[normalize-space(.)]").extract()).strip()
