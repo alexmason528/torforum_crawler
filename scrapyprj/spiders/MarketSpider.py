@@ -1,5 +1,6 @@
 import scrapy
 from scrapy import signals
+from scrapy.exceptions import DontCloseSpider 
 from peewee import *
 from scrapyprj.database.markets.orm.models import *
 from datetime import datetime
@@ -18,6 +19,7 @@ import logging
 from Queue import PriorityQueue
 import itertools as it
 import pytz
+from IPython import embed
 
 from twisted.internet import reactor
 
@@ -26,6 +28,7 @@ class MarketSpider(BaseSpider):
 	def __init__(self, *args, **kwargs):
 		super(MarketSpider, self).__init__( *args, **kwargs)
 		self._baseclass = MarketSpider
+		self._queue_size = 0
 
 		db.init(dbsettings)
 
@@ -79,6 +82,7 @@ class MarketSpider(BaseSpider):
 		return DatabaseDAO(self, cacheconfig='markets', donotcache=donotcache)	
 
 	def enqueue_request(self, request):
+		self._queue_size += 1
 		self._baseclass._request_queue.put( (-request.priority, request)  )	# Priority is inverted. High priority go first for scrapy. Low Priority go first for queue
 
 	def consume_request(self, n):
@@ -86,13 +90,17 @@ class MarketSpider(BaseSpider):
 
 		while i<n and not self._baseclass._request_queue.empty():
 			priority, request = self._baseclass._request_queue.get()
+			self._queue_size -= 1
 			yield request
 			i += 1
 
+
 	def spider_idle(self, spider):
-		spider.logger.debug('Idle')
+		spider.logger.debug('Idle. Queue Size = %d' % self._queue_size)
 		for req in self.consume_request(self.request_queue_chunk):
 			self.crawler.engine.crawl(req, spider)
+			
+		raise DontCloseSpider()	# Mandatory to avoid closing the spider if the request are being dropped and scheduler is empty.
 
 
 	#Called by Scrapy Engine when spider is closed	

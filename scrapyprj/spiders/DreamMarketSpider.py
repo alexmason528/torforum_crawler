@@ -8,13 +8,23 @@ import parser
 import scrapyprj.spider_folder.dreammarket.items as items
 from urlparse import urlparse, parse_qsl
 import json
-
+import scrapyprj.database.markets.orm.models as dbmodels
 
 class DreamMarketSpider(MarketSpider):
 	name = "dreammarket"
 
+	custom_settings = {
+		'ITEM_PIPELINES': {
+			'scrapyprj.pipelines.ImagePipelineFromRequest.ImagePipelineFromRequest' : 400,
+			'scrapyprj.spider_folder.dreammarket.pipelines.map2db.map2db': 401,    # Convert from Items to Models
+			'scrapyprj.pipelines.save2db.save2db': 402                  # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
+		},
+		'IMAGES_STORE' : './files/img/dreammarket'
+	}
+
 	def __init__(self, *args, **kwargs):
 		super(DreamMarketSpider, self).__init__( *args, **kwargs)
+		
 		self.logintrial = 0
 		self.handling_ddos = False
 
@@ -25,10 +35,10 @@ class DreamMarketSpider(MarketSpider):
 
 
 		self.parse_handlers = {
-				'index' : self.parse_index,
-				'ads_list' : self.parse_ads_list,
-				'ads' : self.parse_ads,
-				'user' : self.parse_user
+				'index' 	: self.parse_index,
+				'ads_list' 	: self.parse_ads_list,
+				'ads' 		: self.parse_ads,
+				'user' 		: self.parse_user
 			}
 
 	def start_requests(self):
@@ -58,7 +68,7 @@ class DreamMarketSpider(MarketSpider):
 			self.handling_ddos = True
 			req.meta['ddos_protection'] = True
 			req.dont_filter=True
-		elif reqtype in ['ads_list', 'ads', 'user']:
+		elif reqtype in ['ads_list', 'ads', 'user', 'image']:
 			req = Request(self.make_url(kwargs['url']))
 
 
@@ -81,7 +91,10 @@ class DreamMarketSpider(MarketSpider):
 				self.logger.info("Trying to login.")
 				self.logintrial += 1
 
-				self.enqueue_request( self.make_request('dologin', req_once_logged=response.request, response=response) )
+				req_once_logged = response.request
+				if ('req_once_logged' in response.meta):
+					req_once_logged = response.meta['req_once_logged']
+				self.enqueue_request( self.make_request('dologin', req_once_logged=req_once_logged, response=response) )
 
 			elif self.is_ddos_protection_form(response):
 				self.logger.debug('Faced a DDOS Protection page.')
@@ -135,9 +148,9 @@ class DreamMarketSpider(MarketSpider):
 			yield self.make_request('ads_list', url=next_page_url)
 
 	def parse_ads(self, response):
-		item = items.Ads()
+		ads_item = items.Ads()
 
-		item['title'] = response.css('.viewProduct .title::text').extract_first().strip()
+		ads_item['title'] = response.css('.viewProduct .title::text').extract_first().strip()
 		details = response.css('div.tabularDetails>div')
 		for div in details:
 			label = div.css('label:first-child')
@@ -146,41 +159,109 @@ class DreamMarketSpider(MarketSpider):
 
 			if label_txt == 'vendor':
 				link = span.css('a:first-child')
-				item['vendor_username'] = link.css('::text').extract_first().strip()
+				ads_item['vendor_username'] = link.css('::text').extract_first().strip()
 				url = link.css('::attr(href)').extract_first().strip()
-				yield self.make_request('user', url = url)
+				yield self.make_request('user', url = url, priority=5)
 			elif label_txt == 'price':
-				item['price'] = self.get_text(span)
+				ads_item['price'] = self.get_text(span)
 			elif label_txt == 'ships to':
-				item['ships_to'] = self.get_text(span)
+				ads_item['ships_to'] = self.get_text(span)
 			elif label_txt == 'ships from':
-				item['ships_from'] = self.get_text(span)
+				ads_item['ships_from'] = self.get_text(span)
 			elif label_txt == 'escrow':
-				item['escrow'] = self.get_text(span)
+				ads_item['escrow'] = self.get_text(span)
 			else:
 				self.logger.warning('Found an ads detail (%s) that is unknown to this spider. Consider hadnling it.' % label_txt)
 
-		item['description'] = self.get_text(response.css("#offerDescription"))
+		ads_item['description'] = self.get_text(response.css("#offerDescription"))
 
-		item['offer_id'] = dict(parse_qsl(urlparse(response.url).query))['offer']
+		ads_item['offer_id'] = dict(parse_qsl(urlparse(response.url).query))['offer']
 		
 		try:
-			item['category'] = self.get_active_category(response)
+			ads_item['category'] = self.get_active_category(response)
 		except Exception, e:
 			self.logger.warning('Cannot determine ads category : %s' % e)
 
 		try:
-			item['shipping_options'] = json.dumps(self.get_shipping_options(response))
+			ads_item['shipping_options'] = json.dumps(self.get_shipping_options(response))
 		except Exception, e:
 			self.logger.warning('Cannot determine shipping options : %s' % e)
 
-		item['full_url'] = response.url
+		ads_item['fullurl'] = response.url
+		parsed_url = urlparse(response.url)
+		ads_item['relativeurl'] = "%s?%s" % (parsed_url.path, (parsed_url.query))
 
-		yield item
+		yield ads_item
+		self.dao.flush(dbmodels.Ads)
+		images_url = response.css('img.productImage::attr(src)').extract();
+		for url in images_url:
+			img_item = items.AdsImage(image_urls = [])
+			img_item['image_urls'].append(self.make_request('image', url=url))
+			img_item['ads_id'] = ads_item['offer_id']
+			yield img_item
+
+		self.dao.flush(dbmodels.AdsImage)
+
+
 	
 	def parse_user(self, response):
-		pass
+		user_item = items.User()
+		details = response.css('div.tabularDetails>div')
+		verified_list = []
+		for div in details:
+			label = div.css('label:first-child')
+			label_txt = self.get_text(label).lower()
+			content = div.css('div>:not(label)')
 
+			if label_txt == 'username':
+				content = div.css('table tr td:nth-child(2)')
+				content_txt = self.get_text(content)
+				m = re.search('(\w+)[\s\(]', content_txt)
+				if m : 
+					user_item['username'] = m.group(1).strip()
+				else:
+					raise RuntimeError('Cannot find username while searching member page at %s' % response.url)
+
+				ratings = self.parse_ratings(content)
+				for key in ratings:
+					user_item[key] = ratings[key]
+			else:
+				content = div.css('div>:not(label)')
+				if label_txt == 'trusted seller':
+					user_item['trusted_seller'] = self.get_text(content)
+				elif label_txt == 'verified':
+					verified_list.append(self.get_text(content))
+				elif label_txt == 'fe enabled':
+					user_item['fe_enabled'] 	= self.get_text(content)
+				elif label_txt == 'join date':
+					user_item['join_date'] 		= self.get_text(content)
+				elif label_txt == 'last active':
+					user_item['last_active'] 	= self.get_text(content)
+				else:
+					self.logger.warning('Found a user detail (%s) that is unknown to this spider. Consider hadnling it.' % label_txt)
+
+			user_item['verified'] = json.dumps(verified_list)
+
+			for div in response.css('div.messagingTab>div'):
+				try:
+					title = self.get_text(div.css('div>div:first-child'))
+					content = self.get_text(div.css('div>div:nth-child(2)'))
+
+					lower_title = title.lower()
+					if lower_title == 'public pgp key':
+						user_item['public_pgp_key'] = content
+					elif lower_title == 'terms and conditions':
+						user_item['terms_and_conditions'] = content
+				except Exception, e:
+					self.logger.warning('Error while reading messaging tab. Error : %s' % e)
+
+
+		user_item['fullurl'] = response.url
+		parsed_url = urlparse(response.url)
+		user_item['relativeurl'] = "%s?%s" % (parsed_url.path, (parsed_url.query))
+
+		yield user_item
+		self.dao.flush(dbmodels.User)
 
 	def loggedin(self, response):
 		profile_links = response.css('.main .headNavitems ul li a[href="./profile"]')
@@ -223,9 +304,6 @@ class DreamMarketSpider(MarketSpider):
 			'preprocess' : 'DreamMarketRectangleCropper'	# Preprocess image to extract what's within the rectangle
 			}
 		return req
-
-
-
 
 	def create_request_from_login_page(self, response):
 		username_txtbox_list = response.css('.formInputs').xpath('.//label[contains(text(), "Username")]/..').css('input[value=""], input[value="%s"]' % self.login['username'])
@@ -301,7 +379,6 @@ class DreamMarketSpider(MarketSpider):
 
 		return req
 
-
 	def get_active_category(self, response):
 		categories = response.css('.sidebar.browse>div.category')
 		category_list = []
@@ -340,4 +417,35 @@ class DreamMarketSpider(MarketSpider):
 			options_list.append(option_dict)
 		return options_list
 
+	def parse_ratings(self, content):
+		ratings = {}
 
+		s = self.get_text(content.css('.userRating'))
+		if s:
+			ratings['average_rating'] = s
+
+		s = self.get_text(content.css('.alphabayLinkedUserRating'))
+		if s:
+			ratings['alphabay_rating'] = s
+
+		s = self.get_text(content.css('.nucleusLinkedUserRating'))
+		if s:
+			ratings['nucleus_rating'] = s
+			
+		s = self.get_text(content.css('.abraxasLinkedUserRating'))
+		if s:
+			ratings['abraxas_rating'] = s		
+				
+		s = self.get_text(content.css('.agoraLinkedUserRating'))
+		if s:
+			ratings['agora_rating'] = s		
+				
+		s = self.get_text(content.css('.hansaLinkedUserRating'))
+		if s:
+			ratings['hansa_rating'] = s	
+				
+		s = self.get_text(content.css('.middleEarthLinkedUserRating'))
+		if s:
+			ratings['midlle_earth_rating'] = s
+
+		return ratings

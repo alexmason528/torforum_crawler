@@ -13,12 +13,14 @@ import pytz
 class BaseSpider(scrapy.Spider):
 
 	def __init__(self, *args, **kwargs):
+		kwargs['settings'] = self.configure_image_store(kwargs['settings'])
 		super(BaseSpider, self).__init__( *args, **kwargs)
 		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init__()
 		self.load_spider_settings()
 		self.initlogs()
 		self.configure_login()
 		self.configure_proxy()
+		
 
 
 		#Counters : We use this to distribute logins/proxies equally between spiders.
@@ -184,6 +186,12 @@ class BaseSpider(scrapy.Spider):
 				self.proxy = self.settings['PROXIES'][self._proxy_key]
 				self.add_to_counter('proxies', self._proxy_key, 1, isglobal=True)
 				self.logger.info('Using proxy %s' % self._proxy_key)
+
+	def configure_image_store(self, settings):
+		if 'IMAGE_STORE' in settings:
+			actual_image_store = settings['IMAGE_STORE'].rstrip('/')
+			settings.set('IMAGE_STORE', "%s/%s" % (actual_image_store, self.name) )
+		return settings
 
 	def set_timezone(self):
 		if 'timezone' in self.spider_settings:
