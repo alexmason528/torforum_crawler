@@ -171,9 +171,9 @@ class DatabaseDAO:
 
 	def assertismodelclass(self, modeltype):
 		if not inspect.isclass(modeltype):
-			raise Exception("Type must be a Class")
+			raise Exception("Type must be a Class. Got %s" % modeltype.__class__.__name__)
 		elif not issubclass(modeltype, Model):
-			raise Exception("Given type must be a subclass of PeeWee.Model")
+			raise Exception("Given type must be a subclass of PeeWee.Model. Got %s" % modeltype.__name__)
 
 	def dumpqueue(self, filename, queue):
 		try:

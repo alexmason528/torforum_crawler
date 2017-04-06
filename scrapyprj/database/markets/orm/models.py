@@ -194,9 +194,9 @@ class Ads(orm.BasePropertyOwnerModel):
 	modified_on = DateTimeField()
 
 	class Meta:
-		database = db.proxy 
-		db_table = 'ads'
-		indexes = (
+		database 	= db.proxy 
+		db_table 	= 'ads'
+		indexes 	= (
  			(('market', 'external_id'), True),	# unique index
 			)
 		valmodel = AdsProperty
@@ -212,12 +212,12 @@ DeferredAds.set_model(Ads)	#Overcome circular dependency
 ############### Ads Feedback ###################
 
 class AdsFeedbackPropertyKey(Model):
-	id = PrimaryKeyField()
-	name = CharField()
+	id 		= PrimaryKeyField()
+	name 	= CharField()
 
 	class Meta:
-		database = db.proxy 
-		db_table='ads_feedback_propkey'
+		database 	= db.proxy 
+		db_table	='ads_feedback_propkey'
 
 DeferredAdsFeedback = DeferredRelation() #Overcome circular dependency
 
@@ -230,8 +230,8 @@ class AdsFeedbackProperty(orm.BasePropertyModel):
 
 	class Meta:
 		primary_key = CompositeKey('owner', 'key')
-		database = db.proxy 
-		db_table='ads_feedback_propval'
+		database 	= db.proxy 
+		db_table	='ads_feedback_propval'
 
 class AdsFeedbackPropertyAudit(orm.BasePropertyModel):
 	key 	= ForeignKeyField(AdsFeedbackPropertyKey, 	db_column='propkey')
@@ -242,26 +242,26 @@ class AdsFeedbackPropertyAudit(orm.BasePropertyModel):
 
 	class Meta:
 		primary_key = CompositeKey('owner', 'key')
-		database = db.proxy 
-		db_table='ads_feedback_propvalaudit'
+		database 	= db.proxy 
+		db_table	='ads_feedback_propvalaudit'
 
 
 class AdsFeedback(orm.BasePropertyOwnerModel):
-	id = PrimaryKeyField()
+	id 			= PrimaryKeyField()
 	external_id = CharField()
-	market 	= ForeignKeyField(Market, 	related_name='ads_feedback', 	db_column='market')
-	ads 	= ForeignKeyField(Ads, 		related_name='feedback', 		db_column='ads')
-	scrape 	= ForeignKeyField(Scrape, 	related_name='ads_feedback',	db_column='scrape')
+	market 		= ForeignKeyField(Market, 	related_name='ads_feedback', 	db_column='market')
+	ads 		= ForeignKeyField(Ads, 		related_name='feedback', 		db_column='ads')
+	scrape 		= ForeignKeyField(Scrape, 	related_name='ads_feedback',	db_column='scrape')
 	modified_on = DateTimeField()
 
 	class Meta:
-		database = db.proxy 
-		db_table = 'ads_feedback'
-		indexes = (
+		database 	= db.proxy 
+		db_table 	= 'ads_feedback'
+		indexes 	= (
  			(('market', 'external_id'), True),	# unique index
 			)
-		valmodel = AdsFeedbackProperty
-		keymodel = AdsFeedbackPropertyKey
+		valmodel 	= AdsFeedbackProperty
+		keymodel 	= AdsFeedbackPropertyKey
 
 DeferredAdsFeedback.set_model(AdsFeedback)	#Overcome circular dependency
 
@@ -276,48 +276,48 @@ class SellerFeedbackPropertyKey(Model):
 	name = CharField()
 
 	class Meta:
-		database = db.proxy 
-		db_table='seller_feedback_propkey'
+		database 	= db.proxy 
+		db_table	='seller_feedback_propkey'
 
 DeferredSellerFeedback = DeferredRelation() #Overcome circular dependency
 
 class SellerFeedbackProperty(orm.BasePropertyModel):
-	key 	= ForeignKeyField(SellerFeedbackPropertyKey, 	db_column='propkey')
-	owner 	= ForeignKeyField(DeferredSellerFeedback,  		db_column='feedback')
-	data 	= TextField()
-	scrape 	= ForeignKeyField(Scrape, 						db_column='scrape')
+	key 		= ForeignKeyField(SellerFeedbackPropertyKey, 	db_column='propkey')
+	owner 		= ForeignKeyField(DeferredSellerFeedback,  		db_column='feedback')
+	data 		= TextField()
+	scrape 		= ForeignKeyField(Scrape, 						db_column='scrape')
 	modified_on = DateTimeField()
 
 	class Meta:
 		primary_key = CompositeKey('owner', 'key')
-		database = db.proxy 
-		db_table='seller_feedback_propval'
+		database 	= db.proxy 
+		db_table	='seller_feedback_propval'
 
 class SellerFeedbackPropertyAudit(orm.BasePropertyModel):
-	key 	= ForeignKeyField(SellerFeedbackPropertyKey, 	db_column='propkey')
-	owner 	= ForeignKeyField(DeferredSellerFeedback,  		db_column='feedback')
-	data 	= TextField()
-	scrape 	= ForeignKeyField(Scrape, 						db_column='scrape')
+	key 		= ForeignKeyField(SellerFeedbackPropertyKey, 	db_column='propkey')
+	owner 		= ForeignKeyField(DeferredSellerFeedback,  		db_column='feedback')
+	data 		= TextField()
+	scrape 		= ForeignKeyField(Scrape, 						db_column='scrape')
 	modified_on = DateTimeField()
 
 	class Meta:
 		primary_key = CompositeKey('owner', 'key')
-		database = db.proxy 
-		db_table='seller_feedback_propvalaudit'	
+		database 	= db.proxy 
+		db_table	='seller_feedback_propvalaudit'	
 
 
 class SellerFeedback(orm.BasePropertyOwnerModel):
-	id = PrimaryKeyField()
+	id 			= PrimaryKeyField()
 	external_id = CharField()
-	market 	= ForeignKeyField(Market, 	related_name='seller_feedback',	db_column='market')
-	seller 	= ForeignKeyField(User, 	related_name='feedback', 		db_column='seller')
-	scrape 	= ForeignKeyField(Scrape, 	related_name='seller_feedback',	db_column='scrape')
+	market 		= ForeignKeyField(Market, 	related_name='seller_feedback',	db_column='market')
+	seller 		= ForeignKeyField(User, 	related_name='feedback', 		db_column='seller')
+	scrape 		= ForeignKeyField(Scrape, 	related_name='seller_feedback',	db_column='scrape')
 	modified_on = DateTimeField()
 
 	class Meta:
-		database = db.proxy 
-		db_table = 'seller_feedback'
-		indexes = (
+		database 	= db.proxy 
+		db_table 	= 'seller_feedback'
+		indexes 	= (
  			(('market', 'external_id'), True),	# unique index
 			)
 		valmodel = SellerFeedbackProperty
@@ -329,5 +329,18 @@ DeferredSellerFeedback.set_model(SellerFeedback)	#Overcome circular dependency
 ###########################################
 
 
+class AdsImage(Model):
+	id 				= PrimaryKeyField()
+	ads 			= ForeignKeyField(Ads,  db_column='ads')
+	path 			= CharField()
+	hash 			= CharField()
+	modified_on 	= DateTimeField()
+	scrape 			= ForeignKeyField(Scrape, db_column='scrape')
 
+	class Meta:
+		database 	= db.proxy 
+		db_table 	= 'ads_img'
 
+		indexes 	= (
+			(('hash'), True),	#unique
+			)

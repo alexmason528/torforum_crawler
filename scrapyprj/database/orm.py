@@ -3,8 +3,6 @@ from peewee import *
 #Extension to peewee model that allows to make models that 
 # have some properties listed in another table respecting a predefined structure.
 class BasePropertyOwnerModel(Model):
-	keys = {}
-	keyinitialized = False
 	def __init__(self, *args, **kwargs):
 		if not self.__class__._meta.keymodel:
 			raise Exception("When using BasePropertyOwnerModel, Meta.keymodel must be defined")
@@ -62,6 +60,9 @@ class BasePropertyOwnerModel(Model):
 
 	@classmethod
 	def get_keys(cls):
+		if not cls.model_initialized():
+			cls.reset_keys()
+
 		if not cls.keyinitialized:
 			if not cls._meta.keymodel:
 				raise Exception("When using BasePropertyOwnerModel, valmodel and keymodel must be defined")
@@ -76,6 +77,17 @@ class BasePropertyOwnerModel(Model):
 	def reset_keys(cls):
 		cls.keys = {}
 		cls.keyinitialized=False
+	
+	@classmethod
+	def model_initialized(cls):
+		if not hasattr(cls,'keys'):
+			return False
+		
+		if not hasattr(cls, 'keyinitialized'):
+			return False
+
+		return True
+		
 
 
 	class Meta:
