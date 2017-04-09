@@ -248,7 +248,7 @@ class AdsFeedbackPropertyAudit(orm.BasePropertyModel):
 
 class AdsFeedback(orm.BasePropertyOwnerModel):
 	id 			= PrimaryKeyField()
-	external_id = CharField()
+	hash 		= CharField()
 	market 		= ForeignKeyField(Market, 	related_name='ads_feedback', 	db_column='market')
 	ads 		= ForeignKeyField(Ads, 		related_name='feedback', 		db_column='ads')
 	scrape 		= ForeignKeyField(Scrape, 	related_name='ads_feedback',	db_column='scrape')
@@ -257,9 +257,6 @@ class AdsFeedback(orm.BasePropertyOwnerModel):
 	class Meta:
 		database 	= db.proxy 
 		db_table 	= 'ads_feedback'
-		indexes 	= (
- 			(('market', 'external_id'), True),	# unique index
-			)
 		valmodel 	= AdsFeedbackProperty
 		keymodel 	= AdsFeedbackPropertyKey
 
@@ -308,7 +305,7 @@ class SellerFeedbackPropertyAudit(orm.BasePropertyModel):
 
 class SellerFeedback(orm.BasePropertyOwnerModel):
 	id 			= PrimaryKeyField()
-	external_id = CharField()
+	hash = CharField()
 	market 		= ForeignKeyField(Market, 	related_name='seller_feedback',	db_column='market')
 	seller 		= ForeignKeyField(User, 	related_name='feedback', 		db_column='seller')
 	scrape 		= ForeignKeyField(Scrape, 	related_name='seller_feedback',	db_column='scrape')
@@ -317,9 +314,6 @@ class SellerFeedback(orm.BasePropertyOwnerModel):
 	class Meta:
 		database 	= db.proxy 
 		db_table 	= 'seller_feedback'
-		indexes 	= (
- 			(('market', 'external_id'), True),	# unique index
-			)
 		valmodel = SellerFeedbackProperty
 		keymodel = SellerFeedbackPropertyKey
 
