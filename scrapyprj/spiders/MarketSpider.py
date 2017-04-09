@@ -79,7 +79,70 @@ class MarketSpider(BaseSpider):
 			SellerFeedbackPropertyAudit
 		]
 
-		return DatabaseDAO(self, cacheconfig='markets', donotcache=donotcache)	
+		dao = DatabaseDAO(self, cacheconfig='markets', donotcache=donotcache)
+		dao.add_dependencies(AdsFeedback, [Ads])
+		dao.add_dependencies(UserFeedback, [User])
+		dao.add_dependencies(AdsImage, [Ads])
+
+		# These 2 callbacks will make sure to insert only the difference between the queue and the actual db content.
+		# We assume that a complete dataset of Feedbacks objects related to an Ads or Seller is inside the queue because we will
+		# delete database entries that are not in the queue.
+		dao.before_flush(AdsFeedback, self.AdsFeedbackDiffInsert)
+		dao.before_flush(SellerFeedback, self.SellerFeedbackDiffInsert)
+		return 	dao
+
+
+		def AdsFeedbackDiffInsert(self, queue):
+			ads_list = list(set([x.ads.id for x in queue]))
+			hash_list = list(set([x.hash for x in queue]))
+			def diff(a,b):
+				eq_map = {}
+				for i in range(len(a)):
+					for j in range(len(b)):
+						if j not in eq_map and a[i].ads.id==b[j].ads.id and a[i].hash == b[j].hash:
+							eq_map[i] = j
+							break
+					if i not in eq_map:
+						yield a[i]
+
+
+			db_content =  list(AdsFeedback.select()
+				.where(AdsFeedback.ads <<  ads_list, AdsFeedback.hash << hash_list)
+				.execute())
+
+			to_delete = [row.id for row in diff(db_content, queue)]
+			new_queue = list(diff(queue, db_content))
+			
+			if len(to_delete) > 0:
+				AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()
+
+			return new_queue
+		
+		def SellerFeedbackDiffInsert(self, queue):
+			seller_list = list(set([x.seller.id for x in queue]))
+			hash_list = list(set([x.hash for x in queue]))
+			def diff(a,b):
+				eq_map = {}
+				for i in range(len(a)):
+					for j in range(len(b)):
+						if j not in eq_map and a[i].seller.id==b[j].seller.id and a[i].hash == b[j].hash:
+							eq_map[i] = j
+							break
+					if i not in eq_map:
+						yield a[i]
+
+
+			db_content =  list(SellerFeedback.select()
+				.where(SellerFeedback.seller <<  seller_list, SellerFeedback.hash << hash_list)
+				.execute())
+
+			to_delete = [row.id for row in diff(db_content, queue)]
+			new_queue = list(diff(queue, db_content))
+			
+			if len(to_delete) > 0:
+				SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()
+
+			return new_queue		
 
 	def enqueue_request(self, request):
 		self._queue_size += 1

@@ -28,7 +28,8 @@ class DatabaseDAO:
 		'markets' : {
 			market_models.Ads 				: ('market', 'external_id'),	
 			market_models.User 				: ('market', 'username'),
-			market_models.CaptchaQuestion 	: ('market', 'hash')
+			market_models.CaptchaQuestion 	: ('market', 'hash'),
+			market_models.AdsFeedback 		: ('ads', 'hash')
 		}
 	}
 
@@ -113,7 +114,7 @@ class DatabaseDAO:
 			last_pipeline_args = pipeline_args
 			result = callback_data['callback'].__call__(*merged_args, **merged_kwargs)
 
-			if not result : 
+			if result == None: 
 				pipeline_args = []
 			elif isinstance(result, tuple):
 				pipeline_args = list(result)
@@ -122,7 +123,7 @@ class DatabaseDAO:
 
 
 			if len(pipeline_args) != len(last_pipeline_args):
-				raise RuntimeError('Callback %s for model %s did not returned as much data as its input. Returned %d, expected : %d' % (name, modeltype.__name__, len(pipeline_args), len(last_piepeline_args)))
+				raise RuntimeError('Callback %s for model %s did not returned as much data as its input. Returned %d, expected : %d' % (name, modeltype.__name__, len(pipeline_args), len(last_pipeline_args)))
 
 		return result
 
