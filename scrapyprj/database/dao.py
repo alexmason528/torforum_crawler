@@ -17,6 +17,7 @@ import scrapyprj.database.markets.orm.models as market_models
 # One instance of DatabaseDAO should be use per spider.	
 class DatabaseDAO:
 
+	# This config list unique keys which we can use as cache key.
 	cache_configs = {
 		'forums' : {
 			forum_models.Thread				: ('forum', 'external_id'),	
@@ -27,9 +28,7 @@ class DatabaseDAO:
 		'markets' : {
 			market_models.Ads 				: ('market', 'external_id'),	
 			market_models.User 				: ('market', 'username'),
-			market_models.CaptchaQuestion 	: ('market', 'hash'),
-			market_models.AdsFeedback 		: ('market', 'external_id'),	
-			market_models.SellerFeedback 	: ('market', 'external_id')
+			market_models.CaptchaQuestion 	: ('market', 'hash')
 		}
 	}
 
@@ -40,10 +39,28 @@ class DatabaseDAO:
 		self.queues = {}
 		self.spider = spider
 		self.cache = Cache(self.cache_configs[cacheconfig])
+		self.config =  {
+			'dependencies' : {},
+			'callbacks' : {}
+		}
 		self.stats = {}
 
 		self._donotcache = donotcache
 		self.logger = logging.getLogger('DatabaseDAO')
+
+	def add_dependencies(self, model, deps_list):	
+		self.assertismodelclass(modeltype)
+
+		self.config['dependencies'][model] = []
+		for deps in deps_list:
+			self.assertismodelclass(deps)
+			self.config['dependencies'][model].append(deps)
+
+	def get_dependencies(self, model):
+		self.assertismodelclass(model)
+		if model not in self.config['dependencies']:
+			self.config['dependencies'][model] = []
+		return  self.config['dependencies'][model]
 
 	def initiliaze(self, forum):
 		pass
@@ -58,6 +75,56 @@ class DatabaseDAO:
 			if modeltype not in self._donotcache:
 				self._donotcache.append(modeltype)
 
+	def before_flush(self, modeltype, callback, *args, **kwargs):
+		self.add_callback('before_flush', modeltype, callback, *args, **kwargs)
+
+	def after_flush(self, modeltype, callback):
+		self.add_callback('after_flush', modeltype, callback, *args, **kwargs)
+
+	def add_callback(self,  name, modeltype, callback, *args, **kwargs):
+		self.assertismodelclass(modeltype)
+
+		if name not in self.config['callbacks']:
+			self.config['callbacks'][name] = {}
+
+		if modeltype not in self.config['callbacks'][name]:
+			self.config['callbacks'][name][modeltype] = []
+
+		data_struct = {
+			'callback' : callback,
+			'args' : list(args),
+			'kwargs' : kwargs
+		}
+
+		self.config['callbacks'][name][modeltype].append(data_struct)
+
+	def exec_callbacks(self, name, modeltype, *args, **kwargs):
+		if name not in self.config['callbacks']:
+			return args
+
+		if modeltype not in self.config['callbacks'][name]:
+			return args
+
+		pipeline_args = list(args)
+		for callback_data in self.config['callbacks'][name][modeltype]:
+			merged_args = callback_data['args'] + pipeline_args
+			merged_kwargs = callback_data['kwargs'].copy()
+			merged_kwargs.update(kwargs)
+			last_pipeline_args = pipeline_args
+			result = callback_data['callback'].__call__(*merged_args, **merged_kwargs)
+
+			if not result : 
+				pipeline_args = []
+			elif isinstance(result, tuple):
+				pipeline_args = list(result)
+			else:
+				pipeline_args = [result]
+
+
+			if len(pipeline_args) != len(last_pipeline_args):
+				raise RuntimeError('Callback %s for model %s did not returned as much data as its input. Returned %d, expected : %d' % (name, modeltype.__name__, len(pipeline_args), len(last_piepeline_args)))
+
+		return result
 
 	def enqueue(self, obj):
 		self.assertismodelclass(obj.__class__)
@@ -111,7 +178,12 @@ class DatabaseDAO:
 			self.logger.debug("Trying to flush a queue of %s that has never been filled before." % modeltype.__name__ )
 			return
 
+		#If we try to flush a model that is dependent on another, flush the dependenciy first.
+		for deps in self.get_dependencies(modeltype):
+			self.flush(deps)
+
 		queue = self.queues[modeltype.__name__]
+		queue = self.exec_callbacks('before_flush', modeltype, queue)
 
 		success = True
 		if len(queue) > 0 :
@@ -140,13 +212,19 @@ class DatabaseDAO:
 						success = False
 
 			if success:
+				#Hooks
+				self.exec_callbacks('after_flush', modeltype, queue)
+
+				#Stats
 				if modeltype not in self.stats:
 					self.stats[modeltype] = 0
 				self.stats[modeltype] += len(queue)
 				
+				#cache
 				self.cache.bulkwrite(queue)
 				reloadeddata = self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
 				
+				#Propkey/propval
 				if issubclass(modeltype, BasePropertyOwnerModel):	# Our class has a property table defined (propkey/propval)
 					if reloadeddata and len(reloadeddata) > 0:
 						for obj in reloadeddata:
