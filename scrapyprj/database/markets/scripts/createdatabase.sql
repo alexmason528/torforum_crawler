@@ -24,7 +24,7 @@ DROP TABLE IF EXISTS `ads`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `ads` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `external_id` text,
+  `external_id` varchar(255) DEFAULT NULL,
   `market` bigint(11) NOT NULL,
   `title` text NOT NULL,
   `seller` bigint(11) DEFAULT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE `ads` (
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_market_externalid` (`market`,`external_id`(255)) USING BTREE,
+  UNIQUE KEY `unique_market_externalid` (`market`,`external_id`) USING BTREE,
   KEY `ads_market_idx` (`market`),
   KEY `ads_author_idx` (`seller`),
   KEY `ads_scrape_idx` (`scrape`),
@@ -43,6 +43,29 @@ CREATE TABLE `ads` (
   CONSTRAINT `ads_seller` FOREIGN KEY (`seller`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER ads_before_update_audit 
+    BEFORE UPDATE ON ads
+    FOR EACH ROW 
+BEGIN
+	IF NEW.`title` = OLD.`title` and NEW.`relativeurl` = OLD.`relativeurl` and NEW.`fullurl` = OLD.`fullurl`
+	THEN  
+		SET NEW.scrape = OLD.scrape;
+	END IF;
+ END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `ads_feedback`
@@ -53,13 +76,12 @@ DROP TABLE IF EXISTS `ads_feedback`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `ads_feedback` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `external_id` text,
   `market` bigint(11) NOT NULL,
   `ads` bigint(11) DEFAULT NULL,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
+  `hash` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_market_externalid` (`market`,`external_id`(255)) USING BTREE,
   KEY `ads_feedback_market_idx` (`market`),
   KEY `ads_feedback_ads_idx` (`ads`),
   KEY `ads_feedback_scrape_idx` (`scrape`),
@@ -125,6 +147,8 @@ BEGIN
 			(`modified_on`, `feedback`, `propkey`, `data`, `scrape`)
 		values
 			(OLD.`modified_on`, OLD.`feedback`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	ELSE
+		SET NEW.`scrape` = OLD.`scrape`;
 	END IF;
  END */;;
 DELIMITER ;
@@ -170,10 +194,38 @@ CREATE TABLE `ads_img` (
   `path` varchar(255) NOT NULL,
   `hash` varchar(128) DEFAULT NULL,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `adsimage_ads_fk_idx` (`ads`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+  UNIQUE KEY `ads_img_path_hash` (`hash`),
+  KEY `adsimage_ads_fk_idx` (`ads`),
+  KEY `ads_img_scrape_idx` (`scrape`),
+  CONSTRAINT `ads_img_ads` FOREIGN KEY (`ads`) REFERENCES `ads` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `ads_img_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER ads_image_before_update_audit 
+    BEFORE UPDATE ON ads_img
+    FOR EACH ROW 
+BEGIN
+	IF NEW.`path` = OLD.`path` and NEW.`hash` = OLD.`hash`
+	THEN  
+		SET NEW.scrape = OLD.scrape;
+	END IF;
+ END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `ads_propkey`
@@ -231,6 +283,8 @@ BEGIN
 			(`modified_on`, `ads`, `propkey`, `data`, `scrape`)
 		values
 			(OLD.`modified_on`, OLD.`ads`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	ELSE 
+		SET NEW.`scrape`=OLD.`scrape`;
 	END IF;
  END */;;
 DELIMITER ;
@@ -397,13 +451,12 @@ DROP TABLE IF EXISTS `seller_feedback`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `seller_feedback` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `external_id` text,
   `market` bigint(11) NOT NULL,
   `seller` bigint(11) DEFAULT NULL,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
+  `hash` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_market_externalid` (`market`,`external_id`(255)) USING BTREE,
   KEY `seller_feedback_market_idx` (`market`),
   KEY `seller_feedback_author_idx` (`seller`),
   KEY `seller_feeddback_scrape_idx` (`scrape`),
@@ -469,6 +522,8 @@ BEGIN
 			(`modified_on`, `feedback`, `propkey`, `data`, `scrape`)
 		values
 			(OLD.`modified_on`, OLD.`feedback`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	ELSE
+		SET NEW.`scrape` = OLD.`scrape`;
 	END IF;
  END */;;
 DELIMITER ;
@@ -581,6 +636,8 @@ BEGIN
 			(`modified_on`, `user`, `propkey`, `data`, `scrape`)
 		values
 			(OLD.`modified_on`, OLD.`user`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	ELSE
+		SET NEW.`scrape` = OLD.`scrape`;
 	END IF;
  END */;;
 DELIMITER ;
@@ -622,4 +679,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-03-26 23:30:36
+-- Dump completed on 2017-04-09 18:09:16
