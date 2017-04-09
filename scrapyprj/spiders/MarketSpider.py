@@ -95,7 +95,7 @@ class MarketSpider(BaseSpider):
 		def AdsFeedbackDiffInsert(self, queue):
 			ads_list = list(set([x.ads.id for x in queue]))
 			hash_list = list(set([x.hash for x in queue]))
-			def diff(a,b):
+			def diff(a,b): 	# This functions returns what "a" has but not "b"
 				eq_map = {}
 				for i in range(len(a)):
 					for j in range(len(b)):
@@ -110,8 +110,8 @@ class MarketSpider(BaseSpider):
 				.where(AdsFeedback.ads <<  ads_list, AdsFeedback.hash << hash_list)
 				.execute())
 
-			to_delete = [row.id for row in diff(db_content, queue)]
-			new_queue = list(diff(queue, db_content))
+			to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
+			new_queue = list(diff(queue, db_content))	# When its in the queue but not in the database, keep it. Remove all the rest.
 			
 			if len(to_delete) > 0:
 				AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()
@@ -121,8 +121,8 @@ class MarketSpider(BaseSpider):
 		def SellerFeedbackDiffInsert(self, queue):
 			seller_list = list(set([x.seller.id for x in queue]))
 			hash_list = list(set([x.hash for x in queue]))
-			def diff(a,b):
-				eq_map = {}
+			def diff(a,b):		# This functions returns what "a" has but not "b"
+				eq_map = {}	
 				for i in range(len(a)):
 					for j in range(len(b)):
 						if j not in eq_map and a[i].seller.id==b[j].seller.id and a[i].hash == b[j].hash:
@@ -136,8 +136,8 @@ class MarketSpider(BaseSpider):
 				.where(SellerFeedback.seller <<  seller_list, SellerFeedback.hash << hash_list)
 				.execute())
 
-			to_delete = [row.id for row in diff(db_content, queue)]
-			new_queue = list(diff(queue, db_content))
+			to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
+			new_queue = list(diff(queue, db_content))		# When its in the queue but not in the database, keep it. Remove all the rest.
 			
 			if len(to_delete) > 0:
 				SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()

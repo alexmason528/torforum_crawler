@@ -100,7 +100,8 @@ DROP TABLE IF EXISTS `ads_feedback_propkey`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `ads_feedback_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -236,7 +237,8 @@ DROP TABLE IF EXISTS `ads_propkey`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `ads_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -475,7 +477,8 @@ DROP TABLE IF EXISTS `seller_feedback_propkey`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `seller_feedback_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -589,7 +592,8 @@ DROP TABLE IF EXISTS `user_propkey`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `user_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -679,4 +683,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-04-09 18:09:16
+-- Dump completed on 2017-04-09 18:24:16
