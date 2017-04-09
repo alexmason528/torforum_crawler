@@ -125,7 +125,7 @@ class Cache:
 			if cacheid:
 				return (fieldname, cacheid)
 
-		raise ValueError("Trying to obtain the cache id from object %s but no key data is usable. Cotnent : %s" % (obj.__class__.__name__, str(obj._data)) )
+		raise ValueError("Trying to obtain the cache id from object %s but no key data is usable. Content : %s" % (obj.__class__.__name__, str(obj._data)) )
 	
 	# extract the value of the index from an object. index can be single field name or tuple of field name for composite key.
 	def read_index_value(self, obj, idx):

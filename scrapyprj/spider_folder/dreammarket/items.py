@@ -42,3 +42,8 @@ class User(scrapy.Item) :
 	public_pgp_key = scrapy.Field()
 	relativeurl = scrapy.Field()
 	fullurl = scrapy.Field()
+
+class ProductRating(scrapy.Item):
+	date_posted = scrapy.Field()
+	rating = scrapy.Field()
+	comment = scrapy.Field()
