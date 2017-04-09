@@ -50,7 +50,7 @@ class DatabaseDAO:
 		self.logger = logging.getLogger('DatabaseDAO')
 
 	def add_dependencies(self, model, deps_list):	
-		self.assertismodelclass(modeltype)
+		self.assertismodelclass(model)
 
 		self.config['dependencies'][model] = []
 		for deps in deps_list:

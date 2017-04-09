@@ -81,7 +81,7 @@ class MarketSpider(BaseSpider):
 
 		dao = DatabaseDAO(self, cacheconfig='markets', donotcache=donotcache)
 		dao.add_dependencies(AdsFeedback, [Ads])
-		dao.add_dependencies(UserFeedback, [User])
+		dao.add_dependencies(SellerFeedback, [User])
 		dao.add_dependencies(AdsImage, [Ads])
 
 		# These 2 callbacks will make sure to insert only the difference between the queue and the actual db content.
@@ -92,57 +92,57 @@ class MarketSpider(BaseSpider):
 		return 	dao
 
 
-		def AdsFeedbackDiffInsert(self, queue):
-			ads_list = list(set([x.ads.id for x in queue]))
-			hash_list = list(set([x.hash for x in queue]))
-			def diff(a,b): 	# This functions returns what "a" has but not "b"
-				eq_map = {}
-				for i in range(len(a)):
-					for j in range(len(b)):
-						if j not in eq_map and a[i].ads.id==b[j].ads.id and a[i].hash == b[j].hash:
-							eq_map[i] = j
-							break
-					if i not in eq_map:
-						yield a[i]
+	def AdsFeedbackDiffInsert(self, queue):
+		ads_list = list(set([x.ads.id for x in queue]))
+		hash_list = list(set([x.hash for x in queue]))
+		def diff(a,b): 	# This functions returns what "a" has but not "b"
+			eq_map = {}
+			for i in range(len(a)):
+				for j in range(len(b)):
+					if j not in eq_map and a[i].ads.id==b[j].ads.id and a[i].hash == b[j].hash:
+						eq_map[i] = j
+						break
+				if i not in eq_map:
+					yield a[i]
 
 
-			db_content =  list(AdsFeedback.select()
-				.where(AdsFeedback.ads <<  ads_list, AdsFeedback.hash << hash_list)
-				.execute())
+		db_content =  list(AdsFeedback.select()
+			.where(AdsFeedback.ads <<  ads_list, AdsFeedback.hash << hash_list)
+			.execute())
 
-			to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
-			new_queue = list(diff(queue, db_content))	# When its in the queue but not in the database, keep it. Remove all the rest.
-			
-			if len(to_delete) > 0:
-				AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()
-
-			return new_queue
+		to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
+		new_queue = list(diff(queue, db_content))	# When its in the queue but not in the database, keep it. Remove all the rest.
 		
-		def SellerFeedbackDiffInsert(self, queue):
-			seller_list = list(set([x.seller.id for x in queue]))
-			hash_list = list(set([x.hash for x in queue]))
-			def diff(a,b):		# This functions returns what "a" has but not "b"
-				eq_map = {}	
-				for i in range(len(a)):
-					for j in range(len(b)):
-						if j not in eq_map and a[i].seller.id==b[j].seller.id and a[i].hash == b[j].hash:
-							eq_map[i] = j
-							break
-					if i not in eq_map:
-						yield a[i]
+		if len(to_delete) > 0:
+			AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()
+
+		return new_queue
+	
+	def SellerFeedbackDiffInsert(self, queue):
+		seller_list = list(set([x.seller.id for x in queue]))
+		hash_list = list(set([x.hash for x in queue]))
+		def diff(a,b):		# This functions returns what "a" has but not "b"
+			eq_map = {}	
+			for i in range(len(a)):
+				for j in range(len(b)):
+					if j not in eq_map and a[i].seller.id==b[j].seller.id and a[i].hash == b[j].hash:
+						eq_map[i] = j
+						break
+				if i not in eq_map:
+					yield a[i]
 
 
-			db_content =  list(SellerFeedback.select()
-				.where(SellerFeedback.seller <<  seller_list, SellerFeedback.hash << hash_list)
-				.execute())
+		db_content =  list(SellerFeedback.select()
+			.where(SellerFeedback.seller <<  seller_list, SellerFeedback.hash << hash_list)
+			.execute())
 
-			to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
-			new_queue = list(diff(queue, db_content))		# When its in the queue but not in the database, keep it. Remove all the rest.
-			
-			if len(to_delete) > 0:
-				SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()
+		to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
+		new_queue = list(diff(queue, db_content))		# When its in the queue but not in the database, keep it. Remove all the rest.
+		
+		if len(to_delete) > 0:
+			SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()
 
-			return new_queue		
+		return new_queue		
 
 	def enqueue_request(self, request):
 		self._queue_size += 1
