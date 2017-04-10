@@ -10,6 +10,7 @@ import logging
 import pytz
 
 
+
 class BaseSpider(scrapy.Spider):
 
 	def __init__(self, *args, **kwargs):
@@ -220,4 +221,12 @@ class BaseSpider(scrapy.Spider):
 		self.logger.info("Spider resources released")
 
 	def get_text(self, node):
-		return ''.join(node.xpath(".//text()[normalize-space(.)]").extract()).strip()
+		text = ''.join(node.xpath(".//text()[normalize-space(.)]").extract()).strip()
+		try:
+			text = text.encode('utf-8', 'ignore')	# Encode in UTF-8 and remove unknown char.
+		except:
+			# Some hand crafted characters can throw an exception. Remove them silently.
+			text = text.encode('cp1252', 'ignore').decode('utf-8','ignore') # Remove non-utf8 chars. 
+
+		return text
+		 

@@ -9,6 +9,7 @@ import scrapyprj.spider_folder.dreammarket.items as items
 from urlparse import urlparse, parse_qsl
 import json
 import scrapyprj.database.markets.orm.models as dbmodels
+from datetime import datetime, timedelta
 
 class DreamMarketSpider(MarketSpider):
 	name = "dreammarket"
@@ -85,7 +86,7 @@ class DreamMarketSpider(MarketSpider):
 	def parse(self, response):
 		if not self.loggedin(response):	
 			if self.isloginpage(response):
-				self.logger.debug('Faced a login page.')
+				self.logger.debug('Encountered a login page.')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
 					raise Exception("Too many failed login trials. Giving up.")
 				self.logger.info("Trying to login.")
@@ -97,7 +98,7 @@ class DreamMarketSpider(MarketSpider):
 				self.enqueue_request( self.make_request('dologin', req_once_logged=req_once_logged, response=response) )
 
 			elif self.is_ddos_protection_form(response):
-				self.logger.debug('Faced a DDOS Protection page.')
+				self.logger.debug('Encountered a DDOS Protection page.')
 				raise RuntimeError('DDOS Protection. Slow down the Crawler')
 
 			elif self.is_logged_elsewhere(response) or self.is_session_expired(response):
@@ -148,9 +149,10 @@ class DreamMarketSpider(MarketSpider):
 			yield self.make_request('ads_list', url=next_page_url)
 
 	def parse_ads(self, response):
+		
+		##  =============   ADS   ======================
 		ads_item = items.Ads()
-
-		ads_item['title'] = response.css('.viewProduct .title::text').extract_first().strip()
+		ads_item['title'] = self.get_text(response.css('.viewProduct .title'))
 		details = response.css('div.tabularDetails>div')
 		for div in details:
 			label = div.css('label:first-child')
@@ -159,9 +161,10 @@ class DreamMarketSpider(MarketSpider):
 
 			if label_txt == 'vendor':
 				link = span.css('a:first-child')
-				ads_item['vendor_username'] = link.css('::text').extract_first().strip()
+				ads_item['vendor_username'] = self.get_text(link)
 				url = link.css('::attr(href)').extract_first().strip()
 				yield self.make_request('user', url = url, priority=5)
+				
 			elif label_txt == 'price':
 				ads_item['price'] = self.get_text(span)
 			elif label_txt == 'ships to':
@@ -192,7 +195,10 @@ class DreamMarketSpider(MarketSpider):
 		ads_item['relativeurl'] = "%s?%s" % (parsed_url.path, (parsed_url.query))
 
 		yield ads_item
+
 		self.dao.flush(dbmodels.Ads)
+
+		## ===================== IMAGES =====================
 		images_url = response.css('img.productImage::attr(src)').extract();
 		for url in images_url:
 			img_item = items.AdsImage(image_urls = [])
@@ -201,6 +207,29 @@ class DreamMarketSpider(MarketSpider):
 			yield img_item
 
 		self.dao.flush(dbmodels.AdsImage)
+
+		## ===================== Product Ratings (feedback) =========
+		rating_lines = response.css('.ratings table tr')
+		for tr in rating_lines:
+			try:
+				rating_item = items.ProductRating()
+
+				age = self.get_text(tr.css('td.age'))
+				m = re.search('(\d+)d', age)
+				if m:
+					days_offset = m.group(1)
+					rating_item['submitted_on'] = (datetime.utcnow() - timedelta(days=int(days_offset))).date()
+
+				stars = len(tr.css('td.rating img.star[src="img/star_gold.png"]'))
+				rating_item['rating'] 	= "%d/5" % stars
+				rating_item['comment'] 	= self.get_text(tr.css('td.ratingText'))
+				rating_item['ads_id'] 	= ads_item['offer_id']
+				yield rating_item
+
+			except Exception, e:
+				self.logger.warning("Could not get product rating. %s" % e)
+
+		self.dao.flush(dbmodels.AdsFeedback)
 
 
 	

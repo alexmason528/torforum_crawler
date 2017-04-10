@@ -4,6 +4,7 @@ from scrapy.exceptions import DropItem
 import scrapyprj.database.markets.orm.models as dbmodels
 from IPython import embed
 import scrapyprj.spider_folder.dreammarket.items as items
+import hashlib
 
 class map2db(object):
 
@@ -13,7 +14,8 @@ class map2db(object):
 		self.handlers = {
 			items.Ads 		: self.map_ads,
 			items.AdsImage 	: self.map_adsimage,
-			items.User 		: self.map_user
+			items.User 		: self.map_user,
+			items.ProductRating 		: self.map_product_rating
 		}
 
 	def process_item(self, item, spider):	# This function is the one called by Scrapy.
@@ -96,10 +98,10 @@ class map2db(object):
 		dbuser.username = item['username']
 
 		if 'relativeurl' in item:
-			dbads.relativeurl = item['relativeurl']
+			dbuser.relativeurl = item['relativeurl']
 		
 		if 'fullurl' in item:
-			dbads.fullurl 	= item['fullurl']
+			dbuser.fullurl 	= item['fullurl']
 		
 		dbuser.market = spider.market
 		dbuser.scrape = spider.scrape
@@ -125,6 +127,33 @@ class map2db(object):
 
 		return dbuser
 
+	def map_product_rating(self, item, spider):
+		self.drop_if_empty(item, 'rating')
+
+		dbfeedback = dbmodels.AdsFeedback()
+		dbfeedback.market = spider.market
+		dbfeedback.scrape = spider.scrape
+
+		dbfeedback.ads = spider.dao.get_or_create(dbmodels.Ads, external_id = item['ads_id'], market = spider.market)
+		if not dbfeedback.ads:
+			raise DropItem("Invalid Ads Feedback : Unable to get Ads from database. Cannot respect foreign key constraint.")
+		elif not dbfeedback.ads.id :
+			raise DropItem("Invalid Ads Feedback : Ads foreign key was read from cache but no record Id was available. Cannot respect foreign key constraint")
+
+		sha256 = hashlib.sha256()
+		sha256.update(str(dbfeedback.ads.id))
+		sha256.update(item['rating'])
+		sha256.update(item['comment'])
+		sha256.update(str(item['submitted_on']))
+
+		dbfeedback.hash = ''.join("{:02x}".format(ord(c)) for c in sha256.digest())
+
+		self.set_if_exist(item, dbfeedback, 'rating')
+		self.set_if_exist(item, dbfeedback, 'comment')
+		self.set_if_exist(item, dbfeedback, 'submitted_on')
+		dbfeedback.setproperties_attribute(scrape = spider.scrape)
+
+		return dbfeedback
 
 	# Few helpers
 	def set_if_exist(self, item, model, field):

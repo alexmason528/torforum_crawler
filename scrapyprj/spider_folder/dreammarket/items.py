@@ -44,6 +44,7 @@ class User(scrapy.Item) :
 	fullurl = scrapy.Field()
 
 class ProductRating(scrapy.Item):
-	date_posted = scrapy.Field()
+	submitted_on = scrapy.Field()
 	rating = scrapy.Field()
 	comment = scrapy.Field()
+	ads_id = scrapy.Field()

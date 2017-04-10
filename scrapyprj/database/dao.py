@@ -101,10 +101,10 @@ class DatabaseDAO:
 
 	def exec_callbacks(self, name, modeltype, *args, **kwargs):
 		if name not in self.config['callbacks']:
-			return args
+			return args[0] if len(args) == 1 else args
 
 		if modeltype not in self.config['callbacks'][name]:
-			return args
+			return args[0] if len(args) == 1 else args
 
 		pipeline_args = list(args)
 		for callback_data in self.config['callbacks'][name][modeltype]:
