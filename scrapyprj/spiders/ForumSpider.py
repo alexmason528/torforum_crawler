@@ -25,7 +25,7 @@ class ForumSpider(BaseSpider):
 		super(ForumSpider, self).__init__( *args, **kwargs)
 
 		db.init(dbsettings)
-		self.dao = DatabaseDAO(self, cacheconfig='forums', donotcache=[Message, UserProperty])	# Save some RAM. We usually don't have to read these object form the DB, just write.
+		self.dao = DatabaseDAO(cacheconfig='forums', donotcache=[Message, UserProperty])	# Save some RAM. We usually don't have to read these object form the DB, just write.
 		self.set_timezone()
 
 		try:

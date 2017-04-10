@@ -50,8 +50,7 @@ class CaptchaMiddleware(object):
 			raise 
 
 		if not captcha_answer:
-			self.logger.error("Failed to decode Captcha using Death By Captcha : %s" % e)
-			raise 
+			self.logger.error("Failed to decode Captcha using Death By Captcha")
 
 		self.logger.info("Got Captcha : %s" % captcha_answer['text'])
 

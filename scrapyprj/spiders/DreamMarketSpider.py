@@ -20,7 +20,8 @@ class DreamMarketSpider(MarketSpider):
 			'scrapyprj.spider_folder.dreammarket.pipelines.map2db.map2db': 401,    # Convert from Items to Models
 			'scrapyprj.pipelines.save2db.save2db': 402                  # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
 		},
-		'IMAGES_STORE' : './files/img/dreammarket'
+		'IMAGES_STORE' : './files/img/dreammarket',
+		'RANDOMIZE_DOWNLOAD_DELAY' : True
 	}
 
 	def __init__(self, *args, **kwargs):
@@ -30,7 +31,7 @@ class DreamMarketSpider(MarketSpider):
 		self.handling_ddos = False
 
 		self.max_concurrent_requests = 1	# Scrapy config
-		self.download_delay = 4				# Scrapy config
+		self.download_delay = 8				# Scrapy config
 
 		self.request_queue_chunk = 1 		# Custom Queue system
 
@@ -88,7 +89,9 @@ class DreamMarketSpider(MarketSpider):
 			if self.isloginpage(response):
 				self.logger.debug('Encountered a login page.')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-					raise Exception("Too many failed login trials. Giving up.")
+					if ('req_once_logged' in response.meta):
+						self.enqueue_request(response.meta['req_once_logged'])
+					raise Exception("Too many failed login trials. Giving up and re-enqueuing last request.")
 				self.logger.info("Trying to login.")
 				self.logintrial += 1
 
@@ -98,7 +101,9 @@ class DreamMarketSpider(MarketSpider):
 				self.enqueue_request( self.make_request('dologin', req_once_logged=req_once_logged, response=response) )
 
 			elif self.is_ddos_protection_form(response):
-				self.logger.debug('Encountered a DDOS Protection page.')
+				self.logger.debug('Encountered a DDOS Protection page. Re-enqueuing last request')
+				if ('req_once_logged' in response.meta):
+						self.enqueue_request(response.meta['req_once_logged'])
 				raise RuntimeError('DDOS Protection. Slow down the Crawler')
 
 			elif self.is_logged_elsewhere(response) or self.is_session_expired(response):
@@ -115,6 +120,7 @@ class DreamMarketSpider(MarketSpider):
 
 			# We restore the missed request when protection kicked in
 			if response.meta['reqtype'] == 'dologin':
+				self.logger.info("Login Success!")
 				self.enqueue_request( response.meta['req_once_logged'] )
 
 			elif response.meta['reqtype'] == 'ddos_protection':
@@ -137,6 +143,7 @@ class DreamMarketSpider(MarketSpider):
 			depth0_categories = response.css('.main .sidebar .category a::attr(href)').extract()
 			for link in depth0_categories:
 				yield self.make_request('ads_list', url=link)
+
 
 	def parse_ads_list(self, response):
 
@@ -219,6 +226,8 @@ class DreamMarketSpider(MarketSpider):
 				if m:
 					days_offset = m.group(1)
 					rating_item['submitted_on'] = (datetime.utcnow() - timedelta(days=int(days_offset))).date()
+				elif re.search('\d\d:\d\d', age):
+					rating_item['submitted_on'] = datetime.utcnow().date()
 
 				stars = len(tr.css('td.rating img.star[src="img/star_gold.png"]'))
 				rating_item['rating'] 	= "%d/5" % stars

@@ -7,7 +7,7 @@
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -46,9 +46,9 @@ CREATE TABLE `ads` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_bin */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -66,7 +66,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
-ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `ads_feedback`
@@ -117,7 +116,7 @@ DROP TABLE IF EXISTS `ads_feedback_propval`;
 CREATE TABLE `ads_feedback_propval` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
-  `data` text,
+  `data` text CHARACTER SET utf8mb4,
   `modified_on` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`propkey`,`feedback`),
@@ -128,14 +127,14 @@ CREATE TABLE `ads_feedback_propval` (
   CONSTRAINT `ads_feedback_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `ads_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propval_feedback` FOREIGN KEY (`feedback`) REFERENCES `ads_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_bin */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -158,7 +157,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
-ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `ads_feedback_propvalaudit`
@@ -170,7 +168,7 @@ DROP TABLE IF EXISTS `ads_feedback_propvalaudit`;
 CREATE TABLE `ads_feedback_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
-  `data` text,
+  `data` text CHARACTER SET utf8mb4,
   `modified_on` datetime NOT NULL,
   `scrape` bigint(11) NOT NULL,
   KEY `ads_feedback_propvalaudit_feedback_idx` (`feedback`),
@@ -181,7 +179,7 @@ CREATE TABLE `ads_feedback_propvalaudit` (
   CONSTRAINT `ads_feedback_propvalaudit_feedback` FOREIGN KEY (`feedback`) REFERENCES `ads_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propvalaudit_propkey` FOREIGN KEY (`propkey`) REFERENCES `ads_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propvalaudit_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -209,9 +207,9 @@ CREATE TABLE `ads_img` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_bin */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -229,7 +227,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
-ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `ads_propkey`
@@ -272,9 +269,9 @@ CREATE TABLE `ads_propval` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_bin */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -297,7 +294,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
-ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `ads_propvalaudit`
@@ -333,7 +329,7 @@ DROP TABLE IF EXISTS `captcha_question`;
 CREATE TABLE `captcha_question` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `market` bigint(11) NOT NULL,
-  `hash` varchar(255) CHARACTER SET utf8 NOT NULL,
+  `hash` varchar(64) CHARACTER SET ascii NOT NULL,
   `question` text,
   `answer` text,
   PRIMARY KEY (`id`),
@@ -406,8 +402,8 @@ CREATE TABLE `scrape` (
   `start` timestamp NULL DEFAULT NULL,
   `end` timestamp NULL DEFAULT NULL,
   `reason` text,
-  `login` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
-  `proxy` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `login` varchar(255) DEFAULT NULL,
+  `proxy` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `scrape_market_fk_idx` (`market`),
   KEY `scrape_process_fk_idx` (`process`),
@@ -513,9 +509,9 @@ CREATE TABLE `seller_feedback_propval` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_bin */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -538,7 +534,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
-ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `seller_feedback_propvalaudit`
@@ -629,9 +624,9 @@ CREATE TABLE `user_propval` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_bin */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -654,7 +649,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
-ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `user_propvalaudit`
@@ -689,4 +683,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-04-09 21:29:31
+-- Dump completed on 2017-04-09 22:57:47

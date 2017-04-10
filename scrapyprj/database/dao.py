@@ -9,6 +9,8 @@ import traceback
 import scrapyprj.database.forums.orm.models as forum_models
 import scrapyprj.database.markets.orm.models as market_models
 
+from scrapy.exceptions import CloseSpider
+
 
 # This object is meant to stand between the application and the database.
 # The reason of its existence is :
@@ -33,12 +35,11 @@ class DatabaseDAO:
 		}
 	}
 
-	def __init__(self, spider, cacheconfig, donotcache = []):
+	def __init__(self, cacheconfig, donotcache = []):
 		if cacheconfig not in self.cache_configs:
 			raise ValueError("%s is not a valid cache config" % cacheconfig)
 
 		self.queues = {}
-		self.spider = spider
 		self.cache = Cache(self.cache_configs[cacheconfig])
 		self.config =  {
 			'dependencies' : {},
@@ -186,6 +187,8 @@ class DatabaseDAO:
 		queue = self.queues[modeltype.__name__]
 		queue = self.exec_callbacks('before_flush', modeltype, queue)
 
+		requireCloseSpider = False
+		msg = ''
 		success = True
 		if len(queue) > 0 :
 			with db.proxy.atomic():
@@ -206,11 +209,10 @@ class DatabaseDAO:
 					except Exception as e:	#We have a nasty error. Dumps useful data to a file.
 						filename = "%s_queuedump.txt" % (modeltype.__name__)
 						msg = "%s : Flushing %s data failed. Dumping queue data to %s.\nError is %s." % (self.__class__.__name__, modeltype.__name__, filename, str(e))
-						self.spider.logger.error("%s\n %s" % (msg, traceback.format_exc()))
+						self.logger.error("%s\n %s" % (msg, traceback.format_exc()))
 						self.dumpqueue(filename, queue)
-						if hasattr(self.spider, 'crawler'):
-							self.spider.crawler.engine.close_spider(self.spider, msg)
 						success = False
+						requireCloseSpider = True
 
 			if success:
 				#Hooks
@@ -242,6 +244,9 @@ class DatabaseDAO:
 					self.cache.bulkdeleteobj(reloadeddata)	
 
 		self.queues[modeltype.__name__] = []
+
+		if requireCloseSpider:
+			raise CloseSpider(msg)
 
 	#Monkey patch to handle peewee's limitation for MySQL "On duplicate key update" close.
 	def add_onduplicate_key(self, q, fields):

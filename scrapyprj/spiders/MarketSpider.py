@@ -28,7 +28,7 @@ class MarketSpider(BaseSpider):
 	def __init__(self, *args, **kwargs):
 		super(MarketSpider, self).__init__( *args, **kwargs)
 		self._baseclass = MarketSpider
-		self._queue_size = 0
+		self._baseclass._queue_size = 0
 
 		db.init(dbsettings)
 
@@ -68,8 +68,8 @@ class MarketSpider(BaseSpider):
 
 		return spider
 
-
-	def make_dao(self):
+	@classmethod
+	def make_dao(cls):
 		donotcache = [
 			AdsProperty,
 			AdsPropertyAudit,
@@ -79,7 +79,7 @@ class MarketSpider(BaseSpider):
 			SellerFeedbackPropertyAudit
 		]
 
-		dao = DatabaseDAO(self, cacheconfig='markets', donotcache=donotcache)
+		dao = DatabaseDAO(cacheconfig='markets', donotcache=donotcache)
 		dao.add_dependencies(AdsFeedback, [Ads])
 		dao.add_dependencies(SellerFeedback, [User])
 		dao.add_dependencies(AdsImage, [Ads])
@@ -87,12 +87,12 @@ class MarketSpider(BaseSpider):
 		# These 2 callbacks will make sure to insert only the difference between the queue and the actual db content.
 		# We assume that a complete dataset of Feedbacks objects related to an Ads or Seller is inside the queue because we will
 		# delete database entries that are not in the queue.
-		dao.before_flush(AdsFeedback, self.AdsFeedbackDiffInsert)
-		dao.before_flush(SellerFeedback, self.SellerFeedbackDiffInsert)
+		dao.before_flush(AdsFeedback, cls.AdsFeedbackDiffInsert)
+		dao.before_flush(SellerFeedback, cls.SellerFeedbackDiffInsert)
 		return 	dao
 
-
-	def AdsFeedbackDiffInsert(self, queue):
+	@staticmethod
+	def AdsFeedbackDiffInsert(queue):
 		ads_list = list(set([x.ads.id for x in queue]))
 		hash_list = list(set([x.hash for x in queue]))
 		def diff(a,b): 	# This functions returns what "a" has but not "b"
@@ -118,7 +118,8 @@ class MarketSpider(BaseSpider):
 
 		return new_queue
 	
-	def SellerFeedbackDiffInsert(self, queue):
+	@staticmethod
+	def SellerFeedbackDiffInsert(queue):
 		seller_list = list(set([x.seller.id for x in queue]))
 		hash_list = list(set([x.hash for x in queue]))
 		def diff(a,b):		# This functions returns what "a" has but not "b"
@@ -145,7 +146,7 @@ class MarketSpider(BaseSpider):
 		return new_queue		
 
 	def enqueue_request(self, request):
-		self._queue_size += 1
+		self._baseclass._queue_size += 1
 		self._baseclass._request_queue.put( (-request.priority, request)  )	# Priority is inverted. High priority go first for scrapy. Low Priority go first for queue
 
 	def consume_request(self, n):
@@ -153,13 +154,13 @@ class MarketSpider(BaseSpider):
 
 		while i<n and not self._baseclass._request_queue.empty():
 			priority, request = self._baseclass._request_queue.get()
-			self._queue_size -= 1
+			self._baseclass._queue_size -= 1
 			yield request
 			i += 1
 
 
 	def spider_idle(self, spider):
-		spider.logger.debug('Idle. Queue Size = %d' % self._queue_size)
+		spider.logger.debug('%s / %s Idle. Queue Size = %d' % (self._proxy_key, self._loginkey, self._baseclass._queue_size))
 		for req in self.consume_request(self.request_queue_chunk):
 			self.crawler.engine.crawl(req, spider)
 			

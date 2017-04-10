@@ -15,6 +15,18 @@ settings = {
 		'malleybono': {			# The selected login information is avalaible through  self.login
 			'username' : 'malleybono',
 			'password' : 'pass0000'
+		},
+		'lkdsegksjhgdfb': {		
+			'username' : 'lkdsegksjhgdfb',
+			'password' : 'pqowieuryt'
+		},
+		'examplescritic': {		
+			'username' : 'examplescritic',
+			'password' : 'pqowieuryt'
+		},
+		'isaacrichard': {		
+			'username' : 'isaacrichard',
+			'password' : 'pqowieuryt'
 		}
 	}
 }
