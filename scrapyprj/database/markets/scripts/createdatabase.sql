@@ -41,7 +41,7 @@ CREATE TABLE `ads` (
   CONSTRAINT `ads_market` FOREIGN KEY (`market`) REFERENCES `market` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_seller` FOREIGN KEY (`seller`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -66,6 +66,7 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `ads_feedback`
@@ -80,7 +81,7 @@ CREATE TABLE `ads_feedback` (
   `ads` bigint(11) DEFAULT NULL,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
-  `hash` varchar(128) DEFAULT NULL,
+  `hash` varchar(64) CHARACTER SET ascii DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `ads_feedback_market_idx` (`market`),
   KEY `ads_feedback_ads_idx` (`ads`),
@@ -88,7 +89,7 @@ CREATE TABLE `ads_feedback` (
   CONSTRAINT `ads_feedback_ads` FOREIGN KEY (`ads`) REFERENCES `ads` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_market` FOREIGN KEY (`market`) REFERENCES `market` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -103,7 +104,7 @@ CREATE TABLE `ads_feedback_propkey` (
   `name` varchar(255) NOT NULL,
   `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -127,7 +128,7 @@ CREATE TABLE `ads_feedback_propval` (
   CONSTRAINT `ads_feedback_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `ads_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propval_feedback` FOREIGN KEY (`feedback`) REFERENCES `ads_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -157,6 +158,7 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `ads_feedback_propvalaudit`
@@ -179,7 +181,7 @@ CREATE TABLE `ads_feedback_propvalaudit` (
   CONSTRAINT `ads_feedback_propvalaudit_feedback` FOREIGN KEY (`feedback`) REFERENCES `ads_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propvalaudit_propkey` FOREIGN KEY (`propkey`) REFERENCES `ads_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propvalaudit_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -202,7 +204,7 @@ CREATE TABLE `ads_img` (
   KEY `ads_img_scrape_idx` (`scrape`),
   CONSTRAINT `ads_img_ads` FOREIGN KEY (`ads`) REFERENCES `ads` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_img_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -227,6 +229,7 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `ads_propkey`
@@ -240,7 +243,7 @@ CREATE TABLE `ads_propkey` (
   `name` varchar(255) NOT NULL,
   `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -264,7 +267,7 @@ CREATE TABLE `ads_propval` (
   CONSTRAINT `ads_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `ads_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_propval_ads` FOREIGN KEY (`ads`) REFERENCES `ads` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -294,6 +297,7 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `ads_propvalaudit`
@@ -316,7 +320,7 @@ CREATE TABLE `ads_propvalaudit` (
   CONSTRAINT `ads_propvalaudit_propkey` FOREIGN KEY (`propkey`) REFERENCES `ads_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_propvalaudit_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_propvalaudit_user` FOREIGN KEY (`ads`) REFERENCES `ads` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -329,14 +333,14 @@ DROP TABLE IF EXISTS `captcha_question`;
 CREATE TABLE `captcha_question` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `market` bigint(11) NOT NULL,
-  `hash` varchar(255) NOT NULL,
+  `hash` varchar(255) CHARACTER SET utf8 NOT NULL,
   `question` text,
   `answer` text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `hash_UNIQUE` (`market`,`hash`),
   KEY `question_market_idx` (`market`),
   CONSTRAINT `question_market` FOREIGN KEY (`market`) REFERENCES `market` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -351,7 +355,7 @@ CREATE TABLE `changerate` (
   `btc` float NOT NULL,
   `usd` float DEFAULT NULL,
   PRIMARY KEY (`time`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -368,7 +372,7 @@ CREATE TABLE `market` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name_UNIQUE` (`name`),
   UNIQUE KEY `spider_UNIQUE` (`spider`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -385,7 +389,7 @@ CREATE TABLE `process` (
   `pid` int(11) DEFAULT NULL,
   `cmdline` text,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -402,15 +406,15 @@ CREATE TABLE `scrape` (
   `start` timestamp NULL DEFAULT NULL,
   `end` timestamp NULL DEFAULT NULL,
   `reason` text,
-  `login` varchar(255) DEFAULT NULL,
-  `proxy` varchar(255) DEFAULT NULL,
+  `login` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `proxy` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `scrape_market_fk_idx` (`market`),
   KEY `scrape_process_fk_idx` (`process`),
   KEY `scrape_processmarket_idx` (`process`,`market`),
   CONSTRAINT `scrape_market_fk` FOREIGN KEY (`market`) REFERENCES `market` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `scrape_process_fk` FOREIGN KEY (`process`) REFERENCES `process` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -441,7 +445,7 @@ CREATE TABLE `scrapestat` (
   KEY `scrapestat_scrape_fk_idx` (`scrape`),
   KEY `scrapestat_scrapetime_idx` (`scrape`,`logtime`),
   CONSTRAINT `scrapestat_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -457,7 +461,7 @@ CREATE TABLE `seller_feedback` (
   `seller` bigint(11) DEFAULT NULL,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
-  `hash` varchar(128) DEFAULT NULL,
+  `hash` varchar(64) CHARACTER SET ascii DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `seller_feedback_market_idx` (`market`),
   KEY `seller_feedback_author_idx` (`seller`),
@@ -465,7 +469,7 @@ CREATE TABLE `seller_feedback` (
   CONSTRAINT `seller_feedback_market` FOREIGN KEY (`market`) REFERENCES `market` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_seller` FOREIGN KEY (`seller`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `seller_feeddback_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -480,7 +484,7 @@ CREATE TABLE `seller_feedback_propkey` (
   `name` varchar(255) NOT NULL,
   `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -504,7 +508,7 @@ CREATE TABLE `seller_feedback_propval` (
   CONSTRAINT `seller_feedback_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `seller_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_propval_feedback` FOREIGN KEY (`feedback`) REFERENCES `seller_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -534,6 +538,7 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `seller_feedback_propvalaudit`
@@ -556,7 +561,7 @@ CREATE TABLE `seller_feedback_propvalaudit` (
   CONSTRAINT `seller_feedback_propvalaudit_feedback` FOREIGN KEY (`feedback`) REFERENCES `seller_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_propvalaudit_propkey` FOREIGN KEY (`propkey`) REFERENCES `seller_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_propvalaudit_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -580,7 +585,7 @@ CREATE TABLE `user` (
   KEY `seller_scrape_idx` (`scrape`),
   CONSTRAINT `seller_market` FOREIGN KEY (`market`) REFERENCES `market` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -595,7 +600,7 @@ CREATE TABLE `user_propkey` (
   `name` varchar(255) NOT NULL,
   `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -619,7 +624,7 @@ CREATE TABLE `user_propval` (
   CONSTRAINT `user_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propval_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -649,6 +654,7 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+ALTER DATABASE `markets` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ;
 
 --
 -- Table structure for table `user_propvalaudit`
@@ -671,7 +677,7 @@ CREATE TABLE `user_propvalaudit` (
   CONSTRAINT `user_prophistory_propkey` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_prophistory_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propvalaudit_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -683,4 +689,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-04-09 18:24:16
+-- Dump completed on 2017-04-09 21:29:31
