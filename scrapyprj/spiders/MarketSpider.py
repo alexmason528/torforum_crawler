@@ -160,11 +160,14 @@ class MarketSpider(BaseSpider):
 
 
 	def spider_idle(self, spider):
-		spider.logger.debug('%s / %s Idle. Queue Size = %d' % (self._proxy_key, self._loginkey, self._baseclass._queue_size))
+		scheduled_request = False
+		spider.logger.debug('%s/%s Idle. Queue Size = %d' % (self._proxy_key, self._loginkey, self._baseclass._queue_size))
 		for req in self.consume_request(self.request_queue_chunk):
 			self.crawler.engine.crawl(req, spider)
-			
-		raise DontCloseSpider()	# Mandatory to avoid closing the spider if the request are being dropped and scheduler is empty.
+			scheduled_request = True
+		
+		if scheduled_request:
+			raise DontCloseSpider()	# Mandatory to avoid closing the spider if the request are being dropped and scheduler is empty.
 
 
 	#Called by Scrapy Engine when spider is closed	
