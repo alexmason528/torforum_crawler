@@ -423,13 +423,10 @@ class DreamMarketSpider(MarketSpider):
 
 		actual_depth = 0
 		last_depth = -1
+		last_name = ''
 		for div in categories:
 			name = ''.join(div.xpath('./a/text()').extract()).strip()
-			category_list.append(name)
-
-			if len(div.css('.selected')) > 0:
-				break
-
+			
 			nodeclass = div.xpath('@class').extract_first();
 			m = re.search('depth(\d+)', nodeclass)
 			if m :
@@ -437,10 +434,18 @@ class DreamMarketSpider(MarketSpider):
 			else:
 				raise RuntimeError("Depth not specified in category menu")
 
-			if (actual_depth <= last_depth):
+			if actual_depth > last_depth and last_name:
+				category_list.append(last_name)
+
+			if actual_depth < last_depth and last_name:
 				category_list = category_list[:-1]
 
+			if len(div.css('.selected')) > 0:
+				category_list.append(name)
+				break
+
 			last_depth = actual_depth
+			last_name = name
 
 		return '/'.join(category_list)
 
