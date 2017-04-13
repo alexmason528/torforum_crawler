@@ -19,7 +19,7 @@ class Cache:
 		for model in config:
 			cls = model
 			fieldlist = cls._meta.fields
-			if isinstance(config[model], str):
+			if isinstance(config[model], basestring):
 				if config[model] not in fieldlist:
 					raise ValueError("Cache config is invalid. %s is not a valid field for model %s" % (config[model], model))
 			else:
@@ -139,7 +139,7 @@ class Cache:
 					complete  = False
 					break
 			return keyval if complete else None 
-		elif isinstance(idx, str): 		# Single key
+		elif isinstance(idx, basestring): 		# Single key
 			if idx in obj._data:
 				return self.getfield_or_primarykey(obj._data[idx])
 
@@ -191,7 +191,7 @@ class Cache:
 				cacheidlist = cacheid_per_fieldname[fieldname]
 				for idx in range(0, len(cacheidlist), chunksize):	# chunk data
 					data = cacheidlist[idx:idx+chunksize]
-					if isinstance(fieldname, str): #single key
+					if isinstance(fieldname, basestring): #single key
 						reloaded_data += self.reload(modeltype, modeltype._meta.fields[fieldname] << data, *fieldlist)
 
 					elif isinstance(fieldname, tuple): # composite key. Peewee doesn't support that easily, we have to do some manual work
