@@ -63,11 +63,11 @@ class BaseSpider(scrapy.Spider):
 	#Return the requested login information from the spier settings.
 	# attribute "login" must be given (-a login="paramValue" using the CLI)
 	# attribute can be a numerical index or the login dict key. If not specified, a random entry is returned
-	def configure_login(self):
+	def configure_login(self, loginkey=None):
 		if not hasattr(self.__class__, 'taken_logins'):
 			self.__class__.taken_logins = {}	# Initialise that
 
-		if not hasattr(self, 'login') or isinstance(self.login, str) or isinstance(self.login, list):
+		if not hasattr(self, 'login') or isinstance(self.login, basestring) or isinstance(self.login, list) or loginkey:
 			if 'logins' not in self.spider_settings:
 				raise Exception("No login defined in spider settings")
 
@@ -75,7 +75,9 @@ class BaseSpider(scrapy.Spider):
 				raise Exception("Empty login list in spider settings")			
 
 			logininput = None;
-			if hasattr(self, 'login'):
+			if loginkey:
+				logininput = loginkey
+			elif hasattr(self, 'login'):
 				logininput = self.login
 			elif 'login' in self.settings:
 				logininput = self.settings['login']
@@ -94,12 +96,15 @@ class BaseSpider(scrapy.Spider):
 				key = self.pick_in_list(logindict.keys(), counter=self.get_counter('logins'))
 				self.logger.debug("Using a random login information. Returning login for key : %s" % (key))
 				
-			elif isinstance(logininput, str):
+			elif isinstance(logininput, basestring):
 				if logininput not in logindict:
 					raise ValueError("No login information with index : %s" % logininput)
 				key = logininput
 			else:
 				raise ValueError("logininput is of unsupported type %s" % str(type(logininput))) # Should never happend
+			
+			if loginkey and self._loginkey:
+				self.add_to_counter('logins', self._loginkey, -1)
 			
 			self.login = logindict[key]
 			self._loginkey = key
@@ -169,19 +174,27 @@ class BaseSpider(scrapy.Spider):
 			pass
 
 
-	def configure_proxy(self):
+	def configure_proxy(self, proxykey=None):
 		self._proxy_key = None
 
-		if not hasattr(self, 'proxy'):	# can be given by command line
-			if 'PROXY' in self.settings:  # proxy is the one to use. Proxies is the definition.
-				if 'PROXIES' in self.settings and self.settings['PROXY'] in self.settings['PROXIES']:
-					self._proxy_key = self.settings['PROXY']
+		if not hasattr(self, 'proxy') or proxykey:	# can be given by command line
+			if not proxykey:
+				if 'PROXY' in self.settings:  # proxy is the one to use. Proxies is the definition.
+					if 'PROXIES' in self.settings and self.settings['PROXY'] in self.settings['PROXIES']:
+						self._proxy_key = self.settings['PROXY']
+					else:
+						raise ValueError("Proxy %s does not exist in self.settings PROXIES " % self.settings['PROXY'])
 				else:
-					raise ValueError("Proxy %s does not exist in self.settings PROXIES " % self.settings['PROXY'])
+					if 'PROXIES' in self.settings:
+						if len(self.settings['PROXIES']) > 0:
+							self._proxy_key = self.pick_in_list(self.settings['PROXIES'].keys(), counter=self.get_counter('proxies', isglobal=True))
 			else:
-				if 'PROXIES' in self.settings:
-					if len(self.settings['PROXIES']) > 0:
-						self._proxy_key = self.pick_in_list(self.settings['PROXIES'].keys(), counter=self.get_counter('proxies', isglobal=True))
+				if 'PROXIES' not in self.settings or proxykey not in self.settings['PROXIES']:
+					raise ValueError('Given Proxy name is not part of the list in setting file')
+
+				if self._proxy_key:
+					self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)
+				self._proxy_key = proxykey
 
 			if self._proxy_key:
 				self.proxy = self.settings['PROXIES'][self._proxy_key]

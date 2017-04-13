@@ -22,6 +22,11 @@ import pytz
 from IPython import embed
 
 from twisted.internet import reactor
+from scrapy.mail import MailSender
+from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
+from Cookie import SimpleCookie
+from scrapy.http import Request
+
 
 class MarketSpider(BaseSpider):
 	user_agent  = UserAgent().random
@@ -57,6 +62,9 @@ class MarketSpider(BaseSpider):
 
 		self.register_new_scrape()
 		self.start_statistics()
+		self.mailer =  MailSender.from_settings(self.settings)
+		
+		self.manual_input = None
 
 
 	@classmethod
@@ -161,13 +169,17 @@ class MarketSpider(BaseSpider):
 
 	def spider_idle(self, spider):
 		scheduled_request = False
-		spider.logger.debug('%s/%s Idle. Queue Size = %d' % (self._proxy_key, self._loginkey, self._baseclass._queue_size))
-		for req in self.consume_request(self.request_queue_chunk):
-			self.crawler.engine.crawl(req, spider)
-			scheduled_request = True
-		
-		if scheduled_request:
-			raise DontCloseSpider()	# Mandatory to avoid closing the spider if the request are being dropped and scheduler is empty.
+
+		self.look_for_new_input()
+
+		if not self.manual_input:
+			spider.logger.debug('%s/%s Idle. Queue Size = %d' % (self._proxy_key, self._loginkey, self._baseclass._queue_size))
+			for req in self.consume_request(self.request_queue_chunk):
+				self.crawler.engine.crawl(req, spider)
+				scheduled_request = True
+			
+		if scheduled_request or self.manual_input:		# manual_input is None if not waiting for cookies
+			raise DontCloseSpider()						# Mandatory to avoid closing the spider if the request are being dropped and scheduler is empty.
 
 
 	#Called by Scrapy Engine when spider is closed	
@@ -239,3 +251,137 @@ class MarketSpider(BaseSpider):
 		self.savestat_taskid = None
 		self.savestats()
 		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
+
+	def wait_for_input(self, details):
+		self.logger.warning("Waiting for manual input from database")
+
+		self.manual_input					= ManualInput()
+		self.manual_input.date_requested 	= datetime.utcnow()
+		self.manual_input.spidername		= self.name
+		self.manual_input.proxy 			= self._proxy_key
+		self.manual_input.login 			= self._loginkey
+		self.manual_input.user_agent 		= self.user_agent
+		self.manual_input.cookies 			= self.get_cookies()
+		self.manual_input.reload 			= False
+		self.manual_input.save(force_insert=True)
+		
+		subject = "Spider crawling %s needs inputs. Id = %d" % (self.market.name, self.manual_input.id)
+
+		msg 	= """
+			Spider crawling market %s has requested new input to continue crawling.
+
+			Configuration : 
+				- Proxy : %s 
+				- Login : %s 
+				- User agent : %s
+				- Cookies : %s
+			
+			Details : %s
+
+			Please, go insert relevant data string in database for manual input id=%d.
+			*** You can modify : proxy, login, user agent, cookies
+			""" % (
+				self.market.name, 
+				self.manual_input.proxy, 
+				self.manual_input.login, 
+				self.manual_input.user_agent ,
+				self.manual_input.cookies , 
+				details, 
+				self.manual_input.id
+				)
+		try:
+			self.send_mail(subject, msg)
+		except Exception, e:
+			self.logger.error('Could not send email telling that we are waiting for input : %s' % e)
+
+
+	def send_mail(self,subject, body):
+		if self.mailer and 'MAIL_RECIPIENT' in self.settings:
+			to	= self.settings['MAIL_RECIPIENT']
+			self.logger.info('Sending email to %s. Subject : %s' % (to, subject))
+			self.mailer.send(to=to, subject=subject, body=body)
+		else:
+			self.logger.warning('Trying to send email, but smtp is not configured or no MAIL_RECIPIENT is defined in settings.')
+
+
+	def look_for_new_input(self):
+		new_input = False
+		if self.manual_input:
+			
+			new_manual_input = ManualInput.get(self.manual_input._pk_expr())	# Reload from database
+			
+			if new_manual_input.reload:
+				self.logger.info("New input given! Continuing")
+				error = False
+				try:
+					if new_manual_input.proxy != self._proxy_key:
+						self.configure_proxy(new_manual_input.proxy)
+
+					if new_manual_input.login != self._loginkey:
+						self.configure_login(new_manual_input.login)
+
+					if new_manual_input.cookies:
+						self.set_cookies(new_manual_input.cookies)
+					
+					if new_manual_input.user_agent:
+						self.user_agent
+				except Exception, e:
+					self.logger.error("Could not reload new data. %s" % e)
+					error = True
+				
+				if error:
+					self.manual_input.save()
+				else:
+					self.manual_input = None
+					new_input = True
+			else:
+				self.logger.debug('No new input given by database.')
+		return new_input
+
+	def set_cookies(self, cookie_string):
+		cookie_middleware = self.get_cookie_middleware()
+
+		if not cookie_middleware:
+			self.logger.error("Trying to set cookies, but can't find cookie middleware.")
+		else:
+			jar = cookie_middleware.jars[None]
+			cookies = SimpleCookie(cookie_string.encode('ascii'))
+			cookie_dict = dict()
+			for key in cookies:
+				cookie_dict[key] = cookies.get(key).value
+
+			req = Request(self.spider_settings['endpoint'], cookies=cookie_dict)
+			cookie_middleware.jars[None].clear()
+			cookie_middleware.process_request(req, self)	# Simulate a request with these cookies.
+
+	def get_cookies(self):
+		cookie_middleware = self.get_cookie_middleware()
+
+		if not cookie_middleware:
+			self.logger.error("Trying to set cookies, but can't find cookie middleware.")
+		else:
+			jar = cookie_middleware.jars[None]
+
+		req = Request(self.spider_settings['endpoint'])
+		jar.add_cookie_header(req)
+
+		return  req.headers['Cookie'] if 'Cookie' in req.headers else ''
+
+	def get_cookie_middleware(self):
+		cookie_middleware = None
+		for middleware in self.crawler.engine.downloader.middleware.middlewares:
+			if isinstance(middleware, CookiesMiddleware):
+				cookie_middleware = middleware
+				break
+
+		return cookie_middleware
+
+
+
+
+
+			
+
+
+
+

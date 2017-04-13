@@ -31,10 +31,11 @@ class DreamMarketSpider(MarketSpider):
 		self.handling_ddos = False
 
 		self.max_concurrent_requests = 1	# Scrapy config
-		self.download_delay = 8				# Scrapy config
+		self.download_delay = 12			# Scrapy config
 
 		self.request_queue_chunk = 1 		# Custom Queue system
 
+		self.statsinterval = 60;
 
 		self.parse_handlers = {
 				'index' 	: self.parse_index,
@@ -44,6 +45,7 @@ class DreamMarketSpider(MarketSpider):
 			}
 
 	def start_requests(self):
+
 		yield self.make_request('index')
 
 	def make_request(self, reqtype,  **kwargs):
@@ -91,29 +93,32 @@ class DreamMarketSpider(MarketSpider):
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
 					if ('req_once_logged' in response.meta):
 						self.enqueue_request(response.meta['req_once_logged'])
-					raise Exception("Too many failed login trials. Giving up and re-enqueuing last request.")
+					self.logintrial = 0
+					self.wait_for_input("Too many login failed")
+					return
 				self.logger.info("Trying to login.")
 				self.logintrial += 1
 
 				req_once_logged = response.request
 				if ('req_once_logged' in response.meta):
 					req_once_logged = response.meta['req_once_logged']
-				self.enqueue_request( self.make_request('dologin', req_once_logged=req_once_logged, response=response) )
+				yield self.make_request('dologin', req_once_logged=req_once_logged, response=response, priority=10)
 
 			elif self.is_ddos_protection_form(response):
 				self.logger.debug('Encountered a DDOS Protection page. Re-enqueuing last request')
 				if ('req_once_logged' in response.meta):
 						self.enqueue_request(response.meta['req_once_logged'])
-				raise RuntimeError('DDOS Protection. Slow down the Crawler')
+				
+				self.wait_for_input("DDOS Protection")
+				return
 
 			elif self.is_logged_elsewhere(response) or self.is_session_expired(response):
 				self.logger.debug('Need to relog')
-				self.enqueue_request( self.make_request('index', priority=2, donotparse=True) )
+				yield self.make_request('index', priority=10, donotparse=True)
 
 				response.request.dont_filter = True
 				self.enqueue_request( response.request )
 			else:
-				inspect_response(response, self)
 				raise Exception("Not implemented yet, figure what to do here !")
 		else : 
 			self.logintrial = 0
@@ -403,17 +408,17 @@ class DreamMarketSpider(MarketSpider):
 
 		data  = {}
 		data[username_formname] =  self.login['username']
-		data[password_formname] =  self.login['password']
+		data[password_formname] =  self.login['password'] + 'asd'
 		captcha_src = response.css('.captcha img::attr(src)').extract_first()
 		if not captcha_src:
 			raise Exception('Cannot find Captcha src')
 
 		req = FormRequest.from_response(response, formdata=data)
-		req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
-			'request' : self.make_request('captcha_img', url=captcha_src),
-			'name' : captcha_formname,
-			'preprocess' : 'DreamMarketRectangleCropper'	# Preprocess image to extract what's within the rectangle
-			}
+		#req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
+		#	'request' : self.make_request('captcha_img', url=captcha_src),
+		#	'name' : captcha_formname,
+		#	'preprocess' : 'DreamMarketRectangleCropper'	# Preprocess image to extract what's within the rectangle
+		#	}
 
 		return req
 

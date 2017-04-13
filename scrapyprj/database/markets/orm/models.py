@@ -338,3 +338,19 @@ class AdsImage(Model):
 		indexes 	= (
 			(('hash'), True),	#unique
 			)
+
+
+class ManualInput(Model):
+	id = PrimaryKeyField()
+	date_requested = DateTimeField()
+	spidername = CharField()
+	proxy = CharField()
+	login = CharField()
+	cookies = TextField()
+	user_agent = TextField()
+	reload = BooleanField()
+		
+
+	class Meta:
+		database 	= db.proxy 
+		db_table 	= 'manual_input'
