@@ -14,7 +14,11 @@ import database.settings
 BOT_NAME = 'scrapyprj'
 
 PROXIES = {	
-	"privoxy" : "http://127.0.0.1:8888"
+	'debug' : 'http://127.0.0.1:8888'
+	#"tor9050" : "http://127.0.0.1:8118",
+	#"tor9051" : "http://127.0.0.1:8119",
+	#"tor9052" : "http://127.0.0.1:8120",
+	#"tor9053" : "http://127.0.0.1:8121"
 }
 
 
@@ -27,9 +31,15 @@ DEATHBYCAPTHA = {
 }
 
 
-MAX_LOGIN_RETRY = 3
+MAX_LOGIN_RETRY = 5
 
-DATABASE = database.settings.settings
+MAIL_FROM = 'username@gmail.com'
+MAIL_HOST = 'smtp.gmail.com'
+MAIL_PORT = 587
+MAIL_USER = 'username@gmail.com'
+MAIL_PASS = 'xxxxx'
+
+MAIL_RECIPIENT = ['py.lessard@gmail.com']
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -67,11 +77,16 @@ SPIDER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 100
 }
 
+DOWNLOADER_MIDDLEWARES = {
+	'scrapyprj.middlewares.captcha_middleware.CaptchaMiddleware' : 200,
+}
+
 
 LOG_LEVEL = 'INFO'
-DISABLE_LOGGER  = 'peewee,DatabaseDAO'
+DISABLE_LOGGER  = ''
 
 CONCURRENT_REQUESTS = 16
+
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
