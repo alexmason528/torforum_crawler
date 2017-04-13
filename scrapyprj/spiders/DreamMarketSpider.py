@@ -414,11 +414,11 @@ class DreamMarketSpider(MarketSpider):
 			raise Exception('Cannot find Captcha src')
 
 		req = FormRequest.from_response(response, formdata=data)
-		#req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
-		#	'request' : self.make_request('captcha_img', url=captcha_src),
-		#	'name' : captcha_formname,
-		#	'preprocess' : 'DreamMarketRectangleCropper'	# Preprocess image to extract what's within the rectangle
-		#	}
+		req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
+			'request' : self.make_request('captcha_img', url=captcha_src),
+			'name' : captcha_formname,
+			'preprocess' : 'DreamMarketRectangleCropper'	# Preprocess image to extract what's within the rectangle
+			}
 
 		return req
 
