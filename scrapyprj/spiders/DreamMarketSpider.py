@@ -408,7 +408,7 @@ class DreamMarketSpider(MarketSpider):
 
 		data  = {}
 		data[username_formname] =  self.login['username']
-		data[password_formname] =  self.login['password'] + 'asd'
+		data[password_formname] =  self.login['password']
 		captcha_src = response.css('.captcha img::attr(src)').extract_first()
 		if not captcha_src:
 			raise Exception('Cannot find Captcha src')
