@@ -383,8 +383,8 @@ DROP TABLE IF EXISTS `market`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `market` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `spider` varchar(255) DEFAULT NULL,
+  `name` varchar(150) NOT NULL,
+  `spider` varchar(150) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name_UNIQUE` (`name`),
   UNIQUE KEY `spider_UNIQUE` (`spider`)
@@ -703,4 +703,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-04-14 14:58:53
+-- Dump completed on 2017-04-14 15:00:52
