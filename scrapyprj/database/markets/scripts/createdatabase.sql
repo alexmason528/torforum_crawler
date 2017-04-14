@@ -127,7 +127,7 @@ CREATE TABLE `ads_feedback_propval` (
   CONSTRAINT `ads_feedback_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `ads_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propval_feedback` FOREIGN KEY (`feedback`) REFERENCES `ads_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -264,7 +264,7 @@ CREATE TABLE `ads_propval` (
   CONSTRAINT `ads_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `ads_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_propval_ads` FOREIGN KEY (`ads`) REFERENCES `ads` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -524,7 +524,7 @@ CREATE TABLE `seller_feedback_propval` (
   CONSTRAINT `seller_feedback_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `seller_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_propval_feedback` FOREIGN KEY (`feedback`) REFERENCES `seller_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -639,7 +639,7 @@ CREATE TABLE `user_propval` (
   CONSTRAINT `user_propkey_key` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propval_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -703,4 +703,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-04-14 15:00:52
+-- Dump completed on 2017-04-14 15:05:34
