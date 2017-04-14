@@ -169,7 +169,7 @@ CREATE TABLE `ads_feedback_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
   `data` text CHARACTER SET utf8mb4,
-  `modified_on` datetime NOT NULL,
+  `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) NOT NULL,
   KEY `ads_feedback_propvalaudit_feedback_idx` (`feedback`),
   KEY `ads_feedback_propvalaudit_propkey_idx` (`propkey`),
@@ -254,7 +254,7 @@ CREATE TABLE `ads_propval` (
   `propkey` bigint(11) NOT NULL,
   `ads` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`propkey`,`ads`),
   KEY `ads_propval_ads_idx` (`ads`),
@@ -306,7 +306,7 @@ CREATE TABLE `ads_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `ads` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime NOT NULL,
+  `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) NOT NULL,
   KEY `ads_propvalaudit_ads_idx` (`ads`),
   KEY `ads_propvalaudit_propkey_idx` (`propkey`),
@@ -514,7 +514,7 @@ CREATE TABLE `seller_feedback_propval` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`propkey`,`feedback`),
   KEY `seller_feedback_propval_feedback_idx` (`feedback`),
@@ -566,7 +566,7 @@ CREATE TABLE `seller_feedback_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime NOT NULL,
+  `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) NOT NULL,
   KEY `seller_feedback_propvalaudit_feedback_idx` (`feedback`),
   KEY `seller_feedback_propvalaudit_propkey_idx` (`propkey`),
@@ -629,7 +629,7 @@ CREATE TABLE `user_propval` (
   `propkey` bigint(11) NOT NULL,
   `user` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`propkey`,`user`),
   KEY `user_propval_user_idx` (`user`),
@@ -681,7 +681,7 @@ CREATE TABLE `user_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `user` bigint(11) NOT NULL,
   `data` text,
-  `modified_on` datetime NOT NULL,
+  `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) NOT NULL,
   KEY `user_propvalaudit_user_idx` (`user`),
   KEY `user_propvalaudit_propkey_idx` (`propkey`),
@@ -703,4 +703,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-04-14 14:56:57
+-- Dump completed on 2017-04-14 14:58:53
