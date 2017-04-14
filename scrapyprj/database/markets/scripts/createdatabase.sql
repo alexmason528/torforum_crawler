@@ -364,14 +364,14 @@ DROP TABLE IF EXISTS `manual_input`;
 CREATE TABLE `manual_input` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `date_requested` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `spidername` varchar(255)  NOT NULL,
-  `proxy` varchar(255)  DEFAULT NULL,
-  `login` varchar(255)  DEFAULT NULL,
+  `spidername` varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  `proxy` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
+  `login` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
   `cookies` text COLLATE utf8mb4_bin,
   `user_agent` text COLLATE utf8mb4_bin,
   `reload` tinyint(4) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -703,4 +703,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-04-13  0:18:51
+-- Dump completed on 2017-04-14 14:54:41
