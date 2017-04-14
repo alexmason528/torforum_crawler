@@ -117,7 +117,7 @@ CREATE TABLE `ads_feedback_propval` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
   `data` text CHARACTER SET utf8mb4,
-  `modified_on` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`propkey`,`feedback`),
   KEY `ads_feedback_propval_feedback_idx` (`feedback`),
@@ -703,4 +703,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-04-14 14:54:41
+-- Dump completed on 2017-04-14 14:56:57
