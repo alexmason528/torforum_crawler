@@ -178,7 +178,7 @@ class MarketSpider(BaseSpider):
 				self.crawler.engine.crawl(req, spider)
 				scheduled_request = True
 			
-		if scheduled_request or self.manual_input:		# manual_input is None if not waiting for cookies
+		if scheduled_request or self.manual_input or self.downloader_still_active():		# manual_input is None if not waiting for cookies
 			raise DontCloseSpider()						# Mandatory to avoid closing the spider if the request are being dropped and scheduler is empty.
 
 
@@ -375,6 +375,17 @@ class MarketSpider(BaseSpider):
 				break
 
 		return cookie_middleware
+
+	def downloader_still_active(self):
+		
+		if len(self.crawler.engine.slot.inprogress) > 0:
+			return True
+
+		if len(self.crawler.engine.slot.scheduler) > 0:
+			return True
+
+		return False
+
 
 
 
