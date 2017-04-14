@@ -24,7 +24,7 @@ DROP TABLE IF EXISTS `ads`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `ads` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `external_id` varchar(255) DEFAULT NULL,
+  `external_id` varchar(150) DEFAULT NULL,
   `market` bigint(11) NOT NULL,
   `title` text NOT NULL,
   `seller` bigint(11) DEFAULT NULL,
@@ -364,14 +364,14 @@ DROP TABLE IF EXISTS `manual_input`;
 CREATE TABLE `manual_input` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `date_requested` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `spidername` varchar(255) COLLATE utf8mb4_bin NOT NULL,
-  `proxy` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
-  `login` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
+  `spidername` varchar(255)  NOT NULL,
+  `proxy` varchar(255)  DEFAULT NULL,
+  `login` varchar(255)  DEFAULT NULL,
   `cookies` text COLLATE utf8mb4_bin,
   `user_agent` text COLLATE utf8mb4_bin,
   `reload` tinyint(4) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -589,7 +589,7 @@ DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `market` bigint(11) NOT NULL,
-  `username` varchar(255) DEFAULT NULL,
+  `username` varchar(150) DEFAULT NULL,
   `relativeurl` text,
   `fullurl` text,
   `scrape` bigint(11) NOT NULL,
