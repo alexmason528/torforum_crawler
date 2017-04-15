@@ -113,7 +113,7 @@ class DreamMarketSpider(MarketSpider):
 				return
 
 			elif self.is_logged_elsewhere(response) or self.is_session_expired(response):
-				self.logger.debug('Need to relog')
+				self.logger.warning('Need to relog')
 				yield self.make_request('index', priority=10, donotparse=True)
 
 				response.request.dont_filter = True

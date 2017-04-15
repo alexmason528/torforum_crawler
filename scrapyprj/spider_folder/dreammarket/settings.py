@@ -27,6 +27,70 @@ settings = {
 		'isaacrichard': {		
 			'username' : 'isaacrichard',
 			'password' : 'pqowieuryt'
+		},
+		'laidminimize': {		
+			'username' : 'laidminimize',
+			'password' : 'pqowieuryt'
+		},
+		'webglhip': {		
+			'username' : 'webglhip',
+			'password' : 'pqowieuryt'
+		},
+		'methaneoutlying': {		
+			'username' : 'methaneoutlying',
+			'password' : 'pqowieuryt'
+		},
+		'absolutecrib': {		
+			'username' : 'absolutecrib',
+			'password' : 'pqowieuryt'
+		},
+		'logisticvenerated': {		
+			'username' : 'logisticvenerated',
+			'password' : 'pqowieuryt'
+		},
+		'variantisapi': {		
+			'username' : 'variantisapi',
+			'password' : 'pqowieuryt'
+		},
+		'bumphamilton': {		
+			'username' : 'bumphamilton',
+			'password' : 'pqowieuryt'
+		},
+		'rawfishbipedal': {		
+			'username' : 'rawfishbipedal',
+			'password' : 'pqowieuryt'
+		},
+		'metalmalboro': {		
+			'username' : 'metalmalboro',
+			'password' : 'pqowieuryt'
+		},
+		'maggotfrantic': {		
+			'username' : 'maggotfrantic',
+			'password' : 'pqowieuryt'
+		},
+		'vectorchampion': {		
+			'username' : 'vectorchampion',
+			'password' : 'pqowieuryt'
+		},
+		'evolvedbegging': {		
+			'username' : 'evolvedbegging',
+			'password' : 'pqowieuryt'
+		},
+		'worshipterrestrial': {		
+			'username' : 'worshipterrestrial',
+			'password' : 'pqowieuryt'
+		},
+		'heelperseus': {		
+			'username' : 'heelperseus',
+			'password' : 'pqowieuryt'
+		},
+		'bibspanel': {		
+			'username' : 'bibspanel',
+			'password' : 'pqowieuryt'
+		},
+		'unctiongodwottery': {		
+			'username' : 'unctiongodwottery',
+			'password' : 'pqowieuryt'
 		}
 	}
 }
