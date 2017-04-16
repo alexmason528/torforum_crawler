@@ -84,7 +84,11 @@ class MarketSpider(BaseSpider):
 			AdsFeedbackProperty,
 			AdsFeedbackPropertyAudit,
 			SellerFeedbackProperty,
-			SellerFeedbackPropertyAudit
+			SellerFeedbackPropertyAudit,
+			UserProperty,
+			UserPropertyAudit,
+			AdsImage,
+			ScrapeStat
 		]
 
 		dao = DatabaseDAO(cacheconfig='markets', donotcache=donotcache)
