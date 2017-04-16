@@ -259,7 +259,7 @@ class DreamMarketSpider(MarketSpider):
 			if label_txt == 'username':
 				content = div.css('table tr td:nth-child(2)')
 				content_txt = self.get_text(content)
-				m = re.search('(\w+)[\s\(]', content_txt)
+				m = re.search('(\w+)[\s\(]?', content_txt)
 				if m : 
 					user_item['username'] = m.group(1).strip()
 				else:
