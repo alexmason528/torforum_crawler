@@ -9,9 +9,9 @@ class save2db(object):
 		
 		if isinstance(item['model'], collections.Iterable):
 			for model in item['model']:
-				spider.dao.enqueue(model)
+				spider.dao.enqueue(model, spider)
 		else:		
-			spider.dao.enqueue(item['model'])
+			spider.dao.enqueue(item['model'], spider)
 		
 		return item['model']
 		

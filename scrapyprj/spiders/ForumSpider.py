@@ -339,11 +339,13 @@ class ForumSpider(BaseSpider):
 	def savestats(self):
 		stat = ScrapeStat(scrape=self.scrape)
 
-		stat.thread 			= self.dao.stats[Thread] 			if Thread 			in self.dao.stats else 0
-		stat.message 			= self.dao.stats[Message] 			if Message 			in self.dao.stats else 0
-		stat.message_propval 	= self.dao.stats[MessageProperty] 	if MessageProperty 	in self.dao.stats else 0
-		stat.user 				= self.dao.stats[User] 				if User 			in self.dao.stats else 0
-		stat.user_propval 		= self.dao.stats[UserProperty] 		if UserProperty 	in self.dao.stats else 0
+		stats_data = self.dao.get_stats(self)
+
+		stat.thread 			= stats_data[Thread] 			if Thread 			in stats_data else 0
+		stat.message 			= stats_data[Message] 			if Message 			in stats_data else 0
+		stat.message_propval 	= stats_data[MessageProperty] 	if MessageProperty 	in stats_data else 0
+		stat.user 				= stats_data[User] 				if User 			in stats_data else 0
+		stat.user_propval 		= stats_data[UserProperty] 		if UserProperty 	in stats_data else 0
 
 		stat.request_sent 		= self.crawler.stats.get_value('downloader/request_count') 	or 0 if hasattr(self, 'crawler') else 0
 		stat.request_bytes 		= self.crawler.stats.get_value('downloader/request_bytes') 	or 0 if hasattr(self, 'crawler') else 0

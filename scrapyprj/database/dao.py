@@ -46,6 +46,7 @@ class DatabaseDAO:
 			'callbacks' : {}
 		}
 		self.stats = {}
+		self.queuestats = {}
 
 		self._donotcache = donotcache
 		self.logger = logging.getLogger('DatabaseDAO')
@@ -128,12 +129,20 @@ class DatabaseDAO:
 
 		return result
 
-	def enqueue(self, obj):
+	def enqueue(self, obj, spider=None):
 		self.assertismodelclass(obj.__class__)
 		queuename = obj.__class__.__name__
 		if queuename not in self.queues:
 			self.queues[queuename] = []
 		self.queues[queuename].append(obj)
+
+		if queuename not in self.queuestats:
+			self.queuestats[queuename] = {}
+		
+		if spider not in self.queuestats[queuename]:
+			self.queuestats[queuename][spider] = 0
+
+		self.queuestats[queuename][spider] += 1
 
 	def get(self, modeltype, *args, **kwargs):
 		#if self.enablecache:
@@ -219,9 +228,19 @@ class DatabaseDAO:
 				self.exec_callbacks('after_flush', modeltype, queue)
 
 				#Stats
-				if modeltype not in self.stats:
-					self.stats[modeltype] = 0
-				self.stats[modeltype] += len(queue)
+
+				queuename = modeltype.__name__
+				if queuename in self.queuestats:
+					for spider in self.queuestats[queuename]:
+
+						if spider not in self.stats:
+							self.stats[spider] = {}
+
+						if modeltype not in self.stats[spider]:
+							self.stats[spider][modeltype] = 0
+
+						self.stats[spider][modeltype] += self.queuestats[queuename][spider]		# consume stats for spider
+						self.queuestats[queuename][spider] = 0									# reset to 0
 				
 				#cache
 				self.cache.bulkwrite(queue)
@@ -266,3 +285,9 @@ class DatabaseDAO:
 					f.write(str(obj._data))
 		except:
 			pass
+
+	def get_stats(self, spider=None):
+		if spider not in self.stats:
+				self.stats[spider] = {}
+
+		return self.stats[spider]
