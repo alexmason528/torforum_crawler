@@ -38,6 +38,7 @@ class CaptchaMiddleware(object):
 		dbc_client = dbc.SocketClient(dbc_username, dbc_password)
 		request = response.meta['original_request']
 		data = bytearray(response.body)
+		error = False
 		if 'preprocess' in request.meta['captcha']:
 			if request.meta['captcha']['preprocess'] == 'DreamMarketRectangleCropper':
 				cropper = DreamMarketRectangleCropper()
@@ -47,24 +48,23 @@ class CaptchaMiddleware(object):
 			captcha_answer = dbc_client.decode(data)
 		except Exception, e:
 			self.logger.error("Failed to decode Captcha using Death By Captcha : %s" % e)
-			raise 
-
+			error = True
+			
 		if not captcha_answer:
 			self.logger.error("Failed to decode Captcha using Death By Captcha")
+			error = True
 
-		self.logger.info("Got Captcha : %s" % captcha_answer['text'])
+		if not error:
+			self.logger.info("Got Captcha : %s" % captcha_answer['text'])
 
-		request = response.meta['original_request']
-
-		formdata = dict(parse_qsl(request.body, keep_blank_values=True))
-		#formdata = dict( (k, v if len(v)>1 else v[0] )  for k, v in parse_qs(request.body, keep_blank_values=True).iteritems() )  # parse_qs
+			formdata = dict(parse_qsl(request.body, keep_blank_values=True))
+			#formdata = dict( (k, v if len(v)>1 else v[0] )  for k, v in parse_qs(request.body, keep_blank_values=True).iteritems() )  # parse_qs
 		
-		formdata[request.meta['captcha']['name']] = captcha_answer['text']
-
-		request._set_body(urllib.urlencode(formdata))
+			formdata[request.meta['captcha']['name']] = captcha_answer['text']
+			request._set_body(urllib.urlencode(formdata))
 
 		if 'captcha' in request.meta:
 			del request.meta['captcha']
-		yield request
 
+		yield request
 

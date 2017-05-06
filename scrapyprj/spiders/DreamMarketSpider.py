@@ -28,7 +28,6 @@ class DreamMarketSpider(MarketSpider):
 		super(DreamMarketSpider, self).__init__( *args, **kwargs)
 		
 		self.logintrial = 0
-		self.handling_ddos = False
 
 		self.max_concurrent_requests = 1	# Scrapy config
 		self.download_delay = 12			# Scrapy config
@@ -69,7 +68,6 @@ class DreamMarketSpider(MarketSpider):
 		elif reqtype == 'ddos_protection':
 			req = self.create_request_from_ddos_protection(kwargs['response'])
 			req.meta['req_once_logged'] = kwargs['req_once_logged']
-			self.handling_ddos = True
 			req.meta['ddos_protection'] = True
 			req.dont_filter=True
 		elif reqtype in ['ads_list', 'ads', 'user', 'image']:
@@ -88,6 +86,7 @@ class DreamMarketSpider(MarketSpider):
 
 	def parse(self, response):
 		if not self.loggedin(response):	
+
 			if self.isloginpage(response):
 				self.logger.debug('Encountered a login page.')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
@@ -102,15 +101,29 @@ class DreamMarketSpider(MarketSpider):
 				req_once_logged = response.request
 				if ('req_once_logged' in response.meta):
 					req_once_logged = response.meta['req_once_logged']
+
 				yield self.make_request('dologin', req_once_logged=req_once_logged, response=response, priority=10)
 
 			elif self.is_ddos_protection_form(response):
-				self.logger.debug('Encountered a DDOS Protection page. Re-enqueuing last request')
-				if ('req_once_logged' in response.meta):
+				self.logger.warning('Encountered a DDOS protection page')
+				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
+					if ('req_once_logged' in response.meta):
 						self.enqueue_request(response.meta['req_once_logged'])
-				
-				self.wait_for_input("DDOS Protection")
-				return
+					self.logintrial = 0
+					self.wait_for_input("Can't bypass DDOS Protection")
+					return
+				self.logger.info("Trying to overcome DDOS protection")
+				self.logintrial += 1
+
+				req_once_logged = response.request
+				if ('req_once_logged' in response.meta):
+					req_once_logged = response.meta['req_once_logged']
+
+				yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response, priority=10)
+			elif self.is_ddos_good_answer(response):
+				self.logintrial = 0
+				self.logger.info("Bypassed DDOS protection successfully!")
+				self.enqueue_request( response.meta['req_once_logged'] )
 
 			elif self.is_logged_elsewhere(response) or self.is_session_expired(response):
 				self.logger.warning('Need to relog')
@@ -126,10 +139,6 @@ class DreamMarketSpider(MarketSpider):
 			# We restore the missed request when protection kicked in
 			if response.meta['reqtype'] == 'dologin':
 				self.logger.info("Login Success!")
-				self.enqueue_request( response.meta['req_once_logged'] )
-
-			elif response.meta['reqtype'] == 'ddos_protection':
-				self.handling_ddos = False
 				self.enqueue_request( response.meta['req_once_logged'] )
 			
 			# Normal parsing
@@ -251,20 +260,15 @@ class DreamMarketSpider(MarketSpider):
 		user_item = items.User()
 		details = response.css('div.tabularDetails>div')
 		verified_list = []
+
+		user_item['username'] = dict(parse_qsl(urlparse(response.url).query))['member']	# Read get parmater "member" from url
+
 		for div in details:
 			label = div.css('label:first-child')
 			label_txt = self.get_text(label).lower()
 			content = div.css('div>:not(label)')
 
 			if label_txt == 'username':
-				content = div.css('table tr td:nth-child(2)')
-				content_txt = self.get_text(content)
-				m = re.search('(\w+)[\s\(]?', content_txt)
-				if m : 
-					user_item['username'] = m.group(1).strip()
-				else:
-					raise RuntimeError('Cannot find username while searching member page at %s' % response.url)
-
 				ratings = self.parse_ratings(content)
 				for key in ratings:
 					user_item[key] = ratings[key]
@@ -323,8 +327,22 @@ class DreamMarketSpider(MarketSpider):
 		return False
 
 	def is_ddos_protection_form(self, response):
-		ddos_form = response.css('form div.ddos').extract()
-		return True if len(ddos_form) > 0 else False
+		ddos_form = response.css('form div.ddos')
+		if len(ddos_form) > 0:
+			submit_btn = response.css('form input[type="submit"]')
+			if len(submit_btn) > 0:
+				return True
+
+		return False
+
+	def is_ddos_good_answer(self, response):
+		ddos_form = response.css('form div.ddos')
+		if len(ddos_form) > 0:
+			body_text = self.get_text(response.css('form'))
+			if 'Correct answer, thank you' in body_text:
+				return True
+
+		return False
 
 	def is_logged_elsewhere(self, response):
 		return True if 'You have been logged in elsewhere' in response.body else False
@@ -340,7 +358,7 @@ class DreamMarketSpider(MarketSpider):
 	 	result = eval(code)
 		self.logger.info('Answering DDOS protection challenge "%s" with answer %s' % (challenge, result))
 
-		req = FormRequest.from_response(response, formdata={'result' : str(result)}, priority=5)
+		req = FormRequest.from_response(response, formdata={'result' : str(result)})
 		req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
 			'request' : self.make_request('captcha_img', url=captcha_src),
 			'name' : 'captcha',
@@ -378,7 +396,6 @@ class DreamMarketSpider(MarketSpider):
 
 		#Success validation
 		if len(username_txtbox_list2) != 1:
-			inspect_response(response, self)
 			raise Exception("Cannot find the right username textbox. There is %d candidates" % len(username_txtbox_list))
 
 		username_txt_id = username_txtbox_list2[0].xpath("@id").extract_first()
