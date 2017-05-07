@@ -81,10 +81,7 @@ class CaptchaQuestion(Model):
 
 ################  User  ############### 
 
-class UserPropertyKey(Model):
-	id = PrimaryKeyField()
-	name = CharField()
-
+class UserPropertyKey(orm.BasePropertyKey):
 	class Meta:
 		database = db.proxy 
 		db_table='user_propkey'
@@ -145,10 +142,7 @@ DeferredUser.set_model(User)	#Overcome circular dependency
 
 ############### Ads ###################
 
-class AdsPropertyKey(Model):
-	id = PrimaryKeyField()
-	name = CharField()
-
+class AdsPropertyKey(orm.BasePropertyKey):
 	class Meta:
 		database = db.proxy 
 		db_table='ads_propkey'
@@ -211,10 +205,7 @@ DeferredAds.set_model(Ads)	#Overcome circular dependency
 
 ############### Ads Feedback ###################
 
-class AdsFeedbackPropertyKey(Model):
-	id 		= PrimaryKeyField()
-	name 	= CharField()
-
+class AdsFeedbackPropertyKey(orm.BasePropertyKey):
 	class Meta:
 		database 	= db.proxy 
 		db_table	='ads_feedback_propkey'
@@ -268,10 +259,7 @@ DeferredAdsFeedback.set_model(AdsFeedback)	#Overcome circular dependency
 
 ############## User Feedback ###################
 
-class SellerFeedbackPropertyKey(Model):
-	id = PrimaryKeyField()
-	name = CharField()
-
+class SellerFeedbackPropertyKey(orm.BasePropertyKey):
 	class Meta:
 		database 	= db.proxy 
 		db_table	='seller_feedback_propkey'
@@ -305,7 +293,7 @@ class SellerFeedbackPropertyAudit(orm.BasePropertyModel):
 
 class SellerFeedback(orm.BasePropertyOwnerModel):
 	id 			= PrimaryKeyField()
-	hash = CharField()
+	hash 		= CharField()
 	market 		= ForeignKeyField(Market, 	related_name='seller_feedback',	db_column='market')
 	seller 		= ForeignKeyField(User, 	related_name='feedback', 		db_column='seller')
 	scrape 		= ForeignKeyField(Scrape, 	related_name='seller_feedback',	db_column='scrape')

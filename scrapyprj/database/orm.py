@@ -15,6 +15,7 @@ class BasePropertyOwnerModel(Model):
 
 		self._properties = {}
 		self._valmodel_attributes = {}
+		self._extra_data = {}
 
 		#Intercepts kwargs for _properties that goes in our property table.
 		keytoremove = []
@@ -97,3 +98,8 @@ class BasePropertyOwnerModel(Model):
 class BasePropertyModel(Model):
 	key = None
 	data = None
+
+class BasePropertyKey(Model):
+	id 		= PrimaryKeyField()
+	name 	= CharField()
+	prettyname=CharField()

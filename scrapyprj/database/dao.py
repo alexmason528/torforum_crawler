@@ -8,7 +8,7 @@ import inspect
 import traceback
 import scrapyprj.database.forums.orm.models as forum_models
 import scrapyprj.database.markets.orm.models as market_models
-
+from IPython import embed
 from scrapy.exceptions import CloseSpider
 
 
@@ -31,7 +31,8 @@ class DatabaseDAO:
 			market_models.Ads 				: ('market', 'external_id'),	
 			market_models.User 				: ('market', 'username'),
 			market_models.CaptchaQuestion 	: ('market', 'hash'),
-			market_models.AdsFeedback 		: ('ads', 'hash')
+			market_models.AdsFeedback 		: ('ads', 'hash'),
+			market_models.SellerFeedback 	: ('seller', 'hash')
 		}
 	}
 
@@ -131,6 +132,8 @@ class DatabaseDAO:
 
 	def enqueue(self, obj, spider=None):
 		self.assertismodelclass(obj.__class__)
+		if isinstance(obj, BasePropertyOwnerModel):
+			obj._extra_data['spider'] = spider
 		queuename = obj.__class__.__name__
 		if queuename not in self.queues:
 			self.queues[queuename] = []
@@ -180,7 +183,7 @@ class DatabaseDAO:
 
 	# Bulk insert a batch of data within a queue
 	def flush(self, modeltype, donotcache = False):
-
+		
 		donotcache = donotcache or modeltype in self._donotcache
 
 		self.assertismodelclass(modeltype)
@@ -228,7 +231,6 @@ class DatabaseDAO:
 				self.exec_callbacks('after_flush', modeltype, queue)
 
 				#Stats
-
 				queuename = modeltype.__name__
 				if queuename in self.queuestats:
 					for spider in self.queuestats[queuename]:
@@ -250,9 +252,10 @@ class DatabaseDAO:
 				if issubclass(modeltype, BasePropertyOwnerModel):	# Our class has a property table defined (propkey/propval)
 					if reloadeddata and len(reloadeddata) > 0:
 						for obj in reloadeddata:
+							obj_spider = obj._extra_data['spider'] 
 							props = obj.getproperties()
 							for prop in props:
-								self.enqueue(prop)
+								self.enqueue(prop, obj_spider)
 
 						self.flush(modeltype._meta.valmodel, donotcache)	# Flush db properties
 

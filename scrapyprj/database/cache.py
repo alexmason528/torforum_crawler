@@ -175,6 +175,7 @@ class Cache:
 		reloaded_data = []
 		cacheid_per_fieldname = {} # objects in objlist might have different keys. We will osrt them in this object to avoid making incoherent SQL
 		if len(objlist) > 0 :
+			
 			modeltype = objlist[0].__class__
 			fieldname, cacheid = self.getcacheid(objlist[0])
 			for obj in objlist:
@@ -187,7 +188,9 @@ class Cache:
 				if fieldname not in cacheid_per_fieldname:	# Create the container for the key
 					cacheid_per_fieldname[fieldname] = []
 				cacheid_per_fieldname[fieldname].append(cacheid)
+			
 			for fieldname in cacheid_per_fieldname.keys():	# For each cache id found before.
+
 				cacheidlist = cacheid_per_fieldname[fieldname]
 				for idx in range(0, len(cacheidlist), chunksize):	# chunk data
 					data = cacheidlist[idx:idx+chunksize]
