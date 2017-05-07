@@ -8,6 +8,7 @@ from scrapyprj.database.settings import markets as dbsetting
 from scrapyprj.database.markets.orm.models import *
 from IPython import embed
 from TestTools import *
+import sys
 
 class TestMarketModels(unittest.TestCase):
 
@@ -138,7 +139,7 @@ class TestMarketModels(unittest.TestCase):
 	def test_captcha_question(self):
 		market = self.create_market()
 		market.save(force_insert=True)
-		cq = CaptchaQuestion(market = market, hash=randstring(100), question =randstring(100), answer=randstring(100))
+		cq = CaptchaQuestion(market = market, hash=randstring(64), question =randstring(100), answer=randstring(100))
 		cq.save(force_insert=True)
 
 		try:
@@ -187,13 +188,14 @@ class TestMarketModels(unittest.TestCase):
 		delete_all(user, market, process, scrape)
 
 	def test_user_propkey(self):
-		propkey = UserPropertyKey(name = randstring(50))
+		propkey = UserPropertyKey(name = randstring(50),prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		try:
 			propkey2 = UserPropertyKey.get(id=propkey.id)
 
 			self.assertEqual(propkey.id, propkey2.id)
 			self.assertEqual(propkey.name, propkey2.name)
+			self.assertEqual(propkey.prettyname, propkey2.prettyname)
 		except :
 			t, v, tb = sys.exc_info()
 			try:
@@ -211,7 +213,7 @@ class TestMarketModels(unittest.TestCase):
 		scrape.save(force_insert=True)
 
 		user = User(market = market, scrape=scrape, username=randstring(100), relativeurl=randstring(100), fullurl=randstring(100))
-		propkey = UserPropertyKey(name = randstring(50))
+		propkey = UserPropertyKey(name = randstring(50),prettyname=randstring(50))
 		
 		user.save(force_insert=True)
 		propkey.save(force_insert=True)
@@ -243,7 +245,7 @@ class TestMarketModels(unittest.TestCase):
 		scrape.save(force_insert=True)
 
 		user = User(market = market, scrape=scrape, username=randstring(100), relativeurl=randstring(100), fullurl=randstring(100))
-		propkey = UserPropertyKey(name = randstring(50))
+		propkey = UserPropertyKey(name = randstring(50),prettyname=randstring(50))
 		
 		user.save(force_insert=True)
 		propkey.save(force_insert=True)
@@ -305,13 +307,14 @@ class TestMarketModels(unittest.TestCase):
 
 
 	def test_ads_propkey(self):
-		propkey = AdsPropertyKey(name = randstring(50))
+		propkey = AdsPropertyKey(name = randstring(50), prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		try:
 			propkey2 = AdsPropertyKey.get(id=propkey.id)
 
 			self.assertEqual(propkey.id, propkey2.id)
 			self.assertEqual(propkey.name, propkey2.name)
+			self.assertEqual(propkey.prettyname, propkey2.prettyname)
 		except :
 			t, v, tb = sys.exc_info()
 			try:
@@ -332,7 +335,7 @@ class TestMarketModels(unittest.TestCase):
 		user.save(force_insert=True)
 		ads = Ads(market = market, scrape=scrape, external_id=randstring(100), title=randstring(100), seller=user, relativeurl=randstring(100), fullurl=randstring(100), last_update=random_datetime())
 		ads.save(force_insert=True)
-		propkey = AdsPropertyKey(name = randstring(50))
+		propkey = AdsPropertyKey(name = randstring(50),prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		propval = AdsProperty(key = propkey, owner = ads, data = randstring(10000), scrape=scrape,modified_on=random_datetime())
 		propval.save(force_insert=True)
@@ -362,7 +365,7 @@ class TestMarketModels(unittest.TestCase):
 		user.save(force_insert=True)
 		ads = Ads(market = market, scrape=scrape, external_id=randstring(100), title=randstring(100), seller=user, relativeurl=randstring(100), fullurl=randstring(100), last_update=random_datetime())
 		ads.save(force_insert=True)
-		propkey = AdsPropertyKey(name = randstring(50))
+		propkey = AdsPropertyKey(name = randstring(50),prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		propval = AdsPropertyAudit(key = propkey, owner = ads, data = randstring(10000), scrape=scrape, modified_on=random_datetime())
 		propval.save(force_insert=True)
@@ -393,7 +396,7 @@ class TestMarketModels(unittest.TestCase):
 		scrape.save(force_insert=True)
 		user = User(market = market, scrape=scrape, username=randstring(100), relativeurl=randstring(100), fullurl=randstring(100))
 		user.save(force_insert=True)
-		sf = SellerFeedback(market = market, scrape=scrape, external_id=randstring(100), seller=user, modified_on=random_datetime())
+		sf = SellerFeedback(market = market, scrape=scrape, hash=randstring(64), seller=user, modified_on=random_datetime())
 		sf.save(force_insert=True)
 		try:
 			sf2 = SellerFeedback.get(id=sf.id)
@@ -402,7 +405,7 @@ class TestMarketModels(unittest.TestCase):
 			self.assertEqual(sf.market.id, sf2.market.id)
 			self.assertEqual(sf.scrape.id, sf2.scrape.id)
 			self.assertEqual(sf.seller.id, sf2.seller.id)
-			self.assertEqual(sf.external_id, sf2.external_id)
+			self.assertEqual(sf.hash, sf2.hash)
 			self.assertEqual(sf.modified_on, sf2.modified_on)
 		except :
 			t, v, tb = sys.exc_info()
@@ -414,13 +417,14 @@ class TestMarketModels(unittest.TestCase):
 		delete_all(sf,user,scrape,process,market)
 
 	def test_seller_feedback_propkey(self):
-		propkey = SellerFeedbackPropertyKey(name = randstring(50))
+		propkey = SellerFeedbackPropertyKey(name = randstring(50),prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		try:
 			propkey2 = SellerFeedbackPropertyKey.get(id=propkey.id)
 
 			self.assertEqual(propkey.id, propkey2.id)
 			self.assertEqual(propkey.name, propkey2.name)
+			self.assertEqual(propkey.prettyname, propkey2.prettyname)
 		except :
 			t, v, tb = sys.exc_info()
 			try:
@@ -441,7 +445,7 @@ class TestMarketModels(unittest.TestCase):
 		user.save(force_insert=True)
 		sf = SellerFeedback(market = market, scrape=scrape, external_id=randstring(100), seller=user)
 		sf.save(force_insert=True)
-		propkey = SellerFeedbackPropertyKey(name = randstring(50))
+		propkey = SellerFeedbackPropertyKey(name = randstring(50),prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		propval = SellerFeedbackProperty(key = propkey, owner = sf, data = randstring(10000), scrape=scrape, modified_on=random_datetime())
 		propval.save(force_insert=True)
@@ -472,7 +476,7 @@ class TestMarketModels(unittest.TestCase):
 		user.save(force_insert=True)
 		sf = SellerFeedback(market = market, scrape=scrape, external_id=randstring(100), seller=user)
 		sf.save(force_insert=True)
-		propkey = SellerFeedbackPropertyKey(name = randstring(50))
+		propkey = SellerFeedbackPropertyKey(name = randstring(50),prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		propval = SellerFeedbackPropertyAudit(key = propkey, owner = sf, data = randstring(10000), scrape=scrape, modified_on = random_datetime())
 		propval.save(force_insert=True)
@@ -508,7 +512,7 @@ class TestMarketModels(unittest.TestCase):
 		user.save(force_insert=True)		
 		ads = Ads(market = market, scrape=scrape, external_id=randstring(100), title=randstring(100), seller=user, relativeurl=randstring(100), fullurl=randstring(100), last_update=random_datetime())
 		ads.save(force_insert=True)
-		af = AdsFeedback(market = market, scrape=scrape, external_id=randstring(100), ads=ads, modified_on=random_datetime())
+		af = AdsFeedback(market = market, scrape=scrape, hash=randstring(64), ads=ads, modified_on=random_datetime())
 		af.save(force_insert=True)
 		try:
 			af2 = AdsFeedback.get(id=af.id)
@@ -517,7 +521,7 @@ class TestMarketModels(unittest.TestCase):
 			self.assertEqual(af.market.id, af2.market.id)
 			self.assertEqual(af.scrape.id, af2.scrape.id)
 			self.assertEqual(af.ads.id, af2.ads.id)
-			self.assertEqual(af.external_id, af2.external_id)
+			self.assertEqual(af.hash, af2.hash)
 			self.assertEqual(af.modified_on, af2.modified_on)
 		except :
 			t, v, tb = sys.exc_info()
@@ -528,13 +532,14 @@ class TestMarketModels(unittest.TestCase):
 		delete_all(af, ads, scrape, process, market)
 
 	def test_ads_feedback_propkey(self):
-		propkey = AdsFeedbackPropertyKey(name = randstring(50))
+		propkey = AdsFeedbackPropertyKey(name = randstring(50),prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		try:
 			propkey2 = AdsFeedbackPropertyKey.get(id=propkey.id)
 
 			self.assertEqual(propkey.id, propkey2.id)
 			self.assertEqual(propkey.name, propkey2.name)
+			self.assertEqual(propkey.prettyname, propkey2.prettyname)
 		except :
 			t, v, tb = sys.exc_info()
 			try:
@@ -556,7 +561,7 @@ class TestMarketModels(unittest.TestCase):
 		ads.save(force_insert=True)
 		af = AdsFeedback(market = market, scrape=scrape, external_id=randstring(100), ads=ads)
 		af.save(force_insert=True)
-		propkey = AdsFeedbackPropertyKey(name = randstring(50))
+		propkey = AdsFeedbackPropertyKey(name = randstring(50),prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		propval = AdsFeedbackProperty(key = propkey, owner = af, data = randstring(10000), scrape=scrape, modified_on=random_datetime())
 		propval.save(force_insert=True)
@@ -587,7 +592,7 @@ class TestMarketModels(unittest.TestCase):
 		ads.save(force_insert=True)
 		af = AdsFeedback(market = market, scrape=scrape, external_id=randstring(100), ads=ads)
 		af.save(force_insert=True)
-		propkey = AdsFeedbackPropertyKey(name = randstring(50))
+		propkey = AdsFeedbackPropertyKey(name = randstring(50),prettyname=randstring(50))
 		propkey.save(force_insert=True)
 		propval = AdsFeedbackPropertyAudit(key = propkey, owner = af, data = randstring(10000), scrape=scrape, modified_on=random_datetime())
 		propval.save(force_insert=True)

@@ -46,7 +46,8 @@ class TestDao(unittest.TestCase):
 		    level=logging.INFO
 		)
 		self.spider = MockedSpider();
-		self.dao = DatabaseDAO(self.spider, 'markets')
+
+		self.dao = DatabaseDAO('markets')
 		db.init(dbsetting)
 
 
@@ -103,8 +104,8 @@ class TestDao(unittest.TestCase):
 			user 	= User(market = market, scrape=scrape, username=randstring(50))
 			ads 	= Ads(market=market, scrape=scrape, external_id=randstring(50), title=randstring(50))
 			captchaquestion = CaptchaQuestion(market=market, hash=randstring(50))
-			ads_fb = AdsFeedback(market=market, ads=ads, scrape=scrape, external_id=randstring(50))
-			seller_fb = SellerFeedback(market=market, scrape=scrape, seller=user, external_id=randstring(50))
+			ads_fb = AdsFeedback(market=market, ads=ads, scrape=scrape, external_id=randstring(50), hash=randstring(64))
+			seller_fb = SellerFeedback(market=market, scrape=scrape, seller=user, external_id=randstring(50), hash=randstring(64))
 
 			self.dao.enqueue(user)
 			with self.assertRaises(DoesNotExist ):
@@ -127,16 +128,19 @@ class TestDao(unittest.TestCase):
 			captchaquestion2 = CaptchaQuestion.get(id=captchaquestion.id)
 			self.assertEqual(captchaquestion.id, captchaquestion2.id)
 
-			self.dao.enqueue(ads_fb)
 			with self.assertRaises(DoesNotExist ):
 				AdsFeedback.get(id=ads_fb.id)
+			ads_fb.save(force_insert=True)
+			
+			self.dao.enqueue(ads_fb)
 			self.dao.flush(AdsFeedback)
 			ads_fb2 = AdsFeedback.get(id=ads_fb.id)
 			self.assertEqual(ads_fb.id, ads_fb2.id)
 
-			self.dao.enqueue(seller_fb)
 			with self.assertRaises(DoesNotExist ):
 				SellerFeedback.get(id=seller_fb.id)
+			seller_fb.save(force_insert = True) # We save because no usable unique key for caching. We'll use primary key
+			self.dao.enqueue(seller_fb)
 			self.dao.flush(SellerFeedback)
 			seller_fb2 = SellerFeedback.get(id=seller_fb.id)
 			self.assertEqual(seller_fb.id, seller_fb2.id)						

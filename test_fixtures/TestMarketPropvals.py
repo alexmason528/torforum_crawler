@@ -46,7 +46,8 @@ class TestMarketProvals(unittest.TestCase):
 		    level=logging.INFO
 		)
 		self.spider = MockedSpider();
-		self.dao = DatabaseDAO(self.spider, 'markets')
+
+		self.dao = DatabaseDAO('markets')
 		db.init(dbsetting)
 
 	def test_user_propval(self):
@@ -57,7 +58,7 @@ class TestMarketProvals(unittest.TestCase):
 			scrape.save(force_insert=True)
 
 
-			user_propkey = UserPropertyKey(name=randstring(30))
+			user_propkey = UserPropertyKey(name=randstring(30), prettyname=randstring(30))
 			user_propkey.save(force_insert=True)
 			User.reset_keys()
 			
@@ -95,7 +96,7 @@ class TestMarketProvals(unittest.TestCase):
 			scrape.save(force_insert=True)
 
 
-			ads_propkey = AdsPropertyKey(name=randstring(30))
+			ads_propkey = AdsPropertyKey(name=randstring(30), prettyname=randstring(30))
 			ads_propkey.save(force_insert=True)
 			Ads.reset_keys()
 			
@@ -134,12 +135,14 @@ class TestMarketProvals(unittest.TestCase):
 			scrape.save(force_insert=True)
 
 
-			adsfb_propkey = AdsFeedbackPropertyKey(name=randstring(30))
+			adsfb_propkey = AdsFeedbackPropertyKey(name=randstring(30), prettyname=randstring(30))
 			adsfb_propkey.save(force_insert=True)
 			AdsFeedback.reset_keys()
 			
 			ads 			= Ads(market=market, scrape=scrape, external_id=randstring(50), title=randstring(50))
-			ads_feedback 	= AdsFeedback(market=market, scrape=scrape, ads=ads, external_id=randstring(50))
+			ads_feedback 	= AdsFeedback(market=market, scrape=scrape, ads=ads, external_id=randstring(50), hash=randstring(64))
+			ads.save(force_insert=True)
+			ads_feedback.save(force_insert=True) # Will retrieve a unique ID for caching as there is no other unique key
 			data = randstring(100)
 			setattr(ads_feedback, adsfb_propkey.name, data)
 
@@ -151,7 +154,6 @@ class TestMarketProvals(unittest.TestCase):
 			ads_feedback.setproperties_attribute(scrape = scrape)
 			self.dao.enqueue(ads_feedback)
 			self.dao.flush(AdsFeedback)
-
 			adsfb_propval = AdsFeedbackProperty.get(key=adsfb_propkey, owner=ads_feedback)
 
 			self.assertEqual(propval.data, adsfb_propval.data)
@@ -173,13 +175,15 @@ class TestMarketProvals(unittest.TestCase):
 			process.save(force_insert=True)
 			scrape.save(force_insert=True)
 
-
-			sellerfb_propkey = SellerFeedbackPropertyKey(name=randstring(30))
+			sellerfb_propkey = SellerFeedbackPropertyKey(name=randstring(30), prettyname=randstring(30))
 			sellerfb_propkey.save(force_insert=True)
 			SellerFeedback.reset_keys()
 			
 			user 	= User(market = market, scrape=scrape, username=randstring(50))
-			seller_feedback 	= SellerFeedback(market=market, scrape=scrape, seller=user, external_id=randstring(50))
+			seller_feedback 	= SellerFeedback(market=market, scrape=scrape, seller=user, external_id=randstring(50), hash=randstring(64))
+			
+			user.save(force_insert=True) 
+			seller_feedback.save(force_insert=True) # That will generate a unique ID. Otherwise, we can't cache this object as there is no other unique key
 			data = randstring(100)
 			setattr(seller_feedback, sellerfb_propkey.name, data)
 

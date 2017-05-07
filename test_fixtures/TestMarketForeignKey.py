@@ -138,7 +138,7 @@ class TestMarketForeignKeys(unittest.TestCase):
 			user.save(force_insert=True)
 			ads = Ads(market = market, scrape=scrape, seller=user, title=randstring(20))
 			ads.save(force_insert=True)
-			propkey = AdsPropertyKey(name = randstring(50))
+			propkey = AdsPropertyKey(name = randstring(50), prettyname=randstring(50))
 			propkey.save(force_insert=True)
 			propval = AdsProperty(key = propkey, owner = ads,scrape=scrape)
 			propval.save(force_insert=True)
@@ -182,7 +182,7 @@ class TestMarketForeignKeys(unittest.TestCase):
 			user.save(force_insert=True)
 			ads = Ads(market = market, scrape=scrape, seller=user, title=randstring(20))
 			ads.save(force_insert=True)
-			propkey = AdsPropertyKey(name = randstring(50))
+			propkey = AdsPropertyKey(name = randstring(50), prettyname=randstring(50))
 			propkey.save(force_insert=True)
 			propval = AdsProperty(key = propkey, owner = ads,scrape=scrape)
 			propval.save(force_insert=True)
@@ -224,7 +224,7 @@ class TestMarketForeignKeys(unittest.TestCase):
 			ads_feedback = AdsFeedback(market = market, scrape=scrape, ads=ads)
 			ads_feedback.save(force_insert=True)
 
-			propkey = AdsFeedbackPropertyKey(name = randstring(50))
+			propkey = AdsFeedbackPropertyKey(name = randstring(50), prettyname=randstring(50))
 			propkey.save(force_insert=True)
 			propval = AdsFeedbackProperty(key = propkey, owner = ads_feedback,scrape=scrape)
 			propval.save(force_insert=True)
@@ -271,7 +271,7 @@ class TestMarketForeignKeys(unittest.TestCase):
 			ads_feedback = AdsFeedback(market = market, scrape=scrape, ads=ads)
 			ads_feedback.save(force_insert=True)
 
-			propkey = AdsFeedbackPropertyKey(name = randstring(50))
+			propkey = AdsFeedbackPropertyKey(name = randstring(50), prettyname=randstring(50))
 			propkey.save(force_insert=True)
 			propval = AdsFeedbackProperty(key = propkey, owner = ads_feedback,scrape=scrape)
 			propval.save(force_insert=True)
@@ -311,7 +311,7 @@ class TestMarketForeignKeys(unittest.TestCase):
 			user.save(force_insert=True)
 		
 
-			propkey = UserPropertyKey(name = randstring(50))
+			propkey = UserPropertyKey(name = randstring(50), prettyname=randstring(50))
 			propkey.save(force_insert=True)
 			propval = UserProperty(key = propkey, owner = user,scrape=scrape)
 			propval.save(force_insert=True)
@@ -354,7 +354,7 @@ class TestMarketForeignKeys(unittest.TestCase):
 			user.save(force_insert=True)
 		
 
-			propkey = UserPropertyKey(name = randstring(50))
+			propkey = UserPropertyKey(name = randstring(50), prettyname=randstring(50))
 			propkey.save(force_insert=True)
 			propval = UserProperty(key = propkey, owner = user,scrape=scrape)
 			propval.save(force_insert=True)
@@ -397,7 +397,7 @@ class TestMarketForeignKeys(unittest.TestCase):
 			seller_feedback = SellerFeedback(market = market, scrape=scrape, ads=ads)
 			seller_feedback.save(force_insert=True)
 
-			propkey = SellerFeedbackPropertyKey(name = randstring(50))
+			propkey = SellerFeedbackPropertyKey(name = randstring(50), prettyname=randstring(50))
 			propkey.save(force_insert=True)
 			propval = SellerFeedbackProperty(key = propkey, owner = seller_feedback,scrape=scrape)
 			propval.save(force_insert=True)
@@ -443,7 +443,7 @@ class TestMarketForeignKeys(unittest.TestCase):
 			seller_feedback = SellerFeedback(market = market, scrape=scrape, ads=ads)
 			seller_feedback.save(force_insert=True)
 
-			propkey = SellerFeedbackPropertyKey(name = randstring(50))
+			propkey = SellerFeedbackPropertyKey(name = randstring(50), prettyname=randstring(50))
 			propkey.save(force_insert=True)
 			propval = SellerFeedbackProperty(key = propkey, owner = seller_feedback,scrape=scrape)
 			propval.save(force_insert=True)
