@@ -39,7 +39,7 @@ MAIL_PORT = 587
 MAIL_USER = 'username@gmail.com'
 MAIL_PASS = 'xxxxx'
 
-MAIL_RECIPIENT = ['py.lessard@gmail.com']
+MAIL_RECIPIENT = ['username@gmail.com']
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
