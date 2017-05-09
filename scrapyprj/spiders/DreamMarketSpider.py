@@ -30,7 +30,7 @@ class DreamMarketSpider(MarketSpider):
 		self.logintrial = 0
 
 		self.max_concurrent_requests = 1	# Scrapy config
-		self.download_delay = 12			# Scrapy config
+		self.download_delay = 0			# Scrapy config
 
 		self.request_queue_chunk = 1 		# Custom Queue system
 
@@ -165,9 +165,9 @@ class DreamMarketSpider(MarketSpider):
 		for url in ads_url:
 			yield self.make_request('ads', url=url)
 
-		next_page_url = response.css(".main .content .pageNavContainer ul.pageNav li a.lastPager::attr(href)").extract_first()
-		if next_page_url: 
-			yield self.make_request('ads_list', url=next_page_url)
+		page_urls = response.css(".main .content .pageNavContainer ul.pageNav li a.pager::attr(href)").extract()
+		for url in page_urls: 
+			yield self.make_request('ads_list', url=url)	# Here, we rely on duplicate filter because we will generate a lot!
 
 	def parse_ads(self, response):
 		
@@ -257,6 +257,7 @@ class DreamMarketSpider(MarketSpider):
 
 	
 	def parse_user(self, response):
+		
 		user_item = items.User()
 		details = response.css('div.tabularDetails>div')
 		verified_list = []
@@ -309,6 +310,10 @@ class DreamMarketSpider(MarketSpider):
 
 		yield user_item
 		self.dao.flush(dbmodels.User)
+
+
+		for url in response.css("div.shop div.oTitle a::attr(href)").extract():
+			yield self.make_request('ads', url=url) 	# We rely on dupe filter te remove duplicate.
 
 	def loggedin(self, response):
 		profile_links = response.css('.main .headNavitems ul li a[href="./profile"]')
