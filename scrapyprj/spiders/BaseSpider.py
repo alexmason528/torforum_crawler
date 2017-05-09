@@ -228,6 +228,9 @@ class BaseSpider(scrapy.Spider):
 	def to_utc(self, datetime):
 		return datetime - self.timezone.localize(datetime).utcoffset()
 
+	def localnow(self):
+		return self.timezone.localize(datetime.now())
+
 	def spider_closed(self, spider, reason):
 		self.add_to_counter('logins', self._loginkey, -1)
 		self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)
