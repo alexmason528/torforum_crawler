@@ -1,19 +1,25 @@
 from scrapy.exceptions import DropItem
-import scrapyprj.spider_folder.alphabay_forum.items as items
+import scrapyprj.spider_folder.dreammarket_forum.items as items
 from scrapyprj.database.forums.orm import *
 from IPython import embed
 
 class map2db(object):
+	def __init__(self, *args, **kwargs):
+		super(self.__class__, self).__init__(*args, **kwargs)
+
+		self.handlers = {
+			items.Thread 		: self.map_thread,
+			items.Message 	: self.map_message,
+			items.User 		: self.map_user
+		}
+
 	def process_item(self, item, spider):
 
-		if type(item) == items.Thread:
-			return {'model' : self.map_thread(item, spider)}	# Sends to SaveToDB
-		elif type(item) == items.Message:
-			return {'model' : self.map_message(item, spider)}	# Sends to SaveToDB
-		elif type(item) == items.User:
-			return {'model' : self.map_user(item, spider)}	# Sends to SaveToDB
-		else:
-			raise Exception('Unknown item type : ' + item.__class__.__name__)
+		for item_type in self.handlers.keys():
+			if item_type == type(item):
+				return {'model' : self.handlers[item_type].__call__(item,spider)}
+		
+		raise Exception('Unknown item type : ' + item.__class__.__name__)
 
 
 	def map_thread(self, item, spider):
@@ -30,17 +36,16 @@ class map2db(object):
 		dbthread.title 		= item['title']
 		dbthread.external_id= item['threadid']
 
-		if 'relativeurl' in item:
-			dbthread.relativeurl = item['relativeurl']
-		
-		if 'fullurl' in item:
-			dbthread.fullurl 	= item['fullurl']
-		
-		if 'last_update' in item:	
-			dbthread.last_update= item['last_update']
+		dbthread.relativeurl 	= item['relativeurl'] 	if 'relativeurl' 	in item else None
+		dbthread.fullurl 		= item['fullurl'] 		if 'fullurl' 		in item else None
+		dbthread.last_update	= item['last_update'] 	if 'last_update' 	in item else None
 
 		dbthread.author = spider.dao.get_or_create(models.User,  username= item['author_username'], forum=spider.forum) # Unique key here
 		dbthread.scrape = spider.scrape
+
+		self.set_if_exist(item, dbthread, 'replies')
+		self.set_if_exist(item, dbthread, 'views')
+
 		if not dbthread.author:
 			raise DropItem("Invalid Thread : Unable to get User from database. Cannot respect foreign key constraint.")
 		elif not dbthread.author.id :
@@ -79,9 +84,7 @@ class map2db(object):
 		dbmsg.external_id = item['postid']	
 		dbmsg.contenttext = item['contenttext']
 		dbmsg.contenthtml = item['contenthtml']
-
-		if 'posted_on' in item:
-			dbmsg.posted_on = item['posted_on']
+		dbmsg.posted_on = item['posted_on'] if 'posted_on' in item else None
 		
 		return dbmsg
 
@@ -98,13 +101,13 @@ class map2db(object):
 		#Proeprties with same name in model and item
 		self.set_if_exist(item, dbuser, 'relativeurl')
 		self.set_if_exist(item, dbuser, 'fullurl')
-		self.set_if_exist(item, dbuser, 'joined_on')
-		self.set_if_exist(item, dbuser, 'likes_received')
-		self.set_if_exist(item, dbuser, 'last_activity')
-		self.set_if_exist(item, dbuser, 'message_count')
-		self.set_if_exist(item, dbuser, 'user_id')
 		self.set_if_exist(item, dbuser, 'title')
-		self.set_if_exist(item, dbuser, 'banner')
+		self.set_if_exist(item, dbuser, 'location')
+		self.set_if_exist(item, dbuser, 'website')
+		self.set_if_exist(item, dbuser, 'signature')
+		self.set_if_exist(item, dbuser, 'post_count')
+		self.set_if_exist(item, dbuser, 'last_post')
+		self.set_if_exist(item, dbuser, 'joined_on')
 
 		return dbuser
 

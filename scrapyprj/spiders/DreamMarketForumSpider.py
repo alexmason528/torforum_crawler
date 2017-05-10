@@ -9,7 +9,7 @@ from scrapyprj.database.orm import *
 import scrapyprj.database.forums.orm.models as models
 import scrapyprj.spider_folder.dreammarket_forum.items as items
 from datetime import datetime, timedelta
-from urlparse import urlparse
+from urlparse import urlparse, parse_qsl
 import logging
 import time
 import hashlib 
@@ -103,19 +103,44 @@ class DreamMarketForumSpider(ForumSpider):
     
     def parse_thread_listing(self, response):
         oldest_post = datetime.utcnow()
+        threads_requests = []
+        
         for line in response.css("#brdmain tbody tr"):
-            link = line.css("td:first-child a::attr(href)").extract_first()
+            threaditem = items.Thread()
             title =  self.get_text(line.css("td:first-child a"))
 
             last_post_time = self.parse_timestr(self.get_text(line.css("td:last-child a")))
             if last_post_time:
                 oldest_post = min(oldest_post, last_post_time)
             
-            #todo : yield Thread Item.
+
+            threadlinkobj = next(iter(line.css("td:first-child a") or []), None)
+            if threadlinkobj:
+                threadlinkhref = threadlinkobj.xpath("@href").extract_first() if threadlinkobj else None
+                threaditem['title'] = self.get_text(threadlinkobj)
+                threaditem['relativeurl'] = threadlinkhref
+                threaditem['fullurl']   = self.make_url(threadlinkhref)
+                
+                threaditem['threadid'] = self.get_url_param(threaditem['fullurl'], 'id')
+
+                byuser = self.get_text(line.css("td:first-child span.byuser"))
+                m = re.match("by (.+)", byuser)
+                if m:
+                    threaditem['author_username'] = m.group(1)
+                
+                threaditem['last_update'] = last_post_time
+                
+                
+                
+                threaditem['replies']   = self.get_text(line.css("td:nth-child(2)"))
+                threaditem['views']     = self.get_text(line.css("td:nth-child(3)"))
+                print threaditem
+                if self.shouldcrawl('thread', last_post_time):
+                    threads_requests.append(self.make_request('thread', url=threadlinkhref))
 
 
-            if self.shouldcrawl('thread', last_post_time):
-                yield self.make_request('thread', url=link)
+        for req in threads_requests:
+            yield req
 
         if self.shouldcrawl('thread', oldest_post):
             next_page_url = response.css("#brdmain .pagelink a[rel='next']::attr(href)").extract_first()
@@ -125,27 +150,74 @@ class DreamMarketForumSpider(ForumSpider):
 
     def parse_thread(self, response):
         oldest_post = datetime.utcnow()
-
+        requests = []
+        threadid =  self.get_url_param(response.url, 'id')
         posts = response.css("#brdmain div.blockpost")
         for post in posts:
-            posttime = self.parse_timestr(self.get_text(post.css("h2 a")))
-            if posttime:
-                oldest_post = min(oldest_post, posttime)
+            try:
+                messageitem = items.Message()
+                posttime = self.parse_timestr(self.get_text(post.css("h2 a")))
+                if posttime:
+                    oldest_post = min(oldest_post, posttime)
 
-            userprofile_link = post.css(".postleft dt:first-child a::attr(href)").extract_first()
-            if userprofile_link and self.shouldcrawl('user'):
-                yield self.make_request('userprofile', url = userprofile_link)
+                userprofile_link = post.css(".postleft dt:first-child a::attr(href)").extract_first()
+                messageitem['author_username'] = self.get_text(post.css(".postleft dt:first-child a"))
+                messageitem['postid'] = post.xpath("@id").extract_first()
+                messageitem['threadid'] = threadid
 
-            #todo yield message
+                msg = post.css("div.postmsg")
+                messageitem['contenttext'] = self.get_text(msg)
+                messageitem['contenthtml'] = msg.extract_first()
+
+                yield messageitem
+
+                if userprofile_link and self.shouldcrawl('user'):
+                    requests.append(self.make_request('userprofile', url = userprofile_link))
+            except e:
+                self.logger.warning("Invalid thread page. %s" % e)
+
+        self.dao.flush(models.Message)
+
+        for req in requests:
+            yield requests;
 
         if self.shouldcrawl('message', oldest_post):
             next_page_url = response.css("#brdmain .pagelink a[rel='next']::attr(href)").extract_first()
             if next_page_url:
-                yield self.make_request('threadlisting', url=next_page_url)
+                yield self.make_request('thread', url=next_page_url)
 
     def parse_userprofile(self, response):
-        #todo yield user
-        pass
+        user = items.User()
+        dts = response.css("#viewprofile dl dt")
+        
+        for dt in dts:
+            key = self.get_text(dt).lower()
+            ddtext = self.get_text(dt.xpath('following-sibling::dd[1]'))
+
+            if key == 'username':
+                user['username'] = ddtext
+            elif key == 'title':
+                user['title'] = ddtext
+            elif key == 'registered':
+                user['joined_on'] = self.parse_timestr(ddtext)
+            elif key == 'last post':
+                user['last_post'] = self.parse_timestr(ddtext)
+            elif key == 'posts':
+                m = re.match("^(\d+).+", ddtext)
+                if m:
+                    user['post_count'] = m.group(1)
+            elif key == 'signature':
+                user['signature'] = ddtext
+            elif key == 'location':
+                user['location'] = ddtext
+            elif key == 'website':
+                user['website'] = ddtext
+            elif key in ['avatar', 'email']:
+                pass
+            else:
+                self.logger.warning('New information found on use profile page : %s' % key)
+
+        yield user
 
     def craft_login_request_from_form(self, response):
         data = {
@@ -187,4 +259,7 @@ class DreamMarketForumSpider(ForumSpider):
         if len(response.css("form#login")) > 0:
             return True
         return False
+
+    def get_url_param(self, url, key):
+         return dict(parse_qsl(urlparse(url).query))[key]
 
