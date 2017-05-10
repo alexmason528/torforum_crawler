@@ -44,7 +44,7 @@ class DreamMarketSpider(MarketSpider):
 			}
 
 	def start_requests(self):
-		embed()
+
 		yield self.make_request('index')
 
 	def make_request(self, reqtype,  **kwargs):
