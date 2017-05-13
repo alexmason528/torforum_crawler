@@ -26,7 +26,7 @@ from scrapy.mail import MailSender
 from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 from Cookie import SimpleCookie
 from scrapy.http import Request
-
+from scrapy.dupefilters import RFPDupeFilter
 
 class MarketSpider(BaseSpider):
 	user_agent  = UserAgent().random
@@ -35,7 +35,11 @@ class MarketSpider(BaseSpider):
 		self._baseclass = MarketSpider
 		self._baseclass._queue_size = 0
 
+		if not hasattr(self._baseclass, 'shared_dupefilter'):
+			self._baseclass.shared_dupefilter = RFPDupeFilter.from_settings(self.settings)
+
 		db.init(dbsettings)
+
 
 		if not hasattr(self, 'request_queue_chunk'):
 			self.request_queue_chunk = 100
@@ -71,6 +75,7 @@ class MarketSpider(BaseSpider):
 	def from_crawler(cls, crawler, *args, **kwargs):
 		spider = cls(*args, settings = crawler.settings,**kwargs)
 		spider.crawler = crawler
+
 		crawler.signals.connect(spider.spider_closed, signal=signals.spider_closed)
 		crawler.signals.connect(spider.spider_idle, signal=signals.spider_idle)			# We will fetch some users/thread that we need to re-read from the database.
 
@@ -158,8 +163,12 @@ class MarketSpider(BaseSpider):
 		return new_queue		
 
 	def enqueue_request(self, request):
-		self._baseclass._queue_size += 1
-		self._baseclass._request_queue.put( (-request.priority, request)  )	# Priority is inverted. High priority go first for scrapy. Low Priority go first for queue
+		if hasattr(request, 'dont_filter') and request.dont_filter or not self._baseclass.shared_dupefilter.request_seen(request):
+			self._baseclass._queue_size += 1
+			self._baseclass._request_queue.put( (-request.priority, request)  )	# Priority is inverted. High priority go first for scrapy. Low Priority go first for queue
+		else:
+			self._baseclass.shared_dupefilter.log(request, self)
+
 
 	def consume_request(self, n):
 		i = 0

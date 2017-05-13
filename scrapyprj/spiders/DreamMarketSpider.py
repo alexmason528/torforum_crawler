@@ -44,7 +44,6 @@ class DreamMarketSpider(MarketSpider):
 			}
 
 	def start_requests(self):
-
 		yield self.make_request('index')
 
 	def make_request(self, reqtype,  **kwargs):
@@ -76,6 +75,7 @@ class DreamMarketSpider(MarketSpider):
 
 		req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
 		req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
+		req.meta['slot'] = self.proxy
 
 		if 'priority' in kwargs:
 			req.priority = kwargs['priority']
