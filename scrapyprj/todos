@@ -1,19 +1,16 @@
-Triggers
-Sinon possiblement faire juste des inserts.
-Ajouter scrapeid
-Lancer les crawlers manuellement
-Paramètres de liste d'url à exclure
+DB forum
+	- Utfmb4
+	- ajouter manual input
+	- triggers
+	- name sur propkey (seeds, models)
+	- Retirer indexing scrape 
+	
+Forum arch:
+	- utiliser queue
+	- Ajuster forum_Crawler.py à nouvel architecture
+	
+Total :
+	- Autocommit middleware
+	- Queue avec middleware
+	- logging
 
-
-
-
-
-Utilisation avec multiple command prompt
-
-
-bon en info
-est-ce que els gens parlent de leur consommation
-plus ou moins
-
-
-web frontend

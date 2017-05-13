@@ -334,6 +334,7 @@ class ManualInput(Model):
 	spidername = CharField()
 	proxy = CharField()
 	login = CharField()
+	login_info = TextField()
 	cookies = TextField()
 	user_agent = TextField()
 	reload = BooleanField()

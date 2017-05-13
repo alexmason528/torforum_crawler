@@ -11,7 +11,6 @@ from scrapyprj.ColorFormatterWrapper import ColorFormatterWrapper
 from scrapyprj.spiders.BaseSpider import BaseSpider
 
 from importlib import import_module
-from fake_useragent import UserAgent
 import os, time, sys
 from dateutil import parser
 import random
@@ -20,24 +19,22 @@ from Queue import PriorityQueue
 import itertools as it
 import pytz
 from IPython import embed
+import json
 
 from twisted.internet import reactor
-from scrapy.mail import MailSender
+
 from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 from Cookie import SimpleCookie
 from scrapy.http import Request
 from scrapy.dupefilters import RFPDupeFilter
 
 class MarketSpider(BaseSpider):
-	user_agent  = UserAgent().random
+	
 	def __init__(self, *args, **kwargs):
 		super(MarketSpider, self).__init__( *args, **kwargs)
 		self._baseclass = MarketSpider
-		self._baseclass._queue_size = 0
 
-		if not hasattr(self._baseclass, 'shared_dupefilter'):
-			self._baseclass.shared_dupefilter = RFPDupeFilter.from_settings(self.settings)
-
+		self.configure_request_sharing()
 		db.init(dbsettings)
 
 
@@ -48,9 +45,6 @@ class MarketSpider(BaseSpider):
 			self.dao = kwargs['dao']
 		else:
 			self.dao = self.make_dao()
-
-		if not hasattr(self._baseclass, '_request_queue'):
-			self._baseclass._request_queue = PriorityQueue()
 
 		self.set_timezone()
 
@@ -161,6 +155,18 @@ class MarketSpider(BaseSpider):
 			SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()
 
 		return new_queue		
+
+
+	def configure_request_sharing(self):
+		if not hasattr(self._baseclass, '_queue_size'):
+			self._baseclass._queue_size = 0
+
+		if not hasattr(self._baseclass, 'shared_dupefilter'):
+			self._baseclass.shared_dupefilter = RFPDupeFilter.from_settings(self.settings)
+
+		if not hasattr(self._baseclass, '_request_queue'):
+			self._baseclass._request_queue = PriorityQueue()
+
 
 	def enqueue_request(self, request):
 		if hasattr(request, 'dont_filter') and request.dont_filter or not self._baseclass.shared_dupefilter.request_seen(request):
@@ -275,6 +281,7 @@ class MarketSpider(BaseSpider):
 		self.manual_input.spidername		= self.name
 		self.manual_input.proxy 			= self._proxy_key
 		self.manual_input.login 			= self._loginkey
+		self.manual_input.login_info 		= json.dumps(self.login)
 		self.manual_input.user_agent 		= self.user_agent
 		self.manual_input.cookies 			= self.get_cookies()
 		self.manual_input.reload 			= False
@@ -308,15 +315,6 @@ class MarketSpider(BaseSpider):
 			self.send_mail(subject, msg)
 		except Exception, e:
 			self.logger.error('Could not send email telling that we are waiting for input : %s' % e)
-
-
-	def send_mail(self,subject, body):
-		if self.mailer and 'MAIL_RECIPIENT' in self.settings:
-			to	= self.settings['MAIL_RECIPIENT']
-			self.logger.info('Sending email to %s. Subject : %s' % (to, subject))
-			self.mailer.send(to=to, subject=subject, body=body)
-		else:
-			self.logger.warning('Trying to send email, but smtp is not configured or no MAIL_RECIPIENT is defined in settings.')
 
 
 	def look_for_new_input(self):
@@ -353,54 +351,7 @@ class MarketSpider(BaseSpider):
 				self.logger.debug('No new input given by database.')
 		return new_input
 
-	def set_cookies(self, cookie_string):
-		cookie_middleware = self.get_cookie_middleware()
-
-		if not cookie_middleware:
-			self.logger.error("Trying to set cookies, but can't find cookie middleware.")
-		else:
-			jar = cookie_middleware.jars[None]
-			cookies = SimpleCookie(cookie_string.encode('ascii'))
-			cookie_dict = dict()
-			for key in cookies:
-				cookie_dict[key] = cookies.get(key).value
-
-			req = Request(self.spider_settings['endpoint'], cookies=cookie_dict)
-			cookie_middleware.jars[None].clear()
-			cookie_middleware.process_request(req, self)	# Simulate a request with these cookies.
-
-	def get_cookies(self):
-		cookie_middleware = self.get_cookie_middleware()
-
-		if not cookie_middleware:
-			self.logger.error("Trying to set cookies, but can't find cookie middleware.")
-		else:
-			jar = cookie_middleware.jars[None]
-
-		req = Request(self.spider_settings['endpoint'])
-		jar.add_cookie_header(req)
-
-		return  req.headers['Cookie'] if 'Cookie' in req.headers else ''
-
-	def get_cookie_middleware(self):
-		cookie_middleware = None
-		for middleware in self.crawler.engine.downloader.middleware.middlewares:
-			if isinstance(middleware, CookiesMiddleware):
-				cookie_middleware = middleware
-				break
-
-		return cookie_middleware
-
-	def downloader_still_active(self):
-		
-		if len(self.crawler.engine.slot.inprogress) > 0:
-			return True
-
-		if len(self.crawler.engine.slot.scheduler) > 0:
-			return True
-
-		return False
-
+	
 
 
 

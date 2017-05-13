@@ -89,8 +89,6 @@ class BasePropertyOwnerModel(Model):
 
 		return True
 		
-
-
 	class Meta:
 		keymodel = None
 		valmodel = None

@@ -32,8 +32,6 @@ class Scrape(Model):
 	reason = TextField()
 	forum = ForeignKeyField(Forum, related_name='scrapes', db_column='forum')
 	process = ForeignKeyField(Process, related_name='scrapes', db_column='process')
-	deltamode = BooleanField();
-	deltafromtime = DateTimeField()
 	login = CharField()
 	proxy = CharField()
 
@@ -174,4 +172,20 @@ class ScrapeStat(Model):
 	class Meta : 
 		database = db.proxy
 		db_table = 'scrapestat'
+
+class ManualInput(Model):
+	id = PrimaryKeyField()
+	date_requested = DateTimeField()
+	spidername = CharField()
+	proxy = CharField()
+	login = CharField()
+	login_info = TextField()
+	cookies = TextField()
+	user_agent = TextField()
+	reload = BooleanField()
+		
+
+	class Meta:
+		database 	= db.proxy 
+		db_table 	= 'manual_input'		
 

@@ -74,7 +74,8 @@ ROBOTSTXT_OBEY = False
 # Enable or disable spider middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 SPIDER_MIDDLEWARES = {
-    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 100
+	'scrapyprj.middlewares.shared_queue_middleware.SharedQueueMiddleware' : 100,
+    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 200
 }
 
 DOWNLOADER_MIDDLEWARES = {

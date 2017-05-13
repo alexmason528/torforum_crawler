@@ -66,6 +66,7 @@ class map2db(object):
 		self.drop_if_missign(item, 'contenttext')
 		self.drop_if_empty(item, 'contenthtml')
 		self.drop_if_empty(item, 'threadid')
+		self.drop_if_empty(item, 'postid')
 
 		dbmsg.thread = spider.dao.get(models.Thread, forum =spider.forum, external_id = item['threadid'])	#Thread should exist in database
 		if not dbmsg.thread:

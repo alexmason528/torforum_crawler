@@ -30,6 +30,13 @@ class AlphabayForum(ForumSpider):
 
         self.logintrial = 0
 
+        self.parse_handlers = {
+                'index'                 : self.parse_index,
+                'threadlisting'   : self.parse_threadlisting,
+                'userprofile'           : self.parse_userprofile,
+                'threadpage'            : self.parse_threadpage
+            }
+
     def start_requests(self):
         yield self.make_request('index')
 
@@ -49,7 +56,7 @@ class AlphabayForum(ForumSpider):
                 'password' : self.login['password'],
                 'cookie_check' : '1',
                 '_xfToken': "",
-                'redirect' : self.resource('index') 
+                'redirect' : self.resource('index')
             }
 
             if 'captcha_question_hash' in kwargs:
@@ -59,16 +66,18 @@ class AlphabayForum(ForumSpider):
                 data['captcha_question_answer'] = kwargs['captcha_question_answer']
            
             req = FormRequest(self.make_url('login-postform'), formdata=data, callback=self.handle_login_response, dont_filter=True)
-            req.method = 'POST' # Has to be uppercase !
+            #req.method = 'POST' # Has to be uppercase !
             req.meta['req_once_logged'] = kwargs['req_once_logged']
             req.dont_filter=True
 
-        elif reqtype in  ['parse_threadlisting', 'userprofile']:
+        elif reqtype in  ['threadlisting', 'userprofile']:
             req = Request(kwargs['url'])
+            req.meta['shared'] = True
 
         elif reqtype == 'threadpage':
             req = Request(kwargs['url'])
             req.meta['threadid'] = kwargs['threadid']
+            req.meta['shared'] = True
         else:
             raise Exception('Unsuported request type ' + reqtype)
 
@@ -86,29 +95,15 @@ class AlphabayForum(ForumSpider):
             yield self.make_request(reqtype='dologin', req_once_logged=response.request);  # We try to login and save the original request
         else : 
             self.logintrial = 0
-
-            if response.meta['reqtype'] == 'index':
-                for x in self.parse_index(response) : yield x
-            elif  response.meta['reqtype'] == 'parse_threadlisting':
-                for x in self.parse_threadlisting(response) : yield x
-                     
-            elif response.meta['reqtype'] == 'userprofile':
-                for x in self.parse_userprofile(response) : yield x
-
-            elif response.meta['reqtype'] == 'threadpage':
-                for x in self.parse_threadpage(response) : yield x 
-
-    def make_thread_request(self, thread):    # Has to be defined to make multi instance works.
-        return self.make_request(reqtype='threadpage', url=thread.fullurl, threadid=thread.external_id)
-
-    def make_user_request(self, user):    # Has to be defined to make multi instance works.
-        return self.make_request(reqtype='userprofile', url=self.make_url(user.relativeurl))
-
+            it = self.parse_handlers[response.meta['reqtype']].__call__(response)
+            if it:
+                for x in it:
+                    if x != None: yield x
+                        
     def parse_index(self, response):
-        if self.shouldcrawl('thread'): # Threads have not been indexed before us.
-            links = response.css("li.forum h3.nodeTitle a::attr(href)")
-            for link in links:
-                yield self.make_request(reqtype='parse_threadlisting', url=link.extract())
+        links = response.css("li.forum h3.nodeTitle a::attr(href)").extract()
+        for link in links:
+            yield self.make_request(reqtype='threadlisting', url=link)
 
     def parse_threadlisting(self, response):
         threaddivs = response.css("li.discussionListItem")
@@ -120,43 +115,31 @@ class AlphabayForum(ForumSpider):
                 last_message_datestr        = threaddiv.css(".lastPostInfo .DateTime::text").extract_first()
                 threaditem['last_update']   = self.to_utc(AlphabayDatetimeParser.tryparse(last_message_datestr))
                 oldestthread_datetime       = threaditem['last_update']  # We assume that threads are ordered by time.
-                if not threaditem['last_update']:
-                    raise Exception("Could not parse time string : " + last_message_datestr)
             
-                link    = threaddiv.css(".title a.PreviewTooltip")
-                url     = link.xpath("@href").extract_first()
-                navspan = threaddiv.css("span.itemPageNav") #Nav buttons means many page. Start with the last one for delta crawl.
-                request_url = url
-                if navspan: 
-                    request_url = navspan.css("a")[-1].xpath("@href").extract_first();   # Get last page url
-
-                threaditem['relativeurl']       = url
-                threaditem['fullurl']           = self.make_url(url)
-                threaditem['title']             = link.xpath("text()").extract_first()
-                threaditem['author_username']   = threaddiv.css(".username::text").extract_first()
-                author_url = threaddiv.css(".username::attr(href)").extract_first()
+                link                            = threaddiv.css(".title a.PreviewTooltip")
+                threadurl                       = link.xpath("@href").extract_first()              
+                threaditem['relativeurl']       = threadurl
+                threaditem['fullurl']           = self.make_url(threadurl)
+                threaditem['title']             = self.get_text_first(link)
+                threaditem['author_username']   = self.get_text_first(threaddiv.css(".username"))
+                threaditem['threadid']          = self.read_threadid_from_url(threadurl)
                 
-                threaditem['threadid'] = self.read_threadid_from_url(url)
+                author_url = threaddiv.css(".username::attr(href)").extract_first()
 
-                if author_url and self.shouldcrawl('user'): # If not crawled, an empty entry will be created if not exist in the database by the mapper to ensure respect of foreign key.
-                    request_buffer.append( self.make_request('userprofile',  url = author_url))
-
-                if request_url and self.shouldcrawl('message', threaditem['last_update']):  # If new post in thread
-                    request_buffer.append( self.make_request('threadpage', url=request_url, threadid=threaditem['threadid'])) # First page of thread
+                request_buffer.append( self.make_request('userprofile',  url = author_url))
+                request_buffer.append( self.make_request('threadpage', url=threadurl, threadid=threaditem['threadid'])) # First page of thread
 
                 yield threaditem # sends data to pipelne
                 
             except Exception as e:
-                self.logger.error("Failed parsing response parse_threadlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
+                self.logger.error("Failed parsing response for threadlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
                 continue
         
         # Parse next page.
-        nextpageurl =  response.xpath("//nav//a[contains(., 'Next >')]/@href").extract_first()
-        if nextpageurl and self.shouldcrawl('thread', oldestthread_datetime): 
-            request_buffer.append( self.make_request(reqtype='parse_threadlisting', url = nextpageurl)  )
+        for link in response.css("nav:first-child a::attr(href)").extract():
+            request_buffer.append( self.make_request(reqtype='threadlisting', url = link)  )
         
         self.dao.flush(models.Thread)  # Flush threads to database.
-
         
         #We yield requests AFTER writing to database. This will avoid race condition that could lead to foreign key violation. (Thread post linked to a thread not written yet.)
         for request in request_buffer:  
@@ -166,26 +149,18 @@ class AlphabayForum(ForumSpider):
     def parse_threadpage(self, response):   
         threadid = response.meta['threadid']
 
-        oldestpost_datetime = datetime.utcnow()
         for message in response.css(".messageList .message"):
 
             msgitem = items.Message();
             try:
-                try:
-                    fullid = message.xpath("@id").extract_first()
-                    msgitem['postid'] = re.match("post-(\d+)", fullid).group(1)
-                except:
-                    raise Exception("Can't extract post id. " + e.message)
-                msgitem['author_username'] = message.css(".messageDetails .username::text").extract_first().strip()
-                msgitem['posted_on'] = self.read_datetime_div(message.css(".messageDetails .DateTime"))
-                if msgitem['posted_on']:
-                    if msgitem['posted_on'] < oldestpost_datetime:
-                        oldestpost_datetime = msgitem['posted_on']  # Get smallest date e.g. oldest
-
-                textnode = message.css(".messageContent")
-                msgitem['contenthtml'] = textnode.extract_first()
-                msgitem['contenttext'] = ''.join(textnode.xpath("*//text()[normalize-space(.)]").extract()).strip()
-                msgitem['threadid'] = threadid
+                fullid = message.xpath("@id").extract_first()
+                msgitem['postid']           = re.match("post-(\d+)", fullid).group(1)
+                msgitem['author_username']  = self.get_text(message.css(".messageDetails .username"))
+                msgitem['posted_on']        = self.read_datetime_div(message.css(".messageDetails .DateTime"))
+                textnode                    = message.css(".messageContent")
+                msgitem['contenthtml']      = textnode.extract_first()
+                msgitem['contenttext']      = self.get_text(textnode)
+                msgitem['threadid']         = threadid
             except Exception as e:
                 self.logger.error("Failed parsing response for thread at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
 
@@ -193,19 +168,12 @@ class AlphabayForum(ForumSpider):
 
         self.dao.flush(models.Message)
 
-        
-        
-        if self.shouldcrawl('user'):
-            userprofilelinks = response.css("a.username::attr(href)").extract()
-            userprofilelinks = list(set(userprofilelinks)) #removes duplicates
-            for link in userprofilelinks:
-                yield self.make_request('userprofile', url=self.make_url(link))
+        for link in response.css("a.username::attr(href)").extract():           # Duplicates will be removed by dupefilter
+            yield self.make_request('userprofile', url=self.make_url(link))
 
         #Start looking for previous page.
-        if self.shouldcrawl('message', oldestpost_datetime):   # Will be false if delta crawl and date is too big 
-            prevpageurl =  response.xpath("//nav//a[contains(., '< Prev')]/@href").extract_first()
-            if prevpageurl:
-                yield self.make_request("threadpage", url=prevpageurl, threadid=threadid)
+        for link in  response.css("nav:first-child a::attr(href)").extract():
+            yield self.make_request("threadpage", url=link, threadid=threadid)
 
     def parse_userprofile(self, response):
         if response.status == 403:  #Unauthorized profile. Happen for private profiles
@@ -215,20 +183,13 @@ class AlphabayForum(ForumSpider):
         if content:
             content= content[0]
             useritem = items.User()
-            useritem['username'] = content.css(".username").xpath(".//text()").extract_first().strip()
+            useritem['username'] = self.get_text_first(content.css(".username"))
             urlparsed =  urlparse(response.url)
             useritem['relativeurl'] = "%s?%s" % (urlparsed.path, urlparsed.query)
             useritem['fullurl'] = response.url
 
-            try:
-                useritem['title'] = content.css(".userTitle").xpath(".//text()").extract_first().strip()
-            except:
-                pass
-            
-            try:    
-                useritem['banner'] = content.css(".userBanner").xpath(".//text()").extract_first().strip()
-            except:
-                pass
+            useritem['title'] = self.get_text_first(content.css(".userTitle"))
+            useritem['banner'] = self.get_text_first(content.css(".userBanner"))
 
             try:
                 m = re.match('members/([^/]+)', urlparse(response.url).query.strip('/'))
@@ -246,10 +207,10 @@ class AlphabayForum(ForumSpider):
                     elif name == 'Joined:' :
                         useritem['joined_on'] = self.read_datetime_div(info.css('dd'))
                     elif name == 'Messages:':
-                        numberstr = info.css('dd').xpath(".//text()").extract_first().strip()
+                        numberstr = self.get_text_first(info.css('dd'))
                         useritem['message_count'] = int(numberstr.replace(',', ''))
                     elif name == 'Likes Received:':
-                        numberstr = info.css('dd').xpath(".//text()").extract_first().strip()
+                        numberstr = self.get_text_first(info.css('dd'))
                         useritem['likes_received'] = int(numberstr.replace(',', ''))
                 except:
                     pass
@@ -293,7 +254,9 @@ class AlphabayForum(ForumSpider):
                 else : 
                     self.logger.warning("Login failed. A new login form has been given, but with no captcha. Trying again.")
                     yield self.make_request(reqtype='dologin', req_once_logged=response.meta['req_once_logged']);  # We try to login and save the original request
-
+            elif self.is_fake_token_mismatch_error(response):
+                if response.meta['req_once_logged']:
+                    yield response.meta['req_once_logged']
             else :
                 self.logger.error("Login failed and no login form has been given. Retrying")
                 yield self.make_request(reqtype='dologin', req_once_logged=response.meta['req_once_logged']);  # We try to login and save the original request
@@ -329,9 +292,14 @@ class AlphabayForum(ForumSpider):
         if datestring and timestring:
             time = AlphabayDatetimeParser.tryparse("%s %s" % (datestring, timestring))
 
-        text = div.xpath(".//text()").extract_first().strip()
+        text = self.get_text_first(div)
         if text:
             time = AlphabayDatetimeParser.tryparse(text)
 
         if time:
             return self.to_utc(time)
+
+    def is_fake_token_mismatch_error(self, response):
+        if 'Username and/or token mismatch' in self.get_text(response):
+            return True
+        return False

@@ -44,7 +44,16 @@ class DreamMarketSpider(MarketSpider):
 			}
 
 	def start_requests(self):
-		yield self.make_request('index')
+		req = Request('http://google.com', callback=self.test)
+		#req.meta['shared'] = True
+		yield req
+		#yield self.make_request('index')
+
+	def test(self, response):
+		req = Request('http://9gag.com')
+		req.meta['shared'] = True
+		yield req
+		yield req
 
 	def make_request(self, reqtype,  **kwargs):
 

@@ -9,11 +9,14 @@ import random
 import logging
 import pytz
 from IPython import embed
+from fake_useragent import UserAgent
 
-
+from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
+from Cookie import SimpleCookie
+from scrapy.mail import MailSender
 
 class BaseSpider(scrapy.Spider):
-
+	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
 		kwargs['settings'] = self.configure_image_store(kwargs['settings'])
 		super(BaseSpider, self).__init__( *args, **kwargs)
@@ -246,4 +249,69 @@ class BaseSpider(scrapy.Spider):
 			text = text.encode('cp1252', 'ignore').decode('utf-8','ignore') # Remove non-utf8 chars. 
 
 		return text
+
+	def get_text_first(self, nodes):
+		if len(nodes) > 0:
+			return self.get_text(nodes[0])
+		else:
+			return ""
+
+
+
+	def set_cookies(self, cookie_string):
+		cookie_middleware = self.get_cookie_middleware()
+
+		if not cookie_middleware:
+			self.logger.error("Trying to set cookies, but can't find cookie middleware.")
+		else:
+			jar = cookie_middleware.jars[None]
+			cookies = SimpleCookie(cookie_string.encode('ascii'))
+			cookie_dict = dict()
+			for key in cookies:
+				cookie_dict[key] = cookies.get(key).value
+
+			req = Request(self.spider_settings['endpoint'], cookies=cookie_dict)
+			cookie_middleware.jars[None].clear()
+			cookie_middleware.process_request(req, self)	# Simulate a request with these cookies.
+
+	def get_cookies(self):
+		cookie_middleware = self.get_cookie_middleware()
+
+		if not cookie_middleware:
+			self.logger.error("Trying to set cookies, but can't find cookie middleware.")
+		else:
+			jar = cookie_middleware.jars[None]
+
+		req = Request(self.spider_settings['endpoint'])
+		jar.add_cookie_header(req)
+
+		return  req.headers['Cookie'] if 'Cookie' in req.headers else ''
+
+	def get_cookie_middleware(self):
+		cookie_middleware = None
+		for middleware in self.crawler.engine.downloader.middleware.middlewares:
+			if isinstance(middleware, CookiesMiddleware):
+				cookie_middleware = middleware
+				break
+
+		return cookie_middleware
+
+	def downloader_still_active(self):
+		
+		if len(self.crawler.engine.slot.inprogress) > 0:
+			return True
+
+		if len(self.crawler.engine.slot.scheduler) > 0:
+			return True
+
+		return False
+
+
+	def send_mail(self,subject, body):
+		if self.mailer and 'MAIL_RECIPIENT' in self.settings:
+			to	= self.settings['MAIL_RECIPIENT']
+			self.logger.info('Sending email to %s. Subject : %s' % (to, subject))
+			self.mailer.send(to=to, subject=subject, body=body)
+		else:
+			self.logger.warning('Trying to send email, but smtp is not configured or no MAIL_RECIPIENT is defined in settings.')
 		 

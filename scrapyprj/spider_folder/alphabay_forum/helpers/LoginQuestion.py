@@ -15,7 +15,7 @@ def answer(q, login):
 	 	'/' : '[\[\(]\s*divised by\s*[\]\)]'
 	 	}
 
-	if q.lower() == 'what is your registration token' and 'registration_token' in login:
+	if q.lower().startswith('what is your registration token') and 'registration_token' in login:
 		val = login['registration_token']
  	elif q.startswith('Solve'):      		# Solve 5 + (2 x 3)
 		r = re.compile("Solve (.*)")

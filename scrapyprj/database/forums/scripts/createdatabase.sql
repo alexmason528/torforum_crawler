@@ -76,6 +76,7 @@ CREATE TABLE `message` (
   KEY `message_thread_idx` (`thread`),
   KEY `message_forum_idx` (`forum`),
   KEY `message_scrape_fk_idx` (`scrape`),
+  KEY `message_forum_postedon_idx` (`forum`,`posted_on`),
   CONSTRAINT `message_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `message_thread_fk` FOREIGN KEY (`thread`) REFERENCES `thread` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -262,8 +263,6 @@ CREATE TABLE `scrape` (
   `start` timestamp NULL DEFAULT NULL,
   `end` timestamp NULL DEFAULT NULL,
   `reason` text,
-  `deltamode` tinyint(4) DEFAULT '0',
-  `deltafromtime` timestamp NULL DEFAULT NULL,
   `login` varchar(255) DEFAULT NULL,
   `proxy` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -599,4 +598,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-05-13 12:16:00
+-- Dump completed on 2017-05-13 18:54:46
