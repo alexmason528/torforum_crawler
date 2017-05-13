@@ -145,7 +145,8 @@ DROP TABLE IF EXISTS `message_propkey`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `message_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `message_propkey_name_UNIQUE` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -409,7 +410,8 @@ DROP TABLE IF EXISTS `user_propkey`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `user_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -597,4 +599,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-05-13 12:04:14
+-- Dump completed on 2017-05-13 12:16:00
