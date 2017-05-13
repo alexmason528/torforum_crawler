@@ -34,7 +34,6 @@ class Scrape(Model):
 	process = ForeignKeyField(Process, related_name='scrapes', db_column='process')
 	deltamode = BooleanField();
 	deltafromtime = DateTimeField()
-	indexingmode = BooleanField()
 	login = CharField()
 	proxy = CharField()
 
@@ -43,10 +42,7 @@ class Scrape(Model):
 		db_table = 'scrape'
 
 
-class UserPropertyKey(Model):
-	id = PrimaryKeyField()
-	name = CharField()
-
+class UserPropertyKey(orm.BasePropertyKey):
 	class Meta:
 		database = db.proxy 
 		db_table='user_propkey'
@@ -108,10 +104,7 @@ class Thread(Model):
 
 
 
-class MessagePropertyKey(Model):
-	id = PrimaryKeyField()
-	name = CharField()
-
+class MessagePropertyKey(orm.BasePropertyKey):
 	class Meta:
 		database = db.proxy 
 		db_table='message_propkey'
