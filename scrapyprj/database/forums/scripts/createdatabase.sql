@@ -7,7 +7,7 @@
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -32,7 +32,7 @@ CREATE TABLE `captcha_question` (
   UNIQUE KEY `hash_UNIQUE` (`forum`,`hash`),
   KEY `question_forum_idx` (`forum`),
   CONSTRAINT `question_forum` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -49,7 +49,7 @@ CREATE TABLE `forum` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name_UNIQUE` (`name`),
   UNIQUE KEY `spider_UNIQUE` (`spider`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -61,7 +61,7 @@ DROP TABLE IF EXISTS `message`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `message` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `external_id` varchar(255),
+  `external_id` varchar(255) DEFAULT NULL,
   `thread` bigint(11) NOT NULL,
   `author` bigint(11) DEFAULT NULL,
   `contenttext` longtext,
@@ -71,7 +71,7 @@ CREATE TABLE `message` (
   `forum` bigint(11) NOT NULL,
   `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `message_forum_extid_unique` (`forum`,`external_id`(255)),
+  UNIQUE KEY `message_forum_extid_unique` (`forum`,`external_id`),
   KEY `message_user_idx` (`author`),
   KEY `message_thread_idx` (`thread`),
   KEY `message_forum_idx` (`forum`),
@@ -144,7 +144,7 @@ CREATE TABLE `message_propkey` (
   `name` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `message_propkey_name_UNIQUE` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -357,7 +357,7 @@ CREATE TABLE `user_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -433,6 +433,101 @@ CREATE TABLE `user_propvalaudit` (
   CONSTRAINT `user_provalaudit_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping routines for database 'forums'
+--
+/*!50003 DROP PROCEDURE IF EXISTS `delete_process` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `delete_process`(IN processid bigint(11))
+BEGIN
+	DECLARE n INT DEFAULT 0;
+	DECLARE i INT DEFAULT 0;
+	DECLARE scrapeid INT DEFAULT 0;
+    
+	DECLARE exit handler for sqlexception
+	  BEGIN
+	  
+	  ROLLBACK;
+	  RESIGNAL;
+	END;
+
+	DECLARE exit handler for sqlwarning
+	 BEGIN
+	 ROLLBACK;
+	 RESIGNAL;
+	END;
+
+	set n = (select count(1) from `scrape` where `process`=processid);
+    
+	START TRANSACTION;
+		
+		while i < n do
+			set scrapeid = (select `id` from `scrape` where `process`=processid limit 1);
+			call delete_scrape(scrapeid);
+            set i = i+1;
+		end while;
+		delete from `process` where `id` = processid;
+	COMMIT;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `delete_scrape` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `delete_scrape`(IN scrapeid bigint(11))
+BEGIN
+
+DECLARE exit handler for sqlexception
+  BEGIN
+  
+  ROLLBACK;
+  RESIGNAL;
+END;
+
+DECLARE exit handler for sqlwarning
+ BEGIN
+ ROLLBACK;
+ RESIGNAL;
+END;
+
+START TRANSACTION;
+	SET FOREIGN_KEY_CHECKS=0;
+	delete from `user_propvalaudit` where `scrape`=scrapeid;
+	delete from `user_propval` where `scrape`=scrapeid;
+	delete from `user` where `scrape`=scrapeid;
+	delete from `message_propvalaudit` where `scrape`=scrapeid;
+	delete from `message_propval` where `scrape`=scrapeid;
+	delete from `message` where `scrape`=scrapeid;
+	delete from `thread` where `scrape`=scrapeid;
+	delete from `scrapestat` where `scrape`=scrapeid;
+	delete from `scrape` where `id`=scrapeid;
+	SET FOREIGN_KEY_CHECKS=1;
+COMMIT;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -443,4 +538,4 @@ CREATE TABLE `user_propvalaudit` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-03-13 20:05:40
+-- Dump completed on 2017-05-13  0:07:27
