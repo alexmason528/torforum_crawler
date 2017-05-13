@@ -11,12 +11,8 @@ settings = {
 		'dadhfbsjadbhf': {
 			'username' : 'dadhfbsjadbhf',
 			'email' : 'l1522413@mvrht.com',
-			'password' : 'pqowieuryt'
-		},
-		'mznxbcvv': {
-			'username' : 'mznxbcvv',
-			'email' : 'l1138246@mvrht.com',
-			'password' : 'mznxbcv'
+			'password' : 'pqowieuryt',
+			'registration_token' : '842f660c3516e9c920d04962084220ec'
 		}
 
 	}

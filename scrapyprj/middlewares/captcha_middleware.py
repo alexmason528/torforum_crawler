@@ -44,6 +44,7 @@ class CaptchaMiddleware(object):
 				cropper = DreamMarketRectangleCropper()
 				data = cropper.process(data)
 
+		captcha_answer = None
 		try:
 			captcha_answer = dbc_client.decode(data)
 		except Exception, e:

@@ -9,7 +9,7 @@ import scrapyprj.spider_folder.alphabay_forum.helpers.DatetimeParser as Alphabay
 from scrapyprj.spiders.ForumSpider import ForumSpider
 from scrapyprj.database.orm import *
 import scrapyprj.database.forums.orm.models as models
-import scrapyprj.spider_folder.alphabay_forum.items as items
+import scrapyprj.items.forum_items as items
 from datetime import datetime
 from urlparse import urlparse
 import logging
@@ -25,14 +25,6 @@ class AlphabayForum(ForumSpider):
     name = "alphabay_forum"
     handle_httpstatus_list = [403]
     
-
-    custom_settings = {
-        'ITEM_PIPELINES': {
-            'scrapyprj.spider_folder.alphabay_forum.pipelines.map2db.map2db': 400,    # Convert from Items to Models
-            'scrapyprj.pipelines.save2db.save2db': 401                  # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
-        }
-    }
-
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
@@ -65,7 +57,7 @@ class AlphabayForum(ForumSpider):
 
             if 'captcha_question_answer' in kwargs:
                 data['captcha_question_answer'] = kwargs['captcha_question_answer']
-            
+           
             req = FormRequest(self.make_url('login-postform'), formdata=data, callback=self.handle_login_response, dont_filter=True)
             req.method = 'POST' # Has to be uppercase !
             req.meta['req_once_logged'] = kwargs['req_once_logged']
@@ -294,7 +286,7 @@ class AlphabayForum(ForumSpider):
                         if not db_question.question:
                             db_question.question = question
                             self.dao.enqueue(db_question)
-                        answer = LoginQuestion.answer(question)
+                        answer = LoginQuestion.answer(question, self.login)
                         self.logger.info('Trying to guess the answer. Best bet is : "' + answer + '"')
                     yield self.make_request(reqtype='dologin', req_once_logged= response.meta['req_once_logged'], captcha_question_hash=qhash, captcha_question_answer=answer);  # We try to login and save the original request
 

@@ -1,4 +1,3 @@
-import scrapyprj.spider_folder.alphabay_forum.items as items
 import collections
 
 class save2db(object):

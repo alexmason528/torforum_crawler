@@ -4,7 +4,7 @@ import parser
 from scrapyprj.database.forums.orm.models import CaptchaQuestion
 from scrapyprj.thirdparties import parse_number
 
-def answer(q):
+def answer(q, login):
 	val = "yes"
 	q=q.strip()
  	
@@ -15,7 +15,9 @@ def answer(q):
 	 	'/' : '[\[\(]\s*divised by\s*[\]\)]'
 	 	}
 
- 	if q.startswith('Solve'):      		# Solve 5 + (2 x 3)
+	if q.lower() == 'what is your registration token' and 'registration_token' in login:
+		val = login['registration_token']
+ 	elif q.startswith('Solve'):      		# Solve 5 + (2 x 3)
 		r = re.compile("Solve (.*)")
 		q = q.replace('x', '*')
  		m = r.match(q)	# Math question of type "Solve 5 + (2 x 3)"
@@ -44,5 +46,6 @@ def answer(q):
 
 	 		code = parser.expr(expression).compile()	# Code injection safe eval.
 	 		val = eval(code)
+
 
  	return str(val)

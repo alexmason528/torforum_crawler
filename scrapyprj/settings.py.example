@@ -102,9 +102,10 @@ CONCURRENT_REQUESTS = 16
 
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    'scrapyprj.pipelines.SomePipeline': 300,
-#}
+ITEM_PIPELINES = {
+		'scrapyprj.pipelines.map2db.map2db': 400,    	# Convert from Items to Models
+		'scrapyprj.pipelines.save2db.save2db': 401       # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
+    }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See http://doc.scrapy.org/en/latest/topics/autothrottle.html

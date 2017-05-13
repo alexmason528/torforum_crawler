@@ -7,7 +7,7 @@ from scrapy.shell import inspect_response
 from scrapyprj.spiders.ForumSpider import ForumSpider
 from scrapyprj.database.orm import *
 import scrapyprj.database.forums.orm.models as models
-import scrapyprj.spider_folder.dreammarket_forum.items as items
+import scrapyprj.items.forum_items as items
 from datetime import datetime, timedelta
 from urlparse import urlparse, parse_qsl
 import logging
@@ -25,10 +25,6 @@ class DreamMarketForumSpider(ForumSpider):
     
 
     custom_settings = {
-        'ITEM_PIPELINES': {
-            'scrapyprj.spider_folder.dreammarket_forum.pipelines.map2db.map2db': 400,    # Convert from Items to Models
-            'scrapyprj.pipelines.save2db.save2db': 401                  # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
-        },
         'MAX_LOGIN_RETRY' : 10
     }
 
@@ -42,7 +38,8 @@ class DreamMarketForumSpider(ForumSpider):
                 'dologin'       : self.parse_index,
                 'threadlisting' : self.parse_thread_listing,
                 'thread'        : self.parse_thread,
-                'userprofile'   : self.parse_userprofile
+                'userprofile'   : self.parse_userprofile,
+                'loginpage'     : self.parse_loginpage # void function
             }
 
     def start_requests(self):
@@ -64,6 +61,8 @@ class DreamMarketForumSpider(ForumSpider):
             req = Request(self.make_url(kwargs['url']), dont_filter=True)
         elif reqtype in ['threadlisting', 'thread', 'userprofile']:
             req = Request(self.make_url(kwargs['url']))
+            if 'relativeurl' in kwargs:
+                req.meta['relativeurl'] = kwargs['relativeurl']
         else:
             raise Exception('Unsuported request type ' + reqtype)
 
@@ -94,6 +93,9 @@ class DreamMarketForumSpider(ForumSpider):
                 for x in it:
                     if x != None:
                         yield x
+
+    def parse_loginpage(self, response):    # We should never be looking at a login page while we are logged in.
+        pass
 
     def parse_index(self, response):
         for line in response.css("#brdmain tbody tr"):
@@ -134,10 +136,12 @@ class DreamMarketForumSpider(ForumSpider):
                 
                 threaditem['replies']   = self.get_text(line.css("td:nth-child(2)"))
                 threaditem['views']     = self.get_text(line.css("td:nth-child(3)"))
-                print threaditem
+                yield threaditem
+
                 if self.shouldcrawl('thread', last_post_time):
                     threads_requests.append(self.make_request('thread', url=threadlinkhref))
 
+        self.dao.flush(models.Thread)
 
         for req in threads_requests:
             yield req
@@ -164,22 +168,24 @@ class DreamMarketForumSpider(ForumSpider):
                 messageitem['author_username'] = self.get_text(post.css(".postleft dt:first-child a"))
                 messageitem['postid'] = post.xpath("@id").extract_first()
                 messageitem['threadid'] = threadid
+                messageitem['posted_on'] = posttime
 
                 msg = post.css("div.postmsg")
                 messageitem['contenttext'] = self.get_text(msg)
-                messageitem['contenthtml'] = msg.extract_first()
+                messageitem['contenthtml'] = msg.xpath('./*').extract_first()
 
                 yield messageitem
 
                 if userprofile_link and self.shouldcrawl('user'):
-                    requests.append(self.make_request('userprofile', url = userprofile_link))
+                    requests.append(self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link ))
             except e:
                 self.logger.warning("Invalid thread page. %s" % e)
 
+        
         self.dao.flush(models.Message)
 
         for req in requests:
-            yield requests;
+            yield req
 
         if self.shouldcrawl('message', oldest_post):
             next_page_url = response.css("#brdmain .pagelink a[rel='next']::attr(href)").extract_first()
@@ -188,6 +194,9 @@ class DreamMarketForumSpider(ForumSpider):
 
     def parse_userprofile(self, response):
         user = items.User()
+        user['relativeurl'] = response.meta['relativeurl']
+        user['fullurl'] = response.url
+
         dts = response.css("#viewprofile dl dt")
         
         for dt in dts:
@@ -210,6 +219,16 @@ class DreamMarketForumSpider(ForumSpider):
                 user['signature'] = ddtext
             elif key == 'location':
                 user['location'] = ddtext
+            elif key == 'jabber':
+                user['jabber'] = ddtext
+            elif key == 'icq':
+                user['icq'] = ddtext
+            elif key == 'real name':
+                user['realname'] = ddtext
+            elif key == 'microsoft account':
+                user['microsoft_account'] = ddtext            
+            elif key == 'yahoo! messenger':
+                user['yahoo_messenger'] = ddtext
             elif key == 'website':
                 user['website'] = ddtext
             elif key in ['avatar', 'email']:
@@ -218,6 +237,8 @@ class DreamMarketForumSpider(ForumSpider):
                 self.logger.warning('New information found on use profile page : %s' % key)
 
         yield user
+
+        self.dao.flush(models.User)
 
     def craft_login_request_from_form(self, response):
         data = {
