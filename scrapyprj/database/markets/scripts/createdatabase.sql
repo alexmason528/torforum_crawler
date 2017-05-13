@@ -46,9 +46,9 @@ CREATE TABLE `ads` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_bin */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -56,7 +56,7 @@ DELIMITER ;;
     BEFORE UPDATE ON ads
     FOR EACH ROW 
 BEGIN
-	IF NEW.`title` = OLD.`title` and NEW.`relativeurl` = OLD.`relativeurl` and NEW.`fullurl` = OLD.`fullurl`
+	IF OLD.scrape is not null
 	THEN  
 		SET NEW.scrape = OLD.scrape;
 	END IF;
@@ -132,9 +132,9 @@ CREATE TABLE `ads_feedback_propval` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_bin */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -149,7 +149,10 @@ BEGIN
 		values
 			(OLD.`modified_on`, OLD.`feedback`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
 	ELSE
-		SET NEW.`scrape` = OLD.`scrape`;
+		IF OLD.`scrape` is not null
+        THEN
+			SET NEW.`scrape` = OLD.`scrape`;
+		END IF;
 	END IF;
  END */;;
 DELIMITER ;
@@ -179,7 +182,7 @@ CREATE TABLE `ads_feedback_propvalaudit` (
   CONSTRAINT `ads_feedback_propvalaudit_feedback` FOREIGN KEY (`feedback`) REFERENCES `ads_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propvalaudit_propkey` FOREIGN KEY (`propkey`) REFERENCES `ads_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_propvalaudit_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -207,9 +210,9 @@ CREATE TABLE `ads_img` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_bin */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -217,7 +220,7 @@ DELIMITER ;;
     BEFORE UPDATE ON ads_img
     FOR EACH ROW 
 BEGIN
-	IF NEW.`path` = OLD.`path` and NEW.`hash` = OLD.`hash`
+	IF OLD.`scrape` is not null
 	THEN  
 		SET NEW.scrape = OLD.scrape;
 	END IF;
@@ -269,9 +272,9 @@ CREATE TABLE `ads_propval` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_bin */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -286,7 +289,10 @@ BEGIN
 		values
 			(OLD.`modified_on`, OLD.`ads`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
 	ELSE 
-		SET NEW.`scrape`=OLD.`scrape`;
+		IF OLD.`scrape` is not null
+		THEN  
+			SET NEW.scrape = OLD.scrape;
+		END IF;
 	END IF;
  END */;;
 DELIMITER ;
@@ -316,7 +322,7 @@ CREATE TABLE `ads_propvalaudit` (
   CONSTRAINT `ads_propvalaudit_propkey` FOREIGN KEY (`propkey`) REFERENCES `ads_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_propvalaudit_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_propvalaudit_user` FOREIGN KEY (`ads`) REFERENCES `ads` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -529,9 +535,9 @@ CREATE TABLE `seller_feedback_propval` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_bin */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -546,7 +552,10 @@ BEGIN
 		values
 			(OLD.`modified_on`, OLD.`feedback`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
 	ELSE
-		SET NEW.`scrape` = OLD.`scrape`;
+		IF OLD.`scrape` is not null
+		THEN  
+			SET NEW.scrape = OLD.scrape;
+		END IF;
 	END IF;
  END */;;
 DELIMITER ;
@@ -576,7 +585,7 @@ CREATE TABLE `seller_feedback_propvalaudit` (
   CONSTRAINT `seller_feedback_propvalaudit_feedback` FOREIGN KEY (`feedback`) REFERENCES `seller_feedback` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_propvalaudit_propkey` FOREIGN KEY (`propkey`) REFERENCES `seller_feedback_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_propvalaudit_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -644,9 +653,9 @@ CREATE TABLE `user_propval` (
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_bin */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -661,7 +670,10 @@ BEGIN
 		values
 			(OLD.`modified_on`, OLD.`user`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
 	ELSE
-		SET NEW.`scrape` = OLD.`scrape`;
+		IF OLD.`scrape` is not null
+		THEN  
+			SET NEW.scrape = OLD.scrape;
+		END IF;
 	END IF;
  END */;;
 DELIMITER ;
@@ -691,7 +703,7 @@ CREATE TABLE `user_propvalaudit` (
   CONSTRAINT `user_prophistory_propkey` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_prophistory_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propvalaudit_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -810,4 +822,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-05-13  0:04:33
+-- Dump completed on 2017-05-13 12:08:03

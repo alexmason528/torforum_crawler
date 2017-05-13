@@ -101,6 +101,11 @@ BEGIN
 			(`message`,`author`,`contenttext`,`contenthtml`,`posted_on`,`modified_on`,`scrape`)
 		VALUES
 			(OLD.`id`, old.`author`, OLD.`contenttext`, OLD.`contenthtml`, OLD.`posted_on`, OLD.`modified_on`, OLD.`scrape`);
+	ELSE 
+		IF OLD.scrape is not null
+		THEN
+			SET NEW.scrape = OLD.scrape;
+		END IF;
 	END IF;
 END */;;
 DELIMITER ;
@@ -124,7 +129,6 @@ CREATE TABLE `message_audit` (
   `posted_on` timestamp NULL DEFAULT NULL,
   `modified_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) DEFAULT NULL,
-  PRIMARY KEY (`message`),
   KEY `message_audit_scrape_fk_idx` (`scrape`),
   KEY `message_audit_author_fk_idx` (`author`),
   CONSTRAINT `message_audit_author_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -168,7 +172,7 @@ CREATE TABLE `message_propval` (
   CONSTRAINT `message_propkey_fk` FOREIGN KEY (`propkey`) REFERENCES `message_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_propval_msg_fk` FOREIGN KEY (`message`) REFERENCES `message` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_propval_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -189,6 +193,11 @@ BEGIN
 			(`modified_on`, `message`, `propkey`, `data`, `scrape`)
 		values
 			(OLD.`modified_on`, OLD.`message`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	ELSE 
+		IF OLD.scrape is not null
+		THEN
+			SET NEW.scrape = OLD.scrape;
+		END IF;
 	END IF;
  END */;;
 DELIMITER ;
@@ -218,7 +227,7 @@ CREATE TABLE `message_propvalaudit` (
   CONSTRAINT `message_prophistory_message` FOREIGN KEY (`message`) REFERENCES `message` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_prophistory_propkey` FOREIGN KEY (`propkey`) REFERENCES `message_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_prophistory_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -254,7 +263,6 @@ CREATE TABLE `scrape` (
   `reason` text,
   `deltamode` tinyint(4) DEFAULT '0',
   `deltafromtime` timestamp NULL DEFAULT NULL,
-  `indexingmode` tinyint(4) DEFAULT '0',
   `login` varchar(255) DEFAULT NULL,
   `proxy` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -322,6 +330,29 @@ CREATE TABLE `thread` (
   CONSTRAINT `thread_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER thread_before_update_audit 
+    BEFORE UPDATE ON `thread`
+    FOR EACH ROW 
+BEGIN
+	IF  OLD.scrape is not null
+	THEN  
+		SET NEW.scrape = OLD.scrape;
+	END IF;
+ END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `user`
@@ -345,6 +376,29 @@ CREATE TABLE `user` (
   CONSTRAINT `user_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER user_before_update_audit 
+    BEFORE UPDATE ON `user`
+    FOR EACH ROW 
+BEGIN
+	IF OLD.scrape is not null
+	THEN  
+		SET NEW.scrape = OLD.scrape;
+	END IF;
+ END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `user_propkey`
@@ -381,7 +435,7 @@ CREATE TABLE `user_propval` (
   CONSTRAINT `user_propkey_key_fk` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propval_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `user_propval_user_fk` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -402,6 +456,11 @@ BEGIN
 			(`modified_on`, `user`, `propkey`, `data`, `scrape`)
 		values
 			(OLD.`modified_on`, OLD.`user`, OLD.`propkey`, OLD.`data`, OLD.`scrape`);
+	ELSE 
+		IF OLD.scrape is not null
+		THEN
+			SET NEW.scrape = OLD.scrape;
+		END IF;
 	END IF;
  END */;;
 DELIMITER ;
@@ -431,7 +490,7 @@ CREATE TABLE `user_propvalaudit` (
   CONSTRAINT `user_propvalaudit_propkey_fk` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propvalaudit_user_fk` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_provalaudit_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -538,4 +597,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-05-13  0:07:27
+-- Dump completed on 2017-05-13 12:04:14
