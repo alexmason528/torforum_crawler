@@ -19,6 +19,7 @@ from twisted.internet import reactor
 from scrapy.dupefilters import RFPDupeFilter
 from Queue import PriorityQueue
 from IPython import embed
+import json
 
 class ForumSpider(BaseSpider):
 	
@@ -33,12 +34,7 @@ class ForumSpider(BaseSpider):
 			self.dao = kwargs['dao']
 		else:
 			self.dao = self.make_dao()
-		
-		if not hasattr(self._baseclass, '_userlist_dumped_to_queue'):
-			self._baseclass._userlist_dumped_to_queue = False
-
-		if not hasattr(self, 'request_queue_chunk'):
-			self.request_queue_chunk = 100			
+						
 
 		self.set_timezone()
 
@@ -52,11 +48,12 @@ class ForumSpider(BaseSpider):
 			self.dao.cache.reload(Thread, Thread.forum == self.forum)
 			self._baseclass._cache_preloaded = True
 
-
+		self.request_after_manual_input = None
 		#self.configure_thread_indexing()
 		self.register_new_scrape()
 		self.start_statistics()
 		self.manual_input = None
+		
 
 	@classmethod
 	def from_crawler(cls, crawler, *args, **kwargs):
@@ -85,6 +82,9 @@ class ForumSpider(BaseSpider):
 		if not hasattr(self._baseclass, '_request_queue'):
 			self._baseclass._request_queue = PriorityQueue()
 
+		if not hasattr(self, 'request_queue_chunk'):
+			self.request_queue_chunk = 100
+
 	def enqueue_request(self, request):
 		if hasattr(request, 'dont_filter') and request.dont_filter or not self._baseclass.shared_dupefilter.request_seen(request):
 			self._baseclass._queue_size += 1
@@ -101,153 +101,27 @@ class ForumSpider(BaseSpider):
 			yield request
 			i += 1
 
-
-	#def count_total_indexed_thread(self):
-	#	cls = self.__class__
-	#	if not hasattr(cls, '_remaining_indexed_thread_counter'):
-	#		cls._remaining_indexed_thread_counter = None
-#
-#	#	if not cls._remaining_indexed_thread_counter:
-#	#		cls._remaining_indexed_thread_counter = Thread.select(fn.count(1).alias('n')).where(Thread.scrape == self.indexingscrape).get().n
-#
-	#	return cls._remaining_indexed_thread_counter
-
-	#def count_known_user(self):
-	#	cls = self.__class__
-	#	if not hasattr(cls, '_total_known_user'):
-	#		cls._total_known_user = None
-	#	if not cls._total_known_user:
-	#		cls._total_known_user = User.select(fn.count(1).alias('n')).where(User.relativeurl.is_null(False) and ~(User.scrape << (Scrape.select(User.id).where(Scrape.process == self.process)))).get().n
-	#
-	#	return cls._total_known_user
-
 	# When Spider is idle, this callback is called.
 	def spider_idle(self, spider):
 		spider.logger.debug("IDLE")
 
-
 		scheduled_request = False
 
-		self.look_for_new_input()
+		newinput = self.look_for_new_input()
 
-		if not self.manual_input:
-			spider.logger.debug('%s/%s Idle. Queue Size = %d' % (self._proxy_key, self._loginkey, self._baseclass._queue_size))
-			for req in self.consume_request(self.request_queue_chunk):
-				self.crawler.engine.crawl(req, spider)
-				scheduled_request = True
+		if newinput and self.request_after_manual_input:
+			self.crawler.engine.crawl(self.request_after_manual_input, spider)
+		else:
+			if not self.manual_input:
+				spider.logger.debug('%s/%s Idle. Queue Size = %d' % (self._proxy_key, self._loginkey, self._baseclass._queue_size))
+				for req in self.consume_request(self.request_queue_chunk):
+					self.crawler.engine.crawl(req, spider)
+					scheduled_request = True
 
-		if scheduled_request or self.manual_input or self.downloader_still_active():		# manual_input is None if not waiting for cookies
-			raise DontCloseSpider()	
-
-
-		#if donethread and self.should_use_already_scraped_threads():
-		#	spider.logger.info("%s known users crawled on a total of %s. Consuming %s from queue." % (self.__class__.user_poped, self.count_known_user(), user_qty))
-		#	for req in self.generate_user_request(user_qty):
-		#		self.__class__.user_poped += 1
-		#		self.crawler.engine.crawl(req, spider)
+			if scheduled_request or self.manual_input or self.downloader_still_active():		# manual_input is None if not waiting for cookies
+				raise DontCloseSpider()	
 
 
-
-	##When Idle, will refresh known users.
-	#def generate_user_request(self, n):
-	#	if 'make_user_request' not in dir(self):
-	#		return map(lambda x: self.make_user_request (x), it.islice(self.consume_users(), n)) # Reads n Thread from the Queue and convert them to request
-	#	else:
-	#		return []
-#
-	# Set the right option to correctly handle multiple instances of spiders. 
-	# First a spider is launched in indexingmode, then many instance read that the first indexer found.
-#	def configure_thread_indexing(self):
-#		if not hasattr(self.__class__, '_threadqueue'):
-#			self.__class__._threadqueue = Queue()
-#		
-#		if not hasattr(self, 'indexingscrape'):
-#			self.indexingscrape = None
-#
-#		if not hasattr(self, 'indexingmode'):
-#			self.indexingmode = False
-#			if 'indexingmode' in self.settings:
-#				if isinstance(self.settings['indexingmode'], str):
-#					self.indexingmode = True if self.settings['indexingmode'] == 'True' else False
-#				elif isinstance(self.settings['indexingmode'], bool):
-#					self.indexingmode = self.settings['indexingmode']
-#				else:
-#					raise ValueError('Setting indexingmode is of unsupported type %s ' % (str(type(self.settings['indexingmode']))))
-#
-#			if not hasattr(self.__class__, '_total_thread_count' ):
-#				self.__class__._total_thread_count = None
-
-
-
-#	def should_use_already_scraped_threads(self):
-#		if self.indexingmode == True:	# Scraping now, not already scraped.
-#			return False
-#
-#		if self.indexingscrape == None:	# Will happen if launched from scrapy command line and not crawler script
-#			return False
-#
-#		return True
-
-	#def consumethreads(self):	# Generator reading indexed thread by chunks
-	#	pagesize = 5000
-	#	queue = self.__class__._threadqueue
-#
-#	#	if self.indexingmode:
-#	#		self.logger.error("Trying to read thread previously indexed, but we actually are in indexing mode.")
-#
-#	#	if not self.indexingscrape:
-#	#		self.logger.error("Trying to read thread previously indexed, but no scrape ID used dureing indexing is available.")
-#	#	
-#	#	if not hasattr(self.__class__, '_thread_pageindex'):
-#	#		self.__class__._thread_pageindex=1
-#	#	
-#	#	while True:
-#	#		if queue.empty():
-#	#			self.logger.debug("Reading a page of already indexed threads.")
-#
-#	#			thread_page = Thread.select().where(Thread.scrape == self.indexingscrape).paginate(self.__class__._thread_pageindex, pagesize)
-#	#			self.__class__._thread_pageindex += 1
-#	#			self.logger.debug("Got %s threads" % str(len(thread_page)))
-#
-#	#			if len(thread_page) == 0:
-#	#				return 
-#
-#	#			for thread in thread_page:
-#	#				queue.put(thread)
-#
-#
-#	#		while not queue.empty():
-	#			yield queue.get()
-
-#	def consume_users(self):	# Generator reading already known users by chunks
-#		pagesize = 5000
-#
-#		if not hasattr(self.__class__, '_userqueue'):
-#			self.__class__._userqueue = Queue()
-#
-#		queue = self.__class__._userqueue
-#
-#		
-#		if not hasattr(self.__class__, '_user_pageindex'):
-#			self.__class__._user_pageindex=1
-#		
-#		while True:
-#			if queue.empty():
-#				self.logger.debug("Reading a page of users")
-#				user_page = User.select().where(User.relativeurl.is_null(False) and ~(User.scrape << (Scrape.select(User.id).where(Scrape.process == self.process)))).paginate(self.__class__._user_pageindex, pagesize)
-#				self.__class__._user_pageindex += 1
-#				self.logger.debug("Got %s users" % str(len(user_page)))
-#
-#				if len(user_page) == 0:
-#					return 
-#
-#				for user in user_page:
-#					queue.put(user)
-#
-#
-#			while not queue.empty():
-#				yield queue.get()
-#
 	#Called by Scrapy Engine when spider is closed	
 	def spider_closed(self, spider, reason):
 		self.scrape.end = datetime.utcnow();
@@ -263,52 +137,6 @@ class ForumSpider(BaseSpider):
 		self.savestats()
 		
 		BaseSpider.spider_closed(self, spider, reason)
-		
-	#Check settings and database to figure wh
-	#def set_deltafromtime(self):
-	#	self.lastscrape = Scrape.select().where(Scrape.forum == self.forum and Scrape.end.is_null(False) and Scrape.reason=='finished').order_by(Scrape.start.desc()).first()	# todo, user first of last process
-#
-#	#	self.deltafromtime = None;	# When doing a delta scrape, use this time as a reference
-#	#
-#	#	if 'deltafromtime' in self.settings and self.settings['deltafromtime']:
-#	#		if isinstance(self.settings['deltafromtime'], str):
-#	#			self.deltafromtime = self.to_utc(parser.parse(self.settings['deltafromtime']))
-#	#		elif isinstance(datetime, self.to_utc(self.settings['deltafromtime'])):
-#	#			self.deltafromtime = self.settings['deltafromtime']
-#	#		else:
-#	#			raise ValueError("Cannot interpret deltafromtime %s" % str(self.settings['deltafromtime']))
-#	#	elif self.lastscrape:
-#	#		self.deltafromtime = self.lastscrape.start
-#
-#	##Check settings and attributes to define if we do a Full or Delta crawl.
-#	#def set_deltamode(self):
-#	#	self.deltamode = False
-#	#	if 'deltamode' in self.settings:
-#	#		self.deltamode = self.settings['deltamode']
-#
-#	#	if not self.deltafromtime and self.deltamode == True:
-#	#		self.deltamode = False
-#	#		self.logger.warning("Delta crawl was requested, but no time reference is available. Switching to full crawl.")
-#
-#	#	if self.deltamode == True:
-#	#		self.logger.info("Doing a delta crawl. Time reference is %s %s" % (str(self.deltafromtime), str(self.timezone)))
-#	#	else:
-#	#		self.logger.info("Doing a full crawl")
-#
-#	#	if self.deltamode == False:
-#	#		self.deltafromtime = None
-#
-
-	#def set_itemtocrawl(self):
-	#	allitems = ['message', 'user', 'thread']
-	#	if not hasattr(self, 'itemtocrawl'):
-	#		self.itemtocrawl = allitems
-#
-#	#	if 'itemtocrawl' in self.settings:
-#	#		if isinstance(self.settings['itemtocrawl'], str):
-#	#			self.itemtocrawl = 	self.settings['itemtocrawl'].split(',')
-#	#		else:
-	#			self.itemtocrawl = allitems
 
 	# Insert a database entry for this scrape.
 	def register_new_scrape(self):
@@ -337,43 +165,6 @@ class ForumSpider(BaseSpider):
 
 		self.savestats_handler()	
 
-
-	# Tell if the spider should make a request r not depending on : 1) Type of record, 2) Date of record.
-	#def shouldcrawl(self, item, recordtime=None, dbrecordtime=None):
-	#	if item not in self.itemtocrawl:
-	#		return False
-#
-#	#	if isinstance(recordtime, str):
-#	#		recordtime = self.to_utc(parser.parse(recordtime))		
-#
-#	#	if isinstance(dbrecordtime, str):
-#	#		dbrecordtime = self.to_utc(parser.parse(dbrecordtime))	
-#
-#	#	if self.deltamode == False:
-#	#		return True
-#	#	else:
-#	#		val =self.isinvalidated(recordtime, dbrecordtime)
-#	#		if val:
-#	#			self.logger.debug('Record dated from %s is considered invalidated. Crawling' % (str(recordtime)))
-#	#		else:
-#	#			self.logger.debug('Record dated from %s is considered up to date. Do not crawl' % (str(recordtime)))
-#
-#	#		return val
-#
-	# Tell if a dated item is outdated and need to be rescraped from the site.
-	#def isinvalidated(self, recordtime=None, dbrecordtime=None):
-	#	if not recordtime:
-	#		return True
-	#	else:
-	#		if self.deltafromtime:
-	#			return (self.deltafromtime < recordtime)
-	#		else:
-	#			if not dbrecordtime:
-	#				return True
-	#			else:
-	#				return (dbrecordtime < recordtime)
-
-
 	def savestats(self):
 		stat = ScrapeStat(scrape=self.scrape)
 
@@ -400,8 +191,10 @@ class ForumSpider(BaseSpider):
 
 
 
-	def wait_for_input(self, details):
+	def wait_for_input(self, details, request_once_done=None):
 		self.logger.warning("Waiting for manual input from database")
+
+		self.request_after_manual_input = request_once_done
 
 		self.manual_input					= ManualInput()
 		self.manual_input.date_requested 	= datetime.utcnow()
@@ -414,14 +207,15 @@ class ForumSpider(BaseSpider):
 		self.manual_input.reload 			= False
 		self.manual_input.save(force_insert=True)
 		
-		subject = "Spider crawling %s needs inputs. Id = %d" % (self.market.name, self.manual_input.id)
+		subject = "Spider crawling forum %s needs inputs. Id = %d" % (self.forum.name, self.manual_input.id)
 
 		msg 	= """
-			Spider crawling market %s has requested new input to continue crawling.
+			Spider crawling forum %s has requested new input to continue crawling.
 
 			Configuration : 
 				- Proxy : %s 
 				- Login : %s 
+				- Login Info : %s
 				- User agent : %s
 				- Cookies : %s
 			
@@ -430,9 +224,10 @@ class ForumSpider(BaseSpider):
 			Please, go insert relevant data string in database for manual input id=%d.
 			*** You can modify : proxy, login, user agent, cookies
 			""" % (
-				self.market.name, 
+				self.forum.name, 
 				self.manual_input.proxy, 
 				self.manual_input.login, 
+				self.manual_input.login_info, 
 				self.manual_input.user_agent ,
 				self.manual_input.cookies , 
 				details, 

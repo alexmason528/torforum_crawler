@@ -102,6 +102,7 @@ class map2db(object):
 		
 		dbuser.forum = spider.forum
 		dbuser.scrape = spider.scrape
+
 		dbuser.setproperties_attribute(scrape = spider.scrape)  #propagate the scrape id to the UserProperty model.
 
 		#Proeprties with same name in model and item

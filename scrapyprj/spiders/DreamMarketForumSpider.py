@@ -99,21 +99,26 @@ class DreamMarketForumSpider(ForumSpider):
         pass
 
     def parse_index(self, response):
+        if 'req_once_logged' in response.meta:
+            yield response.meta['req_once_logged']
+
         for line in response.css("#brdmain tbody tr"):
             link = line.css("h3>a::attr(href)").extract_first()
             
-            yield self.make_request('threadlisting', url=link);
+            yield self.make_request('threadlisting', url=link)
     
     def parse_thread_listing(self, response):
         threads_requests = []
         
+
         for line in response.css("#brdmain tbody tr"):
             threaditem = items.Thread()
             title =  self.get_text(line.css("td:first-child a"))
 
             last_post_time = self.parse_timestr(self.get_text(line.css("td:last-child a")))           
 
-            threadlinkobj = next(iter(line.css("td:first-child a") or []), None)
+            threadlinkobj = next(iter(line.css("td:first-child a") or []), None) # First or None if empty
+
             if threadlinkobj:
                 threadlinkhref = threadlinkobj.xpath("@href").extract_first() if threadlinkobj else None
                 threaditem['title'] = self.get_text(threadlinkobj)
@@ -123,7 +128,7 @@ class DreamMarketForumSpider(ForumSpider):
                 threaditem['threadid'] = self.get_url_param(threaditem['fullurl'], 'id')
 
                 byuser = self.get_text(line.css("td:first-child span.byuser"))
-                m = re.match("by (.+)", byuser)
+                m = re.match("by (.+)", byuser) # regex
                 if m:
                     threaditem['author_username'] = m.group(1)
                 
@@ -132,7 +137,6 @@ class DreamMarketForumSpider(ForumSpider):
                 threaditem['replies']   = self.get_text(line.css("td:nth-child(2)"))
                 threaditem['views']     = self.get_text(line.css("td:nth-child(3)"))
                 yield threaditem
-
 
                 threads_requests.append(self.make_request('thread', url=threadlinkhref))
 
@@ -143,7 +147,6 @@ class DreamMarketForumSpider(ForumSpider):
 
         for link in response.css("#brdmain .pagelink a::attr(href)").extract():
             yield self.make_request('threadlisting', url=link)
-
 
     def parse_thread(self, response):
         requests = []
@@ -243,7 +246,6 @@ class DreamMarketForumSpider(ForumSpider):
             }
 
         return req
-
 
     def parse_timestr(self, timestr):
         last_post_time = None
