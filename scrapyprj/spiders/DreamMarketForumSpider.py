@@ -61,6 +61,7 @@ class DreamMarketForumSpider(ForumSpider):
             req = Request(self.make_url(kwargs['url']), dont_filter=True)
         elif reqtype in ['threadlisting', 'thread', 'userprofile']:
             req = Request(self.make_url(kwargs['url']))
+            req.meta['shared'] = True
             if 'relativeurl' in kwargs:
                 req.meta['relativeurl'] = kwargs['relativeurl']
         else:
@@ -104,17 +105,13 @@ class DreamMarketForumSpider(ForumSpider):
             yield self.make_request('threadlisting', url=link);
     
     def parse_thread_listing(self, response):
-        oldest_post = datetime.utcnow()
         threads_requests = []
         
         for line in response.css("#brdmain tbody tr"):
             threaditem = items.Thread()
             title =  self.get_text(line.css("td:first-child a"))
 
-            last_post_time = self.parse_timestr(self.get_text(line.css("td:last-child a")))
-            if last_post_time:
-                oldest_post = min(oldest_post, last_post_time)
-            
+            last_post_time = self.parse_timestr(self.get_text(line.css("td:last-child a")))           
 
             threadlinkobj = next(iter(line.css("td:first-child a") or []), None)
             if threadlinkobj:
@@ -132,28 +129,23 @@ class DreamMarketForumSpider(ForumSpider):
                 
                 threaditem['last_update'] = last_post_time
                 
-                
-                
                 threaditem['replies']   = self.get_text(line.css("td:nth-child(2)"))
                 threaditem['views']     = self.get_text(line.css("td:nth-child(3)"))
                 yield threaditem
 
-                if self.shouldcrawl('thread', last_post_time):
-                    threads_requests.append(self.make_request('thread', url=threadlinkhref))
+
+                threads_requests.append(self.make_request('thread', url=threadlinkhref))
 
         self.dao.flush(models.Thread)
 
         for req in threads_requests:
             yield req
 
-        if self.shouldcrawl('thread', oldest_post):
-            next_page_url = response.css("#brdmain .pagelink a[rel='next']::attr(href)").extract_first()
-            if next_page_url:
-                yield self.make_request('threadlisting', url=next_page_url)
+        for link in response.css("#brdmain .pagelink a::attr(href)").extract():
+            yield self.make_request('threadlisting', url=link)
 
 
     def parse_thread(self, response):
-        oldest_post = datetime.utcnow()
         requests = []
         threadid =  self.get_url_param(response.url, 'id')
         posts = response.css("#brdmain div.blockpost")
@@ -161,8 +153,6 @@ class DreamMarketForumSpider(ForumSpider):
             try:
                 messageitem = items.Message()
                 posttime = self.parse_timestr(self.get_text(post.css("h2 a")))
-                if posttime:
-                    oldest_post = min(oldest_post, posttime)
 
                 userprofile_link = post.css(".postleft dt:first-child a::attr(href)").extract_first()
                 messageitem['author_username'] = self.get_text(post.css(".postleft dt:first-child a"))
@@ -176,8 +166,7 @@ class DreamMarketForumSpider(ForumSpider):
 
                 yield messageitem
 
-                if userprofile_link and self.shouldcrawl('user'):
-                    requests.append(self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link ))
+                requests.append(self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link ))
             except e:
                 self.logger.warning("Invalid thread page. %s" % e)
 
@@ -187,10 +176,8 @@ class DreamMarketForumSpider(ForumSpider):
         for req in requests:
             yield req
 
-        if self.shouldcrawl('message', oldest_post):
-            next_page_url = response.css("#brdmain .pagelink a[rel='next']::attr(href)").extract_first()
-            if next_page_url:
-                yield self.make_request('thread', url=next_page_url)
+        for link in response.css("#brdmain .pagelink a::attr(href)").extract():
+            yield self.make_request('thread', url=link)
 
     def parse_userprofile(self, response):
         user = items.User()
