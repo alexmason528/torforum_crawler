@@ -14,6 +14,7 @@ from fake_useragent import UserAgent
 from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 from Cookie import SimpleCookie
 from scrapy.mail import MailSender
+from scrapy import Request
 
 class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
@@ -25,8 +26,15 @@ class BaseSpider(scrapy.Spider):
 		self.initlogs()
 		self.configure_login()
 		self.configure_proxy()
+		self.mailer =  MailSender.from_settings(self.settings)
 		
+		if not hasattr(BaseSpider, '_allspiders'):
+			BaseSpider._allspiders = {}
 
+		if self.__class__ not in BaseSpider._allspiders:
+			BaseSpider._allspiders[self.__class__] = []
+
+		BaseSpider._allspiders[self.__class__].append(self)
 
 		#Counters : We use this to distribute logins/proxies equally between spiders.
 	def _initialize_counter(self, name, key=None, isglobal=False):
@@ -297,12 +305,12 @@ class BaseSpider(scrapy.Spider):
 		return cookie_middleware
 
 	def downloader_still_active(self):
-		
-		if len(self.crawler.engine.slot.inprogress) > 0:
-			return True
+		for spider in BaseSpider._allspiders[self.__class__]:
+			if len(spider.crawler.engine.slot.inprogress) > 0:
+				return True
 
-		if len(self.crawler.engine.slot.scheduler) > 0:
-			return True
+			if len(spider.crawler.engine.slot.scheduler) > 0:
+				return True
 
 		return False
 

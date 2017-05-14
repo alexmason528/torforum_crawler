@@ -53,6 +53,27 @@ CREATE TABLE `forum` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `manual_input`
+--
+
+DROP TABLE IF EXISTS `manual_input`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `manual_input` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `date_requested` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `spidername` varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  `proxy` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
+  `login` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
+  `login_info` text COLLATE utf8mb4_bin,
+  `cookies` text COLLATE utf8mb4_bin,
+  `user_agent` text COLLATE utf8mb4_bin,
+  `reload` tinyint(4) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `message`
 --
 
@@ -598,4 +619,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-05-13 18:54:46
+-- Dump completed on 2017-05-13 23:17:47

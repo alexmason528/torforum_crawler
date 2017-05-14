@@ -373,6 +373,7 @@ CREATE TABLE `manual_input` (
   `spidername` varchar(255) COLLATE utf8mb4_bin NOT NULL,
   `proxy` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
   `login` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
+  `login_info` text COLLATE utf8mb4_bin,
   `cookies` text COLLATE utf8mb4_bin,
   `user_agent` text COLLATE utf8mb4_bin,
   `reload` tinyint(4) DEFAULT NULL,
@@ -822,4 +823,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-05-13 18:55:19
+-- Dump completed on 2017-05-13 23:17:34

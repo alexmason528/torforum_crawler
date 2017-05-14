@@ -24,6 +24,10 @@ from IPython import embed
 class AlphabayForum(ForumSpider):
     name = "alphabay_forum"
     handle_httpstatus_list = [403]
+
+    custom_settings = {
+            'RANDOMIZE_DOWNLOAD_DELAY' : True
+        }
     
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
@@ -31,10 +35,10 @@ class AlphabayForum(ForumSpider):
         self.logintrial = 0
 
         self.parse_handlers = {
-                'index'                 : self.parse_index,
-                'threadlisting'   : self.parse_threadlisting,
-                'userprofile'           : self.parse_userprofile,
-                'threadpage'            : self.parse_threadpage
+                'index'          : self.parse_index,
+                'threadlisting'  : self.parse_threadlisting,
+                'userprofile'    : self.parse_userprofile,
+                'threadpage'     : self.parse_threadpage
             }
 
     def start_requests(self):
@@ -50,6 +54,7 @@ class AlphabayForum(ForumSpider):
             req.dont_filter=True
         
         elif reqtype == 'dologin':
+           
             data = {
                 'login' : self.login['email'],
                 'register' : '0',
@@ -87,11 +92,8 @@ class AlphabayForum(ForumSpider):
         return req
    
     def parse(self, response):
-        if not self.islogged(response):
-            if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-                raise Exception("Too many failed login trials. Giving up.")
-            self.logger.info("Trying to login.")
-            self.logintrial += 1
+        if not self.islogged(response):   
+            self.logger.info("Trying to login.")        
             yield self.make_request(reqtype='dologin', req_once_logged=response.request);  # We try to login and save the original request
         else : 
             self.logintrial = 0
@@ -153,7 +155,7 @@ class AlphabayForum(ForumSpider):
 
             msgitem = items.Message();
             try:
-                fullid = message.xpath("@id").extract_first()
+                fullid                      = message.xpath("@id").extract_first()
                 msgitem['postid']           = re.match("post-(\d+)", fullid).group(1)
                 msgitem['author_username']  = self.get_text(message.css(".messageDetails .username"))
                 msgitem['posted_on']        = self.read_datetime_div(message.css(".messageDetails .DateTime"))
@@ -181,15 +183,15 @@ class AlphabayForum(ForumSpider):
 
         content = response.css(".profilePage")
         if content:
-            content= content[0]
-            useritem = items.User()
-            useritem['username'] = self.get_text_first(content.css(".username"))
-            urlparsed =  urlparse(response.url)
+            content                 = content[0]
+            useritem                = items.User()
+            useritem['username']    = self.get_text_first(content.css(".username"))
+            urlparsed               =  urlparse(response.url)
             useritem['relativeurl'] = "%s?%s" % (urlparsed.path, urlparsed.query)
-            useritem['fullurl'] = response.url
+            useritem['fullurl']     = response.url
 
-            useritem['title'] = self.get_text_first(content.css(".userTitle"))
-            useritem['banner'] = self.get_text_first(content.css(".userBanner"))
+            useritem['title']       = self.get_text_first(content.css(".userTitle"))
+            useritem['banner']      = self.get_text_first(content.css(".userBanner"))
 
             try:
                 m = re.match('members/([^/]+)', urlparse(response.url).query.strip('/'))
@@ -215,7 +217,6 @@ class AlphabayForum(ForumSpider):
                 except:
                     pass
 
-
             yield useritem
 
         self.dao.flush(models.User) 
@@ -229,6 +230,13 @@ class AlphabayForum(ForumSpider):
             else:
                 self.logger.error("No request was given for when the login succeeded. Can't continue")
         else :   # Not logged, check for captcha
+            self.logintrial +=1
+            self.logger.info("Trying to login")
+            if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
+                self.wait_for_input("Too many failed login trials. Giving up.", response.meta['req_once_logged'])
+                self.logintrial=0
+                return 
+
 
             loginform = response.css("form[id='pageLogin']")
             if loginform:
@@ -248,15 +256,12 @@ class AlphabayForum(ForumSpider):
                             db_question.question = question
                             self.dao.enqueue(db_question)
                         answer = LoginQuestion.answer(question, self.login)
-                        self.logger.info('Trying to guess the answer. Best bet is : "' + answer + '"')
+                        self.logger.info('Trying to guess the answer. Best bet is : "%s"' % answer)
                     yield self.make_request(reqtype='dologin', req_once_logged= response.meta['req_once_logged'], captcha_question_hash=qhash, captcha_question_answer=answer);  # We try to login and save the original request
 
                 else : 
                     self.logger.warning("Login failed. A new login form has been given, but with no captcha. Trying again.")
                     yield self.make_request(reqtype='dologin', req_once_logged=response.meta['req_once_logged']);  # We try to login and save the original request
-            elif self.is_fake_token_mismatch_error(response):
-                if response.meta['req_once_logged']:
-                    yield response.meta['req_once_logged']
             else :
                 self.logger.error("Login failed and no login form has been given. Retrying")
                 yield self.make_request(reqtype='dologin', req_once_logged=response.meta['req_once_logged']);  # We try to login and save the original request
@@ -271,6 +276,12 @@ class AlphabayForum(ForumSpider):
             self.logger.debug("Not Logged In")
 
         return logged
+
+    def isloginpage(self, response):
+        if response.css("form[id='pageLogin']"):
+            return True
+
+        return False
 
     def read_threadid_from_url(self, url):
         try:
@@ -299,7 +310,3 @@ class AlphabayForum(ForumSpider):
         if time:
             return self.to_utc(time)
 
-    def is_fake_token_mismatch_error(self, response):
-        if 'Username and/or token mismatch' in self.get_text(response):
-            return True
-        return False

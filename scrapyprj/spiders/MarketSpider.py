@@ -60,7 +60,7 @@ class MarketSpider(BaseSpider):
 
 		self.register_new_scrape()
 		self.start_statistics()
-		self.mailer =  MailSender.from_settings(self.settings)
+		
 		
 		self.manual_input = None
 

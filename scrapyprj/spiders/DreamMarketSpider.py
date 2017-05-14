@@ -44,16 +44,8 @@ class DreamMarketSpider(MarketSpider):
 			}
 
 	def start_requests(self):
-		req = Request('http://google.com', callback=self.test)
-		#req.meta['shared'] = True
-		yield req
-		#yield self.make_request('index')
+		yield self.make_request('index')
 
-	def test(self, response):
-		req = Request('http://9gag.com')
-		req.meta['shared'] = True
-		yield req
-		yield req
 
 	def make_request(self, reqtype,  **kwargs):
 
@@ -80,6 +72,7 @@ class DreamMarketSpider(MarketSpider):
 			req.dont_filter=True
 		elif reqtype in ['ads_list', 'ads', 'user', 'image']:
 			req = Request(self.make_url(kwargs['url']))
+			req.meta['shared'] = True
 
 
 		req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
