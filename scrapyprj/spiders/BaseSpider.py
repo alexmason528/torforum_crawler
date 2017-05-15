@@ -332,7 +332,10 @@ class BaseSpider(scrapy.Spider):
 
 
 	def start_interrupt_polling(self):
-		self.interrupt_polling_handler()	
+		if not hasattr(BaseSpider, '_interrupt_polling_started'):
+			BaseSpider._interrupt_polling_started = True
+			self.interrupt_polling_handler()	
+
 
 
 	def interrupt_polling_handler(self):
