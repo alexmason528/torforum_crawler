@@ -4,7 +4,7 @@ from scrapyprj.database import db
 from scrapyprj.ColorFormatterWrapper import ColorFormatterWrapper
 
 from importlib import import_module
-import os, time, sys
+import os, time, sys, signal
 import random
 import logging
 import pytz
@@ -15,6 +15,8 @@ from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 from Cookie import SimpleCookie
 from scrapy.mail import MailSender
 from scrapy import Request
+
+from twisted.internet import reactor
 
 class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
@@ -35,6 +37,10 @@ class BaseSpider(scrapy.Spider):
 			BaseSpider._allspiders[self.__class__] = []
 
 		BaseSpider._allspiders[self.__class__].append(self)
+
+		self.start_interrupt_polling()
+
+		
 
 		#Counters : We use this to distribute logins/proxies equally between spiders.
 	def _initialize_counter(self, name, key=None, isglobal=False):
@@ -322,4 +328,24 @@ class BaseSpider(scrapy.Spider):
 			self.mailer.send(to=to, subject=subject, body=body)
 		else:
 			self.logger.warning('Trying to send email, but smtp is not configured or no MAIL_RECIPIENT is defined in settings.')
-		 
+
+
+
+	def start_interrupt_polling(self):
+		self.interrupt_polling_handler()	
+
+
+	def interrupt_polling_handler(self):
+		self.interrupt_polling_taskid = None
+		self.poll_for_interrupt()
+		self.interrupt_polling_taskid = reactor.callLater(5, self.poll_for_interrupt)
+
+	def poll_for_interrupt(self):
+		self.logger.debug("Polling for interrupt file")
+		if os.path.isfile('interrupt'):
+			try:
+				os.remove("interrupt")
+			except:
+				pass
+			self.logger.info("Interrupt!")
+			embed()
