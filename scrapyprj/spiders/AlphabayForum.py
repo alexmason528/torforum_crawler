@@ -162,7 +162,7 @@ class AlphabayForum(ForumSpider):
                 msgitem['author_username']  = self.get_text(message.css(".messageDetails .username"))
                 msgitem['posted_on']        = self.read_datetime_div(message.css(".messageDetails .DateTime"))
                 textnode                    = message.css(".messageContent")
-                msgitem['contenthtml']      = textnode.extract_first()
+                msgitem['contenthtml']      = textnode.xpath('./*').extract_first()
                 msgitem['contenttext']      = self.get_text(textnode)
                 msgitem['threadid']         = threadid
             except Exception as e:
