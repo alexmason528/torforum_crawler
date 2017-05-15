@@ -26,7 +26,9 @@ class AlphabayForum(ForumSpider):
     handle_httpstatus_list = [403]
 
     custom_settings = {
-            'RANDOMIZE_DOWNLOAD_DELAY' : True
+            'RANDOMIZE_DOWNLOAD_DELAY' : True,
+            'CONCURRENT_REQUESTS' : 16,
+            'DOWNLOAD_TIMEOUT' : 20
         }
     
     def __init__(self, *args, **kwargs):
@@ -138,13 +140,13 @@ class AlphabayForum(ForumSpider):
                 continue
         
         # Parse next page.
-        for link in response.css("nav:first-child a::attr(href)").extract():
+        for link in response.css("div.PageNav nav a::attr(href)").extract():
             request_buffer.append( self.make_request(reqtype='threadlisting', url = link)  )
         
         self.dao.flush(models.Thread)  # Flush threads to database.
         
         #We yield requests AFTER writing to database. This will avoid race condition that could lead to foreign key violation. (Thread post linked to a thread not written yet.)
-        for request in request_buffer:  
+        for request in request_buffer: 
             yield request
 
     # Parse messages from a thread page.
