@@ -1,6 +1,7 @@
 insert ignore into `forum` (`name`, `spider`) values 
 	('Alphabay', 'alphabay_forum'), 
-	('Dream Market Forum', 'dreammarket_forum');
+	('Dream Market Forum', 'dreammarket_forum'),
+	('Trade Route Forum', 'traderoute_forum');
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
 	('joined_on', 'Joined on'),
