@@ -338,7 +338,7 @@ class BaseSpider(scrapy.Spider):
 	def interrupt_polling_handler(self):
 		self.interrupt_polling_taskid = None
 		self.poll_for_interrupt()
-		self.interrupt_polling_taskid = reactor.callLater(5, self.poll_for_interrupt)
+		self.interrupt_polling_taskid = reactor.callLater(5, self.interrupt_polling_handler)
 
 	def poll_for_interrupt(self):
 		self.logger.debug("Polling for interrupt file")
