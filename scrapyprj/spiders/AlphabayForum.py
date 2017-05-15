@@ -176,7 +176,7 @@ class AlphabayForum(ForumSpider):
             yield self.make_request('userprofile', url=self.make_url(link))
 
         #Start looking for previous page.
-        for link in  response.css("nav:first-child a::attr(href)").extract():
+        for link in  response.css("div.PageNav nav a::attr(href)").extract():
             yield self.make_request("threadpage", url=link, threadid=threadid)
 
     def parse_userprofile(self, response):
