@@ -31,10 +31,8 @@ class DreamMarketSpider(MarketSpider):
 
 		self.max_concurrent_requests = 1	# Scrapy config
 		self.download_delay = 12			# Scrapy config
-
 		self.request_queue_chunk = 1 		# Custom Queue system
-
-		self.statsinterval = 60;
+		self.statsinterval = 60;			# Custom Queue system
 
 		self.parse_handlers = {
 				'index' 	: self.parse_index,
@@ -91,10 +89,9 @@ class DreamMarketSpider(MarketSpider):
 			if self.isloginpage(response):
 				self.logger.debug('Encountered a login page.')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-					if ('req_once_logged' in response.meta):
-						self.enqueue_request(response.meta['req_once_logged'])
+					req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
+					self.wait_for_input("Too many login failed", req_once_logged)
 					self.logintrial = 0
-					self.wait_for_input("Too many login failed")
 					return
 				self.logger.info("Trying to login.")
 				self.logintrial += 1
@@ -108,10 +105,9 @@ class DreamMarketSpider(MarketSpider):
 			elif self.is_ddos_protection_form(response):
 				self.logger.warning('Encountered a DDOS protection page')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-					if ('req_once_logged' in response.meta):
-						self.enqueue_request(response.meta['req_once_logged'])
+					req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
 					self.logintrial = 0
-					self.wait_for_input("Can't bypass DDOS Protection")
+					self.wait_for_input("Can't bypass DDOS Protection",req_once_logged)
 					return
 				self.logger.info("Trying to overcome DDOS protection")
 				self.logintrial += 1
@@ -124,14 +120,14 @@ class DreamMarketSpider(MarketSpider):
 			elif self.is_ddos_good_answer(response):
 				self.logintrial = 0
 				self.logger.info("Bypassed DDOS protection successfully!")
-				self.enqueue_request( response.meta['req_once_logged'] )
+				yield response.meta['req_once_logged']
 
 			elif self.is_logged_elsewhere(response) or self.is_session_expired(response):
 				self.logger.warning('Need to relog')
 				yield self.make_request('index', priority=10, donotparse=True)
 
 				response.request.dont_filter = True
-				self.enqueue_request( response.request )
+				yield response.request
 			else:
 				raise Exception("Not implemented yet, figure what to do here !")
 		else : 
@@ -140,14 +136,13 @@ class DreamMarketSpider(MarketSpider):
 			# We restore the missed request when protection kicked in
 			if response.meta['reqtype'] == 'dologin':
 				self.logger.info("Login Success!")
-				self.enqueue_request( response.meta['req_once_logged'] )
+				yield response.meta['req_once_logged']
 			
 			# Normal parsing
 			else:
-				for x in self.parse_handlers[response.meta['reqtype']].__call__(response):
-					if isinstance(x, scrapy.Request):
-						self.enqueue_request(x)
-					else:
+				it = self.parse_handlers[response.meta['reqtype']].__call__(response)
+				for x in it:
+					if x:
 						yield x
 
 		

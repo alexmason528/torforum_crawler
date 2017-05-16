@@ -63,6 +63,7 @@ class MarketSpider(BaseSpider):
 		
 		
 		self.manual_input = None
+		self.request_after_manual_input = None
 
 
 	@classmethod
@@ -189,13 +190,16 @@ class MarketSpider(BaseSpider):
 	def spider_idle(self, spider):
 		scheduled_request = False
 
-		self.look_for_new_input()
+		newinput = self.look_for_new_input()
 
-		if not self.manual_input:
-			spider.logger.debug('%s/%s Idle. Queue Size = %d' % (self._proxy_key, self._loginkey, self._baseclass._queue_size))
-			for req in self.consume_request(self.request_queue_chunk):
-				self.crawler.engine.crawl(req, spider)
-				scheduled_request = True
+		if newinput and self.request_after_manual_input:
+			self.crawler.engine.crawl(self.request_after_manual_input, spider)
+		else:
+			if not self.manual_input:
+				spider.logger.debug('%s/%s Idle. Queue Size = %d' % (self._proxy_key, self._loginkey, self._baseclass._queue_size))
+				for req in self.consume_request(self.request_queue_chunk):
+					self.crawler.engine.crawl(req, spider)
+					scheduled_request = True
 			
 		if scheduled_request or self.manual_input or self.downloader_still_active():		# manual_input is None if not waiting for cookies
 			raise DontCloseSpider()						# Mandatory to avoid closing the spider if the request are being dropped and scheduler is empty.
@@ -273,8 +277,10 @@ class MarketSpider(BaseSpider):
 		self.savestats()
 		self.savestat_taskid = reactor.callLater(self.statsinterval, self.savestats_handler)
 
-	def wait_for_input(self, details):
+	def wait_for_input(self, details, request_once_done=None):
 		self.logger.warning("Waiting for manual input from database")
+
+		self.request_after_manual_input = request_once_done
 
 		self.manual_input					= ManualInput()
 		self.manual_input.date_requested 	= datetime.utcnow()
@@ -294,7 +300,8 @@ class MarketSpider(BaseSpider):
 
 			Configuration : 
 				- Proxy : %s 
-				- Login : %s 
+				- Login : %s
+				- Login Info : %s				 
 				- User agent : %s
 				- Cookies : %s
 			
@@ -306,6 +313,7 @@ class MarketSpider(BaseSpider):
 				self.market.name, 
 				self.manual_input.proxy, 
 				self.manual_input.login, 
+				self.manual_input.login_info, 
 				self.manual_input.user_agent ,
 				self.manual_input.cookies , 
 				details, 
