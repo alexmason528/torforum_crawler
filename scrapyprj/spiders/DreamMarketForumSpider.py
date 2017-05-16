@@ -74,7 +74,11 @@ class DreamMarketForumSpider(ForumSpider):
    
     def parse(self, response):
         if not self.islogged(response):
-            if self.is_login_page(response):
+            if self.is_meaningless_error(response):
+                req = response.request.copy()
+                req.dont_filter = True
+                yield req
+            elif self.is_login_page(response):
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
                     raise Exception("Too many failed login trials. Giving up.")
                 self.logger.info("Trying to login.")
@@ -272,4 +276,10 @@ class DreamMarketForumSpider(ForumSpider):
 
     def get_url_param(self, url, key):
          return dict(parse_qsl(urlparse(url).query))[key]
+
+    def is_meaningless_error(self, response):
+        s = 'The post table and topic table seem to be out of sync'
+        if s in response.css('body').extract_first():
+            return True
+        return False
 
