@@ -132,16 +132,20 @@ class Cache:
 		if isinstance(idx, tuple):	# we are dealing with a composite key
 			complete = True
 			keyval = tuple()
-			for idx in idx :
-				if idx in obj._data:
-					keyval += (self.getfield_or_primarykey(obj._data[idx]),)	# Append to tuple
+			for subidx in idx :
+				if subidx in obj._data:
+					keyvaltemp = self.getfield_or_primarykey(obj._data[subidx])
+					keyvaltemp = keyvaltemp.encode('utf8') if isinstance(keyvaltemp, unicode) else keyvaltemp
+					keyval += (keyvaltemp,)	# Append to tuple
 				else:
 					complete  = False
 					break
 			return keyval if complete else None 
 		elif isinstance(idx, basestring): 		# Single key
 			if idx in obj._data:
-				return self.getfield_or_primarykey(obj._data[idx])
+				keyvaltemp = self.getfield_or_primarykey(obj._data[idx])
+				keyvaltemp = keyvaltemp.encode('utf8') if isinstance(keyvaltemp, unicode) else keyvaltemp
+				return keyvaltemp
 
 	def getfield_or_primarykey(self, val):
 		if issubclass(val.__class__, Model):		# It's a foreign key. Get the primary key
