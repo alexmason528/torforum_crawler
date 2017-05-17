@@ -206,7 +206,7 @@ class DreamMarketForumSpider(ForumSpider):
 
     def get_user_item_from_postwrapper(self, postwrapper, response):
         useritem = items.User()
-        profilelink = postwrapper.css(".poster h4 a")
+        profilelink = postwrapper.css(".poster h4").xpath(".//a[not(contains(@href, 'action=pm'))]")
         useritem['username'] = self.get_text(postwrapper.css(".poster h4"))
         useritem['relativeurl'] = profilelink.xpath("@href").extract_first()
         useritem['fullurl'] = self.make_url(useritem['relativeurl'])
