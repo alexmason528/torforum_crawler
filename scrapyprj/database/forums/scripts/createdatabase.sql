@@ -25,7 +25,7 @@ DROP TABLE IF EXISTS `captcha_question`;
 CREATE TABLE `captcha_question` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `forum` bigint(11) NOT NULL,
-  `hash` varchar(255) NOT NULL,
+  `hash` varchar(150) NOT NULL,
   `question` text,
   `answer` text,
   PRIMARY KEY (`id`),
@@ -49,7 +49,7 @@ CREATE TABLE `forum` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name_UNIQUE` (`name`),
   UNIQUE KEY `spider_UNIQUE` (`spider`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -167,7 +167,7 @@ DROP TABLE IF EXISTS `message_propkey`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `message_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
+  `name` varchar(150) NOT NULL,
   `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `message_propkey_name_UNIQUE` (`name`)
@@ -430,7 +430,7 @@ DROP TABLE IF EXISTS `user_propkey`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `user_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
+  `name` varchar(150) NOT NULL,
   `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name_UNIQUE` (`name`)
