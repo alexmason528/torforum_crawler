@@ -32,7 +32,7 @@ CREATE TABLE `captcha_question` (
   UNIQUE KEY `hash_UNIQUE` (`forum`,`hash`),
   KEY `question_forum_idx` (`forum`),
   CONSTRAINT `question_forum` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -49,7 +49,7 @@ CREATE TABLE `forum` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name_UNIQUE` (`name`),
   UNIQUE KEY `spider_UNIQUE` (`spider`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -70,7 +70,7 @@ CREATE TABLE `manual_input` (
   `user_agent` text COLLATE utf8mb4_bin,
   `reload` tinyint(4) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -102,7 +102,7 @@ CREATE TABLE `message` (
   CONSTRAINT `message_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `message_thread_fk` FOREIGN KEY (`thread`) REFERENCES `thread` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_user_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -155,7 +155,7 @@ CREATE TABLE `message_audit` (
   KEY `message_audit_author_fk_idx` (`author`),
   CONSTRAINT `message_audit_author_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `message_audit_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -171,7 +171,7 @@ CREATE TABLE `message_propkey` (
   `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `message_propkey_name_UNIQUE` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -195,7 +195,7 @@ CREATE TABLE `message_propval` (
   CONSTRAINT `message_propkey_fk` FOREIGN KEY (`propkey`) REFERENCES `message_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_propval_msg_fk` FOREIGN KEY (`message`) REFERENCES `message` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_propval_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -250,7 +250,7 @@ CREATE TABLE `message_propvalaudit` (
   CONSTRAINT `message_prophistory_message` FOREIGN KEY (`message`) REFERENCES `message` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_prophistory_propkey` FOREIGN KEY (`propkey`) REFERENCES `message_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `message_prophistory_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -267,7 +267,7 @@ CREATE TABLE `process` (
   `pid` int(11) DEFAULT NULL,
   `cmdline` text,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -292,7 +292,7 @@ CREATE TABLE `scrape` (
   KEY `scrape_processforum_idx` (`process`,`forum`),
   CONSTRAINT `scrape_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `scrape_process_fk` FOREIGN KEY (`process`) REFERENCES `process` (`id`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -320,7 +320,7 @@ CREATE TABLE `scrapestat` (
   KEY `scrapestat_scrape_fk_idx` (`scrape`),
   KEY `scrapestat_scrapetime_idx` (`scrape`,`logtime`),
   CONSTRAINT `scrapestat_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -349,7 +349,7 @@ CREATE TABLE `thread` (
   CONSTRAINT `thread_author_fk` FOREIGN KEY (`author`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `thread_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `thread_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -395,7 +395,7 @@ CREATE TABLE `user` (
   KEY `user_scrape_fk_idx` (`scrape`),
   CONSTRAINT `user_forum_fk` FOREIGN KEY (`forum`) REFERENCES `forum` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -433,7 +433,7 @@ CREATE TABLE `user_propkey` (
   `name` varchar(255) NOT NULL,
   `prettyname` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -457,7 +457,7 @@ CREATE TABLE `user_propval` (
   CONSTRAINT `user_propkey_key_fk` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propval_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `user_propval_user_fk` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -512,7 +512,7 @@ CREATE TABLE `user_propvalaudit` (
   CONSTRAINT `user_propvalaudit_propkey_fk` FOREIGN KEY (`propkey`) REFERENCES `user_propkey` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propvalaudit_user_fk` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_provalaudit_scrape_fk` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

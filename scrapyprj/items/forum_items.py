@@ -41,5 +41,11 @@ class User(scrapy.Item):
 	last_activity = scrapy.Field()
 	avatar = scrapy.Field()
 	message_count = scrapy.Field()
-	user_id = scrapy.Field()
+	username_id = scrapy.Field()
 	banner = scrapy.Field()	
+
+	membergroup = scrapy.Field()
+	postgroup = scrapy.Field()
+	reputation_power = scrapy.Field()
+	rep_bars = scrapy.Field()
+	stars = scrapy.Field()

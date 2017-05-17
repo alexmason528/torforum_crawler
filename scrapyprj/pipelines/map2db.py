@@ -126,7 +126,13 @@ class map2db(object):
 		self.set_if_exist(item, dbuser, 'last_activity')
 		self.set_if_exist(item, dbuser, 'message_count')
 		self.set_if_exist(item, dbuser, 'user_id')
-		self.set_if_exist(item, dbuser, 'banner')		
+		self.set_if_exist(item, dbuser, 'banner')
+
+		self.set_if_exist(item, dbuser, 'membergroup')
+		self.set_if_exist(item, dbuser, 'postgroup')
+		self.set_if_exist(item, dbuser, 'reputation_power')
+		self.set_if_exist(item, dbuser, 'rep_bars')				
+		self.set_if_exist(item, dbuser, 'stars')
 
 		return dbuser
 
