@@ -82,7 +82,7 @@ DROP TABLE IF EXISTS `message`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `message` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `external_id` varchar(255) DEFAULT NULL,
+  `external_id` varchar(150) DEFAULT NULL,
   `thread` bigint(11) NOT NULL,
   `author` bigint(11) DEFAULT NULL,
   `contenttext` longtext,
@@ -332,7 +332,7 @@ DROP TABLE IF EXISTS `thread`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `thread` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `external_id` text,
+  `external_id` varchar(150),
   `forum` bigint(11) NOT NULL,
   `title` text NOT NULL,
   `author` bigint(11) DEFAULT NULL,
@@ -342,7 +342,7 @@ CREATE TABLE `thread` (
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_forum_externalid` (`forum`,`external_id`(255)) USING BTREE,
+  UNIQUE KEY `unique_forum_externalid` (`forum`,`external_id`) USING BTREE,
   KEY `thread_forum_idx` (`forum`),
   KEY `thread_author_idx` (`author`),
   KEY `thread_scrape_idx` (`scrape`),
@@ -385,7 +385,7 @@ DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `forum` bigint(11) NOT NULL,
-  `username` varchar(255) DEFAULT NULL,
+  `username` varchar(150) DEFAULT NULL,
   `relativeurl` text,
   `fullurl` text,
   `scrape` bigint(11) DEFAULT NULL,
