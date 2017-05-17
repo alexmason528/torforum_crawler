@@ -15,6 +15,7 @@ from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 from Cookie import SimpleCookie
 from scrapy.mail import MailSender
 from scrapy import Request
+from urlparse import urlparse, parse_qsl
 
 from twisted.internet import reactor
 
@@ -255,7 +256,14 @@ class BaseSpider(scrapy.Spider):
 		self.logger.info("Spider resources released")
 
 	def get_text(self, node):
-		text = ''.join(node.xpath(".//text()[normalize-space(.)]").extract()).strip()
+		if node == None:
+			return ""
+			
+		if isinstance(node, basestring):
+			text=node
+		else:
+			text = ''.join(node.xpath(".//text()[normalize-space(.)]").extract()).strip()
+
 		try:
 			text = text.encode('utf-8', 'ignore')	# Encode in UTF-8 and remove unknown char.
 		except:
@@ -265,7 +273,11 @@ class BaseSpider(scrapy.Spider):
 		return text
 
 	def get_text_first(self, nodes):
-		if len(nodes) > 0:
+		if nodes == None:
+			return ''
+		elif isinstance(nodes, basestring):
+			return self.get_text(nodes)
+		elif len(nodes) > 0:
 			return self.get_text(nodes[0])
 		else:
 			return ""
@@ -352,3 +364,6 @@ class BaseSpider(scrapy.Spider):
 				pass
 			self.logger.info("Interrupt!")
 			embed()
+	
+	def get_url_param(self, url, key):
+         return dict(parse_qsl(urlparse(url).query))[key]		
