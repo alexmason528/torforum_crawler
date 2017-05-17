@@ -62,12 +62,12 @@ DROP TABLE IF EXISTS `manual_input`;
 CREATE TABLE `manual_input` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `date_requested` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `spidername` varchar(255) COLLATE utf8mb4_bin NOT NULL,
-  `proxy` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
-  `login` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
-  `login_info` text COLLATE utf8mb4_bin,
-  `cookies` text COLLATE utf8mb4_bin,
-  `user_agent` text COLLATE utf8mb4_bin,
+  `spidername` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `proxy` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `login` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `login_info` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+  `cookies` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
   `reload` tinyint(4) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
@@ -432,7 +432,8 @@ CREATE TABLE `user_propkey` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `prettyname` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name_UNIQUE` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -619,4 +620,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-05-13 23:17:47
+-- Dump completed on 2017-05-17  0:42:42
