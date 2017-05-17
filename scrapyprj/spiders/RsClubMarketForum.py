@@ -268,6 +268,8 @@ class DreamMarketForumSpider(ForumSpider):
 
         yield user
 
+        self.dao.flush(models.User)
+
     def parse_timestr(self, timestr):
         timestr = timestr.lower()
         try:
