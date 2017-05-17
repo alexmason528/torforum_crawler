@@ -134,6 +134,15 @@ class map2db(object):
 		self.set_if_exist(item, dbuser, 'rep_bars')				
 		self.set_if_exist(item, dbuser, 'stars')
 
+		self.set_if_exist(item, dbuser, 'karma')
+		self.set_if_exist(item, dbuser, 'age')
+		self.set_if_exist(item, dbuser, 'group')
+		self.set_if_exist(item, dbuser, 'last_active')
+		self.set_if_exist(item, dbuser, 'post_per_day')		
+		self.set_if_exist(item, dbuser, 'gender')		
+		self.set_if_exist(item, dbuser, 'personal_text')		
+		self.set_if_exist(item, dbuser, 'custom_title')		
+
 		return dbuser
 
 	def set_if_exist(self, item, model, field):

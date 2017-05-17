@@ -21,7 +21,6 @@ from IPython import embed
 
 class DreamMarketForumSpider(ForumSpider):
     name = "dhl_forum"
-    handle_httpstatus_list = [403]
     
 
     custom_settings = {
@@ -168,7 +167,7 @@ class DreamMarketForumSpider(ForumSpider):
                 for pagelink in response.css(".pagelinks a.navPages"):
                     request_buffer.append(self.make_request('thread', url = pagelink.xpath("@href").extract_first(), threadid=msgitem['threadid'] ))
 
-                #for userlink in postwrapper.css(".poster h4 a"):
+                #for userlink in postwrapper.css(".poster h4").xpath(".//a[not(contains(@href, 'action=pm'))]")
                 #    request_buffer.append(self.make_request('userprofile', url = userlink.xpath("@href").extract_first()))
             except Exception as e:
                 self.logger.error("Cannot parse Message item : %s" % e)

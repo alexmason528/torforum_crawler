@@ -49,3 +49,12 @@ class User(scrapy.Item):
 	reputation_power = scrapy.Field()
 	rep_bars = scrapy.Field()
 	stars = scrapy.Field()
+
+	karma = scrapy.Field()
+	age = scrapy.Field()
+	group = scrapy.Field()
+	last_active = scrapy.Field()
+	post_per_day = scrapy.Field()
+	gender = scrapy.Field()
+	personal_text = scrapy.Field()
+	custom_title = scrapy.Field()
