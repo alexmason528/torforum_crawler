@@ -10,14 +10,17 @@ class map2db(object):
 	def __init__(self, *args, **kwargs):
 		super(self.__class__, self).__init__(*args, **kwargs)
 
+		self.forum_mapper = ForumMapper()
+		self.market_mapper = MarketMapper()
+
 		self.handlers = {
-			forum_items.Thread 		: self.map_thread,
-			forum_items.Message 	: self.map_message,
-			forum_items.User 		: self.map_user,
-			market_items.Ads 		: self.map_ads,
-			market_items.AdsImage 	: self.map_adsimage,
-			market_items.User 		: self.map_user,
-			market_items.ProductRating 	: self.map_product_rating
+			forum_items.Thread 		: self.forum_mapper.map_thread,
+			forum_items.Message 	: self.forum_mapper.map_message,
+			forum_items.User 		: self.forum_mapper.map_user,
+			market_items.Ads 		: self.market_mapper.map_ads,
+			market_items.AdsImage 	: self.market_mapper.map_adsimage,
+			market_items.User 		: self.market_mapper.map_user,
+			market_items.ProductRating 	: self.market_mapper.map_product_rating
 		}
 
 	def process_item(self, item, spider):
@@ -29,6 +32,27 @@ class map2db(object):
 		raise Exception('Unknown item type : %s' % item.__class__.__name__)
 
 
+
+
+
+class BaseMapper:
+	def set_if_exist(self, item, model, field):
+		if field in item:
+			model.__setattr__(field, item[field])
+
+	def drop_if_missign(self, item, field):
+		if field not in item:
+			raise DropItem("Missing %s in %s" % (field, item))
+
+	def drop_if_empty(self, item, field):
+		self.drop_if_missign(item, field)
+		
+		if not item[field]:
+			raise DropItem("Empty %s in %s" % (field, item))
+
+
+
+class ForumMapper(BaseMapper):
 	def map_thread(self, item, spider):
 		if type(item) != forum_items.Thread:
 			raise Exception("Expecting an item of type forum_items.Thread. Got : " + type(item).__name__ )
@@ -153,7 +177,7 @@ class map2db(object):
 		return dbuser
 
 
-
+class MarketMapper(BaseMapper):
 	def map_ads(self, item, spider):
 		if type(item) != market_items.Ads:
 			raise Exception("Expecting an item of type items.Ads. Got : " + type(item).__name__ )
@@ -285,19 +309,7 @@ class map2db(object):
 		return dbfeedback
 
 
-	def set_if_exist(self, item, model, field):
-		if field in item:
-			model.__setattr__(field, item[field])
 
-	def drop_if_missign(self, item, field):
-		if field not in item:
-			raise DropItem("Missing %s in %s" % (field, item))
-
-	def drop_if_empty(self, item, field):
-		self.drop_if_missign(item, field)
-		
-		if not item[field]:
-			raise DropItem("Empty %s in %s" % (field, item))
 
 
 
