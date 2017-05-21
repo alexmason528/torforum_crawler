@@ -1,8 +1,5 @@
 import scrapy
-# These items define what is available on a website, not the a database object even though they are lookalike.
-# A pipeline must convert this item to a PeeWee model to keep flexibility.
 
-# Copy this file for each site to crawl.
 
 class Ads(scrapy.Item) :
 	vendor_username = scrapy.Field()
