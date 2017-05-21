@@ -79,12 +79,14 @@ class DreamMarketForumSpider(ForumSpider):
                 req.dont_filter = True
                 yield req
             elif self.is_login_page(response):
+                req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request 
+                
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-                    raise Exception("Too many failed login trials. Giving up.")
+                    self.wait_for_input("Too many login failed", req_once_logged)
+                    self.logintrial = 0
+                    return
                 self.logger.info("Trying to login.")
                 self.logintrial += 1
-
-                req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request 
                 
                 yield self.make_request(reqtype='dologin',response=response, req_once_logged=req_once_logged);  # We try to login and save the original request
             else:
@@ -169,7 +171,7 @@ class DreamMarketForumSpider(ForumSpider):
 
                 msg = post.css("div.postmsg")
                 messageitem['contenttext'] = self.get_text(msg)
-                messageitem['contenthtml'] = msg.xpath('./*').extract_first()
+                messageitem['contenthtml'] = msg.extract_first()
 
                 yield messageitem
 

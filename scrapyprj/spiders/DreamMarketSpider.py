@@ -5,7 +5,7 @@ import scrapy
 import re
 from IPython import embed
 import parser
-import scrapyprj.spider_folder.dreammarket.items as items
+import scrapyprj.items.market_items as items
 from urlparse import urlparse, parse_qsl
 import json
 import scrapyprj.database.markets.orm.models as dbmodels
@@ -15,11 +15,6 @@ class DreamMarketSpider(MarketSpider):
 	name = "dreammarket"
 
 	custom_settings = {
-		'ITEM_PIPELINES': {
-			'scrapyprj.pipelines.ImagePipelineFromRequest.ImagePipelineFromRequest' : 400,
-			'scrapyprj.spider_folder.dreammarket.pipelines.map2db.map2db': 401,    # Convert from Items to Models
-			'scrapyprj.pipelines.save2db.save2db': 402                  # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
-		},
 		'IMAGES_STORE' : './files/img/dreammarket',
 		'RANDOMIZE_DOWNLOAD_DELAY' : True
 	}
