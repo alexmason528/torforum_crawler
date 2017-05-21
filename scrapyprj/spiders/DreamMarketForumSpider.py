@@ -21,7 +21,6 @@ from IPython import embed
 
 class DreamMarketForumSpider(ForumSpider):
     name = "dreammarket_forum"
-    handle_httpstatus_list = [403]
     
 
     custom_settings = {
@@ -227,7 +226,7 @@ class DreamMarketForumSpider(ForumSpider):
                 user['yahoo_messenger'] = ddtext
             elif key == 'website':
                 user['website'] = ddtext
-            elif key in ['avatar', 'email']:
+            elif key in ['avatar', 'email', 'pm']:
                 pass
             else:
                 self.logger.warning('New information found on use profile page : %s' % key)
