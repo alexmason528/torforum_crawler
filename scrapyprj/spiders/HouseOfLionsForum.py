@@ -19,8 +19,8 @@ import pytz
 import dateutil
 from IPython import embed
 
-class RsClubMarketSpider(ForumSpider):
-    name = "rsclub_forum"    
+class HouseOfLionsSpider(ForumSpider):
+    name = "houseoflions_forum"    
 
     custom_settings = {
         'MAX_LOGIN_RETRY' : 10
@@ -218,8 +218,12 @@ class RsClubMarketSpider(ForumSpider):
         if m:
             useritem['post_count'] = m.group(1)       
 
+        useritem['signature'] = self.get_text(postwrapper.css(".signature"))
+
         useritem['karma'] = self.get_text(extrainfo.css("li.karma"))
         useritem['stars'] = str(len(extrainfo.css("li.stars img")))
+        useritem['icq'] = self.extract_icq(postwrapper.css("a.icq"))
+        useritem['msn'] = self.extract_msn(postwrapper.css("a.msn"))
 
         return useritem
 
@@ -229,6 +233,11 @@ class RsClubMarketSpider(ForumSpider):
         user['relativeurl'] = response.meta['relativeurl']
         user['fullurl'] = response.url
         user['membergroup'] = self.get_text(response.css("#basicinfo .username h4 span.position"))
+
+        user['icq'] = self.extract_icq(response.css("#basicinfo a.icq"))
+        user['msn'] = self.extract_msn(response.css("#basicinfo a.msn"))
+        signature = self.get_text(response.css("#detailedinfo .signature"))
+        user['signature'] = self.get_text(re.sub("^Signature:", "", signature))
 
         dts = response.css("#detailedinfo .content dl dt")
         
@@ -254,9 +263,15 @@ class RsClubMarketSpider(ForumSpider):
             elif key == 'personal text':
                 user['personal_text'] = ddtext
             elif key == 'date registered':
-                user['joined_on'] = self.parse_timestr(ddtext)
+                try:
+                    user['joined_on'] = self.parse_timestr(ddtext)
+                except:
+                    user['joined_on'] = ddtext
             elif key == 'last active':
-                user['last_active'] = ddtext            
+                try:
+                    user['last_active'] = self.parse_timestr(ddtext)
+                except :
+                    user['last_active'] = ddtext            
             elif key == 'location':
                 user['location'] = ddtext
             elif key == 'custom title':
@@ -264,7 +279,7 @@ class RsClubMarketSpider(ForumSpider):
             elif key in ['local time']:
                 pass
             else:
-                self.logger.warning('New information found on use profile page : %s. (%s)' % (key, response.url))
+                self.logger.warning('New information found on user profile page : %s. (%s)' % (key, response.url))
 
         yield user
 
@@ -309,3 +324,18 @@ class RsClubMarketSpider(ForumSpider):
     #So there's a simili-protection on the login page where we need to submit a hash of the password salted with the session id.
     def make_hash(self, u, p, sessid):
         return hashlib.sha1(hashlib.sha1(u.encode('utf8')+p.encode('utf8')).hexdigest()+sessid).hexdigest()
+
+    def extract_icq(self, a):
+        if a:
+            href = a.xpath("@href").extract_first()
+            m  = re.search("uin=(\d+)", href)
+            if m:
+                return m.group(1)
+
+    def extract_msn(self, a):
+        if a:
+            href = a.xpath("@href").extract_first()
+            m  =re.search("members.msn.com/(.+)", href)
+            if m:
+                return m.group(1)
+

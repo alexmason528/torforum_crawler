@@ -4,7 +4,8 @@ insert ignore into `forum` (`name`, `spider`) values
 	('Trade Route Forum', 'traderoute_forum'),
 	('RsClub Market Forum', 'rsclub_forum'),
 	('Darknet Heroes League', 'dhl_forum'),
-	('Apple Market Forum', 'applemarket_forum');
+	('Apple Market Forum', 'applemarket_forum'),
+	('House Of Lions', 'houseoflions_forum');
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
 	('joined_on', 'Joined on'),
@@ -37,4 +38,5 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('last_active', 'Last active'),
 	('gender', 'Gender'),
 	('custom_title', 'Custom title'),
-	('personal_text', 'Personal text');
+	('personal_text', 'Personal text'),
+	('msn', 'MSN Messenger');

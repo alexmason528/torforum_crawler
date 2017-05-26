@@ -332,7 +332,7 @@ DROP TABLE IF EXISTS `thread`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `thread` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `external_id` varchar(150),
+  `external_id` varchar(150) DEFAULT NULL,
   `forum` bigint(11) NOT NULL,
   `title` text NOT NULL,
   `author` bigint(11) DEFAULT NULL,
@@ -620,4 +620,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-05-17  0:42:42
+-- Dump completed on 2017-05-21  0:54:49

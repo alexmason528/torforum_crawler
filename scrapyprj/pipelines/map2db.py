@@ -73,11 +73,10 @@ class ForumMapper(BaseMapper):
 			dbthread.author.scrape=spider.scrape
 			dbthread.author.save()
 
-		self.set_if_exist(item, dbthread, 'relativeurl')
-		self.set_if_exist(item, dbthread, 'fullurl')
-		self.set_if_exist(item, dbthread, 'last_update')
-		self.set_if_exist(item, dbthread, 'replies')
-		self.set_if_exist(item, dbthread, 'views')
+
+		for key in item:
+			if key not in ['title','threadid','author_username']:
+				self.set_if_exist(item, dbthread, key)
 
 		if not dbthread.author:
 			raise DropItem("Invalid Thread : Unable to get User from database. Cannot respect foreign key constraint.")
@@ -118,10 +117,17 @@ class ForumMapper(BaseMapper):
 		elif not dbmsg.author.id : # If this happens. Either data is not flush or bug.
 			raise DropItem("Invalid Message : Author foreign key was read from cache but no record Id was available. Cannot respect foreign key constraint")
 
+		for key in item:
+			if key not in ['username']:
+				self.set_if_exist(item, dbmsg, key)
+
 		dbmsg.external_id = item['postid']	
 		dbmsg.contenttext = item['contenttext']
 		dbmsg.contenthtml = item['contenthtml']
-		dbmsg.posted_on = item['posted_on'] if 'posted_on' in item else None
+
+		for key in item:
+			if key not in ['author_username','contenttext','contenthtml','threadid','postid']:
+				self.set_if_exist(item, dbmsg, key)
 		
 		return dbmsg
 
@@ -137,43 +143,11 @@ class ForumMapper(BaseMapper):
 		dbuser.setproperties_attribute(scrape = spider.scrape)  #propagate the scrape id to the UserProperty model.
 
 		#Proeprties with same name in model and item
-		self.set_if_exist(item, dbuser, 'relativeurl')
-		self.set_if_exist(item, dbuser, 'fullurl')
 
-		self.set_if_exist(item, dbuser, 'title')
-		self.set_if_exist(item, dbuser, 'location')
-		self.set_if_exist(item, dbuser, 'website')
-		self.set_if_exist(item, dbuser, 'signature')
-		self.set_if_exist(item, dbuser, 'post_count')
-		self.set_if_exist(item, dbuser, 'last_post')
-		self.set_if_exist(item, dbuser, 'joined_on')
-		self.set_if_exist(item, dbuser, 'jabber')
-		self.set_if_exist(item, dbuser, 'icq')
-		self.set_if_exist(item, dbuser, 'realname')
-		self.set_if_exist(item, dbuser, 'microsoft_account')
-		self.set_if_exist(item, dbuser, 'yahoo_messenger')
-
-		self.set_if_exist(item, dbuser, 'likes_received')
-		self.set_if_exist(item, dbuser, 'last_activity')
-		self.set_if_exist(item, dbuser, 'message_count')
-		self.set_if_exist(item, dbuser, 'user_id')
-		self.set_if_exist(item, dbuser, 'banner')
-
-		self.set_if_exist(item, dbuser, 'membergroup')
-		self.set_if_exist(item, dbuser, 'postgroup')
-		self.set_if_exist(item, dbuser, 'reputation_power')
-		self.set_if_exist(item, dbuser, 'rep_bars')				
-		self.set_if_exist(item, dbuser, 'stars')
-
-		self.set_if_exist(item, dbuser, 'karma')
-		self.set_if_exist(item, dbuser, 'age')
-		self.set_if_exist(item, dbuser, 'group')
-		self.set_if_exist(item, dbuser, 'last_active')
-		self.set_if_exist(item, dbuser, 'post_per_day')		
-		self.set_if_exist(item, dbuser, 'gender')		
-		self.set_if_exist(item, dbuser, 'personal_text')		
-		self.set_if_exist(item, dbuser, 'custom_title')		
-
+		for key in item:
+			if key not in ['username']:
+				self.set_if_exist(item, dbuser, key)
+		
 		return dbuser
 
 

@@ -16,7 +16,7 @@ from scrapy.exceptions import CloseSpider
 # The reason of its existence is :
 # 	- Centralized pre-insert, pre-read operation (monkey patch as well)
 # 	- Ease to use of a cache with the ORM.
-# One instance of DatabaseDAO should be use per spider.	
+
 class DatabaseDAO:
 
 	# This config list unique keys which we can use as cache key.
@@ -52,6 +52,7 @@ class DatabaseDAO:
 		self._donotcache = donotcache
 		self.logger = logging.getLogger('DatabaseDAO')
 
+	#Make a model queue flush when before another
 	def add_dependencies(self, model, deps_list):	
 		self.assertismodelclass(model)
 
@@ -69,6 +70,7 @@ class DatabaseDAO:
 	def initiliaze(self, forum):
 		pass
 
+
 	def enable_cache(self, typelist):
 		for modeltype in typelist:
 			if modeltype in self._donotcache:
@@ -79,12 +81,14 @@ class DatabaseDAO:
 			if modeltype not in self._donotcache:
 				self._donotcache.append(modeltype)
 
+	#Add a callback on a queue before/after flush is done
 	def before_flush(self, modeltype, callback, *args, **kwargs):
 		self.add_callback('before_flush', modeltype, callback, *args, **kwargs)
 
 	def after_flush(self, modeltype, callback):
 		self.add_callback('after_flush', modeltype, callback, *args, **kwargs)
 
+	#Register a callback. They are called explicitly later
 	def add_callback(self,  name, modeltype, callback, *args, **kwargs):
 		self.assertismodelclass(modeltype)
 
@@ -102,6 +106,7 @@ class DatabaseDAO:
 
 		self.config['callbacks'][name][modeltype].append(data_struct)
 
+	#Exceute a list of callback and passes output to input of the next like a pipeline as well as args of exec_callback.
 	def exec_callbacks(self, name, modeltype, *args, **kwargs):
 		if name not in self.config['callbacks']:
 			return args[0] if len(args) == 1 else args
@@ -130,6 +135,7 @@ class DatabaseDAO:
 
 		return result
 
+	# Add a peewee model to a queue
 	def enqueue(self, obj, spider=None):
 		self.assertismodelclass(obj.__class__)
 		if isinstance(obj, BasePropertyOwnerModel):
@@ -147,6 +153,7 @@ class DatabaseDAO:
 
 		self.queuestats[queuename][spider] += 1
 
+	#Gives an object just like peewee.get does, but look into the cache first
 	def get(self, modeltype, *args, **kwargs):
 		#if self.enablecache:
 		cachedval = self.cache.readobj(modeltype(**kwargs))	# Create an object 
@@ -160,10 +167,11 @@ class DatabaseDAO:
 		#todo : Get properties for BasePropertyOwnerModel
 		obj = modeltype.get(**kwargs)
 
-		if self.enablecache:
-			self.cache.write(obj)
+		#if self.enablecache:
+		self.cache.write(obj)
 		return obj
 
+	# just like peewee.get_or_create but look in the cache first
 	def get_or_create(self, modeltype, **kwargs):
 		#if self.enablecache:
 		cached_value = self.cache.readobj(modeltype(**kwargs))
@@ -247,7 +255,6 @@ class DatabaseDAO:
 				#cache
 				self.cache.bulkwrite(queue)
 				reloadeddata = self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
-				
 				#Propkey/propval
 				if issubclass(modeltype, BasePropertyOwnerModel):	# Our class has a property table defined (propkey/propval)
 					if reloadeddata and len(reloadeddata) > 0:

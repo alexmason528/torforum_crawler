@@ -58,3 +58,5 @@ class User(scrapy.Item):
 	gender = scrapy.Field()
 	personal_text = scrapy.Field()
 	custom_title = scrapy.Field()
+
+	msn = scrapy.Field()

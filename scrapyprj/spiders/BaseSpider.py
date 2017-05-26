@@ -260,12 +260,15 @@ class BaseSpider(scrapy.Spider):
 			return ""
 			
 		if isinstance(node, basestring):
-			text=node
+			text=node.strip()
 		else:
 			text = ''.join(node.xpath(".//text()[normalize-space(.)]").extract()).strip()
-
+		
 		try:
-			text = text.encode('utf-8', 'ignore')	# Encode in UTF-8 and remove unknown char.
+			if isinstance(text, unicode):
+				text = text.encode('utf-8', 'ignore')	# Encode in UTF-8 and remove unknown char.
+			else:
+				text = text.decode('utf-8', 'ignore').encode('utf-8', 'ignore')
 		except:
 			# Some hand crafted characters can throw an exception. Remove them silently.
 			text = text.encode('cp1252', 'ignore').decode('utf-8','ignore') # Remove non-utf8 chars. 
@@ -274,7 +277,7 @@ class BaseSpider(scrapy.Spider):
 
 	def get_text_first(self, nodes):
 		if nodes == None:
-			return ''
+			return ''	
 		elif isinstance(nodes, basestring):
 			return self.get_text(nodes)
 		elif len(nodes) > 0:
@@ -367,3 +370,6 @@ class BaseSpider(scrapy.Spider):
 	
 	def get_url_param(self, url, key):
          return dict(parse_qsl(urlparse(url).query))[key]		
+
+  	def datetime_to_string(self, dt):
+  		return dt.strftime("%Y-%M-%d %H:%M:%S")
