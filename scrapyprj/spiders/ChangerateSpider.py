@@ -4,16 +4,10 @@ from scrapyprj.database import db
 from scrapyprj.database.settings import markets as dbsettings
 from scrapyprj.database.markets.orm.models import *
 
-import logging
-import pytz
 from IPython import embed
 from fake_useragent import UserAgent
 
 from scrapy import Request
-from urlparse import urlparse, parse_qsl
-from scrapy import signals
-
-from twisted.internet import reactor
 import json
 
 class ChangerateSpider(scrapy.Spider):
