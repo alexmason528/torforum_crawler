@@ -31,6 +31,7 @@ class DreamMarketForumSpider(ForumSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.logintrial = 0
+        self.max_concurrent_requests=2
 
         self.parse_handlers = {
                 'index'         : self.parse_index,

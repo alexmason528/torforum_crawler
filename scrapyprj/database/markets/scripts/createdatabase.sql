@@ -458,6 +458,7 @@ CREATE TABLE `scrapestat` (
   `response_received` bigint(20) DEFAULT NULL,
   `response_bytes` bigint(20) DEFAULT NULL,
   `item_scraped` bigint(20) DEFAULT NULL,
+  `item_dropped` bigint(20) DEFAULT NULL,
   `ads` bigint(20) DEFAULT NULL,
   `ads_propval` bigint(20) DEFAULT NULL,
   `ads_feedback` bigint(20) DEFAULT NULL,
@@ -827,4 +828,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-05-17  0:42:57
+-- Dump completed on 2017-06-04 23:11:38

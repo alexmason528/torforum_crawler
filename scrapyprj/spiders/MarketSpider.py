@@ -269,6 +269,7 @@ class MarketSpider(BaseSpider):
 		stat.response_received 	= self.crawler.stats.get_value('downloader/response_count') or 0 if hasattr(self, 'crawler') else 0
 		stat.response_bytes 	= self.crawler.stats.get_value('downloader/response_bytes') or 0 if hasattr(self, 'crawler') else 0
 		stat.item_scraped 		= self.crawler.stats.get_value('item_scraped_count') 		or 0 if hasattr(self, 'crawler') else 0
+		stat.item_dropped 		= self.crawler.stats.get_value('item_dropped_count') 		or 0 if hasattr(self, 'crawler') else 0		
 
 		stat.save()
 

@@ -49,6 +49,7 @@ class ScrapeStat(Model):
 	response_received = BigIntegerField()
 	response_bytes = BigIntegerField()
 	item_scraped = BigIntegerField()
+	item_dropped = BigIntegerField()
 	ads = BigIntegerField()
 	ads_propval = BigIntegerField()
 	ads_feedback = BigIntegerField()
