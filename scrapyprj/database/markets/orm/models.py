@@ -344,3 +344,12 @@ class ManualInput(Model):
 	class Meta:
 		database 	= db.proxy 
 		db_table 	= 'manual_input'
+
+class Changerate(Model):
+	time = DateTimeField()
+	btc = FloatField()
+	usd = FloatField()
+
+	class Meta:
+		database 	= db.proxy 
+		db_table 	= 'changerate'
