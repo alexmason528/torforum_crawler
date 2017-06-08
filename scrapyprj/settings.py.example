@@ -75,7 +75,8 @@ ROBOTSTXT_OBEY = False
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 SPIDER_MIDDLEWARES = {
 	'scrapyprj.middlewares.shared_queue_middleware.SharedQueueMiddleware' : 100,
-    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 200
+    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 200,
+    'scrapyprj.middlewares.reschedule_middleware.RescheduleMiddleware': 300
 }
 
 DOWNLOADER_MIDDLEWARES = {
