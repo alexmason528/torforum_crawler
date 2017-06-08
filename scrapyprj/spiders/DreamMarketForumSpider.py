@@ -24,15 +24,19 @@ class DreamMarketForumSpider(ForumSpider):
     
 
     custom_settings = {
-        'MAX_LOGIN_RETRY' : 10
+        'MAX_LOGIN_RETRY' : 10,
+        'RESCHEDULE_RULES' : {
+            'The post table and topic table seem to be out of sync' : 2
+
+        }
     }
 
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
-        self.logintrial = 0
-        self.max_concurrent_requests=2
+        self.max_concurrent_requests=1
 
+        self.logintrial = 0
         self.parse_handlers = {
                 'index'         : self.parse_index,
                 'dologin'       : self.parse_index,
@@ -74,11 +78,7 @@ class DreamMarketForumSpider(ForumSpider):
    
     def parse(self, response):
         if not self.islogged(response):
-            if self.is_meaningless_error(response):
-                req = response.request.copy()
-                req.dont_filter = True
-                yield req
-            elif self.is_login_page(response):
+            if self.is_login_page(response):
                 req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request 
                 
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
@@ -279,9 +279,4 @@ class DreamMarketForumSpider(ForumSpider):
     def get_url_param(self, url, key):
          return dict(parse_qsl(urlparse(url).query))[key]
 
-    def is_meaningless_error(self, response):
-        s = 'The post table and topic table seem to be out of sync'
-        if s in response.css('body').extract_first():
-            return True
-        return False
 

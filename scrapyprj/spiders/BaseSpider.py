@@ -12,6 +12,7 @@ from IPython import embed
 from fake_useragent import UserAgent
 
 from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
+from scrapyprj.middlewares.reschedule_middleware import RescheduleMiddleware as RescheduleMiddleware
 from Cookie import SimpleCookie
 from scrapy.mail import MailSender
 from scrapy import Request
@@ -325,7 +326,7 @@ class BaseSpider(scrapy.Spider):
 
 		return cookie_middleware
 
-	def downloader_still_active(self):
+	def still_active(self):
 		for spider in BaseSpider._allspiders[self.__class__]:
 			if len(spider.crawler.engine.slot.inprogress) > 0:
 				return True
@@ -333,7 +334,22 @@ class BaseSpider(scrapy.Spider):
 			if len(spider.crawler.engine.slot.scheduler) > 0:
 				return True
 
+			if not self.crawler.engine.spider_is_idle(spider):
+				return True
+
+			if self.pending_rescheduling():
+				return True
+
 		return False
+
+	def pending_rescheduling(self):
+		for spider in BaseSpider._allspiders[self.__class__]:
+			for middleware in spider.crawler.engine.scraper.spidermw.middlewares:
+				if isinstance(middleware, RescheduleMiddleware):
+					if middleware.is_active():
+						return True
+		return False
+
 
 
 	def send_mail(self,subject, body):
