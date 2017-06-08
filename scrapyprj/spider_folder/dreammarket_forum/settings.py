@@ -15,6 +15,18 @@ settings = {
 		'patatepoil': {
 			'username' : 'patatepoil',
 			'password' : 'pqowieuryt'
+		},
+		'moustache': {
+			'username' : 'moustache',
+			'password' : 'moustache'
+		},
+		'pqowieuryt': {
+			'username' : 'pqowieuryt',
+			'password' : 'pqowieuryt'
+		},
+		'zaqxswcde': {
+			'username' : 'zaqxswcde',
+			'password' : 'zaqxswcde'
 		}
 	}
 }
