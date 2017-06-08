@@ -61,7 +61,7 @@ class ForumMapper(BaseMapper):
 
 		self.drop_if_empty(item, 'title')
 		self.drop_if_empty(item, 'threadid')
-		self.drop_if_empty(item, 'threadid2')
+		
 
 		dbthread.forum 		= spider.forum
 		dbthread.scrape 	= spider.scrape
