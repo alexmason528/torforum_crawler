@@ -24,7 +24,10 @@ class AppleMarketForumSpider(ForumSpider):
     
 
     custom_settings = {
-        'MAX_LOGIN_RETRY' : 10
+        'MAX_LOGIN_RETRY' : 10,
+        'RESCHEDULE_RULES' : {
+            'The post table and topic table seem to be out of sync' : 60
+        }
     }
 
     def __init__(self, *args, **kwargs):
@@ -73,11 +76,7 @@ class AppleMarketForumSpider(ForumSpider):
    
     def parse(self, response):
         if not self.islogged(response):
-            if self.is_meaningless_error(response):
-                req = response.request.copy()
-                req.dont_filter = True
-                yield req
-            elif self.is_login_page(response):
+            if self.is_login_page(response):
                 req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request 
                 
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:

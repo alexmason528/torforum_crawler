@@ -23,6 +23,7 @@ from twisted.internet import reactor
 class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
+		self.running = True
 		kwargs['settings'] = self.configure_image_store(kwargs['settings'])
 		super(BaseSpider, self).__init__( *args, **kwargs)
 		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init__()
@@ -253,6 +254,7 @@ class BaseSpider(scrapy.Spider):
 	def spider_closed(self, spider, reason):
 		self.add_to_counter('logins', self._loginkey, -1)
 		self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)
+		self.running = False
 
 		self.logger.info("Spider resources released")
 
@@ -328,17 +330,18 @@ class BaseSpider(scrapy.Spider):
 
 	def still_active(self):
 		for spider in BaseSpider._allspiders[self.__class__]:
-			if len(spider.crawler.engine.slot.inprogress) > 0:
-				return True
+			if spider.running:
+				if len(spider.crawler.engine.slot.inprogress) > 0:
+					return True
 
-			if len(spider.crawler.engine.slot.scheduler) > 0:
-				return True
+				if len(spider.crawler.engine.slot.scheduler) > 0:
+					return True
 
-			if not self.crawler.engine.spider_is_idle(spider):
-				return True
+				if not self.crawler.engine.spider_is_idle(spider):
+					return True
 
-			if self.pending_rescheduling():
-				return True
+				if self.pending_rescheduling():
+					return True
 
 		return False
 

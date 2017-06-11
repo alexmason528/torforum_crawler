@@ -22,7 +22,10 @@ class TradeRouteForumSpider(ForumSpider):
     name = "traderoute_forum"
 
     custom_settings = {
-        'MAX_LOGIN_RETRY' : 10
+        'MAX_LOGIN_RETRY' : 10,
+        'RESCHEDULE_RULES' : {
+            'The post table and topic table seem to be out of sync' : 60
+        }
     }
 
     known_users = {}

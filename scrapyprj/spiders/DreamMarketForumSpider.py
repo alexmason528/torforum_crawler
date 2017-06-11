@@ -26,8 +26,7 @@ class DreamMarketForumSpider(ForumSpider):
     custom_settings = {
         'MAX_LOGIN_RETRY' : 10,
         'RESCHEDULE_RULES' : {
-            'The post table and topic table seem to be out of sync' : 2
-
+            'The post table and topic table seem to be out of sync' : 60
         }
     }
 
