@@ -175,7 +175,7 @@ class Cache:
 	# a list of fields can be given so that only these will get updated.
 	def reloadmodels(self, objlist, *fieldlist):
 		objtype = None
-		chunksize = 100
+		chunksize = 50
 		reloaded_data = []
 		cacheid_per_fieldname = {} # objects in objlist might have different keys. We will osrt them in this object to avoid making incoherent SQL
 		if len(objlist) > 0 :
@@ -198,18 +198,21 @@ class Cache:
 				cacheidlist = cacheid_per_fieldname[fieldname]
 				for idx in range(0, len(cacheidlist), chunksize):	# chunk data
 					data = cacheidlist[idx:idx+chunksize]
+					# MySQL do not uses indexes with IN statement. We will use "val=1 OR val=2 OR val=3"   instead of "val in (1,2,3)"
 					if isinstance(fieldname, basestring): #single key
-						reloaded_data += self.reload(modeltype, modeltype._meta.fields[fieldname] << data, *fieldlist)
+						col = '`%s`' % modeltype._meta.fields[fieldname].db_column
+						whereclause = ' or '.join([col+'=%s' for x in data])
+						reloaded_data += self.reload(modeltype, SQL(whereclause, *data), *fieldlist)
 
 					elif isinstance(fieldname, tuple): # composite key. Peewee doesn't support that easily, we have to do some manual work
-						whereclause = '('+','.join(map(lambda x: "`%s`" % modeltype._meta.fields[x].db_column, fieldname))+')'  # (`col1`, `col2`)
-						whereclause += " in (" + ','.join(map(lambda entry: '('+','.join(map(lambda val: '%s', entry )) + ')', data)) + ")"   # in ((%s,%s), (%s, %s), ...)
+						columns = '('+','.join(map(lambda x: "`%s`" % modeltype._meta.fields[x].db_column, fieldname))+')'  # (`col1`, `col2`)
+						whereclause =  ' or '.join(map(lambda entry: columns+' = ('+','.join(map(lambda val: '%s', entry )) + ')', data))   # columns = (%s,%s) or columns= (%s, %s) or ...
 						flatdata = []
 						for entry in data: 
-							flatdata += list(entry)
-						reloaded_data += self.reload(objtype, SQL(whereclause, *flatdata), *fieldlist)
+							flatdata += list(entry)	# Adds tuple content to a single list
+						reloaded_data += self.reload(modeltype, SQL(whereclause, *flatdata), *fieldlist)
 					else:
-						raise ValueError("Doesn't know how to reload object of type " + obj.__class__.__name__ + " with cache field : " + fieldname)
+						raise ValueError("Doesn't know how to reload object of type %s with cache field : %s" % (obj.__class__.__name__, fieldname))
 
 		return reloaded_data
 	def get_usage(self):

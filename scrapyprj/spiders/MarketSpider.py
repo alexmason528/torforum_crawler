@@ -119,14 +119,14 @@ class MarketSpider(BaseSpider):
 
 
 		db_content =  list(AdsFeedback.select()
-			.where(AdsFeedback.ads <<  ads_list, AdsFeedback.hash << hash_list)
+			.where(AdsFeedback.ads <<  ads_list, AdsFeedback.hash << hash_list)	#fixme. MySQL may not use index because of IN statement
 			.execute())
 
 		to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
 		new_queue = list(diff(queue, db_content))	# When its in the queue but not in the database, keep it. Remove all the rest.
 		
 		if len(to_delete) > 0:
-			AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()
+			AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()   #fixme. MySQL may not use index because of IN statement
 
 		return new_queue
 	
@@ -146,14 +146,14 @@ class MarketSpider(BaseSpider):
 
 
 		db_content =  list(SellerFeedback.select()
-			.where(SellerFeedback.seller <<  seller_list, SellerFeedback.hash << hash_list)
+			.where(SellerFeedback.seller <<  seller_list, SellerFeedback.hash << hash_list)    #fixme. MySQL may not use index because of IN statement
 			.execute())
 
 		to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
 		new_queue = list(diff(queue, db_content))		# When its in the queue but not in the database, keep it. Remove all the rest.
 		
 		if len(to_delete) > 0:
-			SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()
+			SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()    #fixme. MySQL may not use index because of IN statement
 
 		return new_queue		
 
