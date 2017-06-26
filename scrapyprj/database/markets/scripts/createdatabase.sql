@@ -117,7 +117,7 @@ DROP TABLE IF EXISTS `ads_feedback_propval`;
 CREATE TABLE `ads_feedback_propval` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
-  `data` text CHARACTER SET utf8mb4,
+  `data` mediumtext CHARACTER SET utf8mb4,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`propkey`,`feedback`),
@@ -172,7 +172,7 @@ DROP TABLE IF EXISTS `ads_feedback_propvalaudit`;
 CREATE TABLE `ads_feedback_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
-  `data` text CHARACTER SET utf8mb4,
+  `data` mediumtext CHARACTER SET utf8mb4,
   `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) NOT NULL,
   KEY `ads_feedback_propvalaudit_feedback_idx` (`feedback`),
@@ -258,7 +258,7 @@ DROP TABLE IF EXISTS `ads_propval`;
 CREATE TABLE `ads_propval` (
   `propkey` bigint(11) NOT NULL,
   `ads` bigint(11) NOT NULL,
-  `data` text,
+  `data` mediumtext,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`propkey`,`ads`),
@@ -313,7 +313,7 @@ DROP TABLE IF EXISTS `ads_propvalaudit`;
 CREATE TABLE `ads_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `ads` bigint(11) NOT NULL,
-  `data` text,
+  `data` mediumtext,
   `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) NOT NULL,
   KEY `ads_propvalaudit_ads_idx` (`ads`),
@@ -524,7 +524,7 @@ DROP TABLE IF EXISTS `seller_feedback_propval`;
 CREATE TABLE `seller_feedback_propval` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
-  `data` text,
+  `data` mediumtext,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`propkey`,`feedback`),
@@ -579,7 +579,7 @@ DROP TABLE IF EXISTS `seller_feedback_propvalaudit`;
 CREATE TABLE `seller_feedback_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `feedback` bigint(11) NOT NULL,
-  `data` text,
+  `data` mediumtext,
   `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) NOT NULL,
   KEY `seller_feedback_propvalaudit_feedback_idx` (`feedback`),
@@ -643,7 +643,7 @@ DROP TABLE IF EXISTS `user_propval`;
 CREATE TABLE `user_propval` (
   `propkey` bigint(11) NOT NULL,
   `user` bigint(11) NOT NULL,
-  `data` text,
+  `data` mediumtext,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   PRIMARY KEY (`propkey`,`user`),
@@ -828,4 +828,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-06-04 23:11:38
+-- Dump completed on 2017-06-25 20:52:48
