@@ -10,6 +10,8 @@ from scrapyprj.database import db
 from scrapyprj.ColorFormatterWrapper import ColorFormatterWrapper
 from scrapyprj.spiders.BaseSpider import BaseSpider
 
+import scrapyprj.items.market_items as items
+
 from importlib import import_module
 import os, time, sys
 from dateutil import parser
@@ -20,6 +22,7 @@ import itertools as it
 import pytz
 from IPython import embed
 import json
+import inspect
 
 from twisted.internet import reactor
 
@@ -57,11 +60,9 @@ class MarketSpider(BaseSpider):
 			self.dao.cache.reload(User, User.market == self.market)
 			self._baseclass._cache_preloaded = True
 		
-
 		self.register_new_scrape()
 		self.start_statistics()
-		
-		
+
 		self.manual_input = None
 		self.request_after_manual_input = None
 
@@ -105,57 +106,92 @@ class MarketSpider(BaseSpider):
 
 	@staticmethod
 	def AdsFeedbackDiffInsert(queue):
-		ads_list = list(set([x.ads.id for x in queue]))
-		hash_list = list(set([x.hash for x in queue]))
-		def diff(a,b): 	# This functions returns what "a" has but not "b"
+		def diff(a,b):  # This functions returns what "a" has but not "b"
 			eq_map = {}
 			for i in range(len(a)):
+				found = False
 				for j in range(len(b)):
 					if j not in eq_map and a[i].ads.id==b[j].ads.id and a[i].hash == b[j].hash:
-						eq_map[i] = j
+						eq_map[j] = i
+						found = True
 						break
-				if i not in eq_map:
+				if not found:
 					yield a[i]
 
+		#Step 1 : Aggregation
+		objlist_with_count = {}
+		for obj in queue:
+			k = (objtemp.ads.id, objtemp.hash)
+			if k not in objlist_with_count:
+				obj.count=1
+				objlist_with_count[k] = obj
+			else:
+				objlist_with_count[k].count += 1
 
+		new_queue = []
+		for k in objlist_with_count:
+			new_queue.append(objlist_with_count[k])
+
+		#Step 2 : Remove unwanted entries
+		ads_list = list(set([x.ads.id for x in queue]))
+ 		hash_list = list(set([x.hash for x in queue]))
 		db_content =  list(AdsFeedback.select()
-			.where(AdsFeedback.ads <<  ads_list, AdsFeedback.hash << hash_list)	#fixme. MySQL may not use index because of IN statement
+			.where(AdsFeedback.seller <<  ads_list, AdsFeedback.hash << hash_list)     #fixme. MySQL may not use index because of IN statement
 			.execute())
 
-		to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
-		new_queue = list(diff(queue, db_content))	# When its in the queue but not in the database, keep it. Remove all the rest.
-		
-		if len(to_delete) > 0:
-			AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()   #fixme. MySQL may not use index because of IN statement
+		to_delete = [row.id for row in diff(db_content, aggregated)] 					# When its in the databse, but not in the queue : delete
 
+		if len(to_delete) > 0:
+			AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()   	#fixme. MySQL may not use index because of IN statement
+
+		logging.getLogger("SellerFeedbackDiffInsert").debug("AdsFeedback queue size reduced from %d to %d after aggregation" % (len(queue), len(new_queue)))
 		return new_queue
 	
 	@staticmethod
 	def SellerFeedbackDiffInsert(queue):
-		seller_list = list(set([x.seller.id for x in queue]))
-		hash_list = list(set([x.hash for x in queue]))
-		def diff(a,b):		# This functions returns what "a" has but not "b"
-			eq_map = {}	
+		def diff(a,b):  # This functions returns what "a" has but not "b"
+			eq_map = {}
 			for i in range(len(a)):
+				found = False
 				for j in range(len(b)):
 					if j not in eq_map and a[i].seller.id==b[j].seller.id and a[i].hash == b[j].hash:
-						eq_map[i] = j
+						eq_map[j] = i
+						found = True
 						break
-				if i not in eq_map:
+				if not found:
 					yield a[i]
 
+		#Step 1 : Aggregation
+		objlist_with_count = {}
+		for obj in queue:
+			k = (obj.seller.id, obj.hash)
+			if k not in objlist_with_count:
+				obj.count=1
+				objlist_with_count[k] = obj
+			else:
+				objlist_with_count[k].count += 1
 
+		aggregated = []
+		for k in objlist_with_count:
+			aggregated.append(objlist_with_count[k])
+
+		#Step 2 : Remove unwanted entries
+		## TODO : Check if IN statements kicks the index
+ 		seller_list = list(set([x.seller.id for x in queue]))
+ 		hash_list = list(set([x.hash for x in queue]))
 		db_content =  list(SellerFeedback.select()
-			.where(SellerFeedback.seller <<  seller_list, SellerFeedback.hash << hash_list)    #fixme. MySQL may not use index because of IN statement
+			.where(SellerFeedback.seller <<  seller_list, SellerFeedback.hash << hash_list)     #fixme. MySQL may not use index because of IN statement
 			.execute())
 
-		to_delete = [row.id for row in diff(db_content, queue)]	# When its in the databse, but not in the queue : delete
-		new_queue = list(diff(queue, db_content))		# When its in the queue but not in the database, keep it. Remove all the rest.
-		
-		if len(to_delete) > 0:
-			SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()    #fixme. MySQL may not use index because of IN statement
+		to_delete = [row.id for row in diff(db_content, aggregated)] 					# When its in the databse, but not in the queue : delete
 
-		return new_queue		
+		if len(to_delete) > 0:
+			SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()   	#fixme. MySQL may not use index because of IN statement
+
+		logging.getLogger("SellerFeedbackDiffInsert").debug("SellerFeedback queue size reduced from %d to %d after aggregation" % (len(queue), len(aggregated)))
+		return aggregated		
+
+
 
 
 	def configure_request_sharing(self):
@@ -360,14 +396,5 @@ class MarketSpider(BaseSpider):
 				self.logger.debug('No new input given by database.')
 		return new_input
 
-	
-
-
-
-
-
-			
-
-
-
-
+	def get_shared_data_struct(self):
+		return self._baseclass

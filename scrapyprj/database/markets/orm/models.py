@@ -245,6 +245,7 @@ class AdsFeedback(orm.BasePropertyOwnerModel):
 	ads 		= ForeignKeyField(Ads, 		related_name='feedback', 		db_column='ads')
 	scrape 		= ForeignKeyField(Scrape, 	related_name='ads_feedback',	db_column='scrape')
 	modified_on = DateTimeField()
+	count 		= BigIntegerField()
 
 	class Meta:
 		database 	= db.proxy 
@@ -299,6 +300,7 @@ class SellerFeedback(orm.BasePropertyOwnerModel):
 	seller 		= ForeignKeyField(User, 	related_name='feedback', 		db_column='seller')
 	scrape 		= ForeignKeyField(Scrape, 	related_name='seller_feedback',	db_column='scrape')
 	modified_on = DateTimeField()
+	count 		= BigIntegerField()
 
 	class Meta:
 		database 	= db.proxy 

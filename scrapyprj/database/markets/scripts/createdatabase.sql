@@ -81,10 +81,13 @@ CREATE TABLE `ads_feedback` (
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   `hash` varchar(64) CHARACTER SET ascii DEFAULT NULL,
+  `count` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `ads_feedback_ads_hash_unique` (`ads`,`hash`),
   KEY `ads_feedback_market_idx` (`market`),
   KEY `ads_feedback_ads_idx` (`ads`),
   KEY `ads_feedback_scrape_idx` (`scrape`),
+  KEY `ads_feedback_hash_idx` (`hash`),
   CONSTRAINT `ads_feedback_ads` FOREIGN KEY (`ads`) REFERENCES `ads` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_market` FOREIGN KEY (`market`) REFERENCES `market` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `ads_feedback_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -488,10 +491,13 @@ CREATE TABLE `seller_feedback` (
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) NOT NULL,
   `hash` varchar(64) CHARACTER SET ascii DEFAULT NULL,
+  `count` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `seller_feedback_seller_hash_unique` (`seller`,`hash`),
   KEY `seller_feedback_market_idx` (`market`),
   KEY `seller_feedback_author_idx` (`seller`),
   KEY `seller_feeddback_scrape_idx` (`scrape`),
+  KEY `seller_feedback_hash_idx` (`hash`),
   CONSTRAINT `seller_feedback_market` FOREIGN KEY (`market`) REFERENCES `market` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `seller_feedback_seller` FOREIGN KEY (`seller`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `seller_feeddback_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -828,4 +834,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-06-25 20:52:48
+-- Dump completed on 2017-06-27  1:25:02

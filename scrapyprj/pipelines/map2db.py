@@ -20,7 +20,8 @@ class map2db(object):
 			market_items.Ads 		: self.market_mapper.map_ads,
 			market_items.AdsImage 	: self.market_mapper.map_adsimage,
 			market_items.User 		: self.market_mapper.map_user,
-			market_items.ProductRating 	: self.market_mapper.map_product_rating
+			market_items.ProductRating 	: self.market_mapper.map_product_rating,
+			market_items.UserRating 	: self.market_mapper.map_user_rating
 		}
 
 	def process_item(self, item, spider):
@@ -169,17 +170,12 @@ class MarketMapper(BaseMapper):
 		dbads.title 		= item['title']
 		dbads.external_id	= item['offer_id']	
 
-		if 'relativeurl' in item:
-			dbads.relativeurl = item['relativeurl']
-		
-		if 'fullurl' in item:
-			dbads.fullurl 	= item['fullurl']
-		
-		if 'last_update' in item:	
-			dbads.last_update= item['last_update']
 		# Link the thread with the user. Request the database (or caching system) to get auto-incremented id.
-		dbads.seller = spider.dao.get_or_create(market_models.User,  username= item['vendor_username'], market=spider.market, scrape=spider.scrape) 	# Unique key here
+		dbads.seller = spider.dao.get_or_create(market_models.User,  username= item['vendor_username'], market=spider.market) 	# Unique key here
 		dbads.scrape = spider.scrape
+		if 'scrape' not in dbads.seller._data or not dbads.seller._data['scrape']: # This could be optimized to be created in get or create above, but that would imply quite a lot of work.
+			dbads.seller.scrape=spider.scrape
+			dbads.seller.save()
 		
 		if not dbads.seller:
 			raise DropItem("Invalid Ads : Unable to get User from database. Cannot respect foreign key constraint.")
@@ -187,13 +183,9 @@ class MarketMapper(BaseMapper):
 			raise DropItem("Invalid Ads : User foreign key was read from cache but no record Id was available. Cannot respect foreign key constraint")
 
 
-		self.set_if_exist(item, dbads, 'escrow')
-		self.set_if_exist(item, dbads, 'ships_to')
-		self.set_if_exist(item, dbads, 'ships_from')
-		self.set_if_exist(item, dbads, 'price')
-		self.set_if_exist(item, dbads, 'description')
-		self.set_if_exist(item, dbads, 'category')
-		self.set_if_exist(item, dbads, 'shipping_options')
+		for key in item:
+			if key not in ['title', 'offer_id']:
+				self.set_if_exist(item, dbads, key)
 
 		dbads.setproperties_attribute(scrape = spider.scrape)
 
@@ -219,34 +211,14 @@ class MarketMapper(BaseMapper):
 
 		dbuser = market_models.User()	# Extended PeeWee object that handles properties in different table
 		dbuser.username = item['username']
-
-		if 'relativeurl' in item:
-			dbuser.relativeurl = item['relativeurl']
-		
-		if 'fullurl' in item:
-			dbuser.fullurl 	= item['fullurl']
 		
 		dbuser.market = spider.market
 		dbuser.scrape = spider.scrape
 		dbuser.setproperties_attribute(scrape = spider.scrape)  #propagate the scrape id to the UserProperty model.
 
-		self.set_if_exist(item, dbuser, 'successful_transactions')
-		self.set_if_exist(item, dbuser, 'average_rating')
-		self.set_if_exist(item, dbuser, 'agora_rating')
-		self.set_if_exist(item, dbuser, 'nucleus_rating')
-		self.set_if_exist(item, dbuser, 'alphabay_rating')
-		self.set_if_exist(item, dbuser, 'abraxas_rating')
-		self.set_if_exist(item, dbuser, 'midlle_earth_rating')
-		self.set_if_exist(item, dbuser, 'hansa_rating')
-		self.set_if_exist(item, dbuser, 'trusted_seller')
-		self.set_if_exist(item, dbuser, 'verified')
-		self.set_if_exist(item, dbuser, 'fe_enabled')
-		self.set_if_exist(item, dbuser, 'join_date')
-		self.set_if_exist(item, dbuser, 'last_active')
-		self.set_if_exist(item, dbuser, 'terms_and_conditions')
-		self.set_if_exist(item, dbuser, 'public_pgp_key')
-		self.set_if_exist(item, dbuser, 'relativeurl')
-		self.set_if_exist(item, dbuser, 'fullurl')
+		for key in item:
+			if key not in ['username']:
+				self.set_if_exist(item, dbuser, key)
 
 		return dbuser
 
@@ -256,7 +228,7 @@ class MarketMapper(BaseMapper):
 		dbfeedback = market_models.AdsFeedback()
 		dbfeedback.market = spider.market
 		dbfeedback.scrape = spider.scrape
-		found_ads = True
+
 		try:
 			dbfeedback.ads = spider.dao.get(market_models.Ads, external_id = item['ads_id'], market = spider.market)
 		except market_models.Ads.DoesNotExist :
@@ -270,18 +242,52 @@ class MarketMapper(BaseMapper):
 
 		sha256 = hashlib.sha256()
 		sha256.update(str(dbfeedback.ads.id))
-		sha256.update(item['rating'])
-		sha256.update(item['comment'])
-		sha256.update(str(item['submitted_on']))
+		for key in item:
+			sha256.update(str(item[key]))
 
-		dbfeedback.hash = ''.join("{:02x}".format(ord(c)) for c in sha256.digest())
+		dbfeedback.hash = sha256.hexdigest()
 
-		self.set_if_exist(item, dbfeedback, 'rating')
-		self.set_if_exist(item, dbfeedback, 'comment')
-		self.set_if_exist(item, dbfeedback, 'submitted_on')
+		for key in item:
+			if key not in ['ads_id']:
+				self.set_if_exist(item, dbfeedback, key)
+				
 		dbfeedback.setproperties_attribute(scrape = spider.scrape)
 
 		return dbfeedback
+
+
+	def map_user_rating(self, item, spider):
+		self.drop_if_empty(item, 'rating')
+
+		dbfeedback = market_models.SellerFeedback()
+		dbfeedback.market = spider.market
+		dbfeedback.scrape = spider.scrape
+
+		try:
+			dbfeedback.seller = spider.dao.get(market_models.User, username=item['username'], market=spider.market)
+		except market_models.User.DoesNotExist :
+			raise DropItem("Invalid User Feedback : Unable to get User from database. Cannot respect foreign key constraint.")
+
+		if not dbfeedback.seller:
+			raise DropItem("Invalid User Feedback : Unable to get User from database. Cannot respect foreign key constraint.")
+			
+		elif not dbfeedback.seller.id :
+			raise DropItem("Invalid User Feedback : User foreign key was read from cache but no record Id was available. Cannot respect foreign key constraint")
+
+		sha256 = hashlib.sha256()
+		sha256.update(str(dbfeedback.seller.id))
+		for key in item:
+			sha256.update(str(item[key]))
+
+		dbfeedback.hash = sha256.hexdigest()
+
+		for key in item:
+			if key not in ['username']:
+				self.set_if_exist(item, dbfeedback, key)
+				
+		dbfeedback.setproperties_attribute(scrape = spider.scrape)
+
+		return dbfeedback		
 
 
 

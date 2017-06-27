@@ -165,7 +165,7 @@ class BaseSpider(scrapy.Spider):
 	def make_url(self, url):
 		endpoint = self.spider_settings['endpoint'].strip('/');
 		prefix = self.spider_settings['prefix'].strip('/');
-		if url.startswith('http'):
+		if url.startswith('http') or url.startswith('data:'):
 			return url
 		elif url in self.spider_settings['resources'] :
 			if prefix:
@@ -183,17 +183,19 @@ class BaseSpider(scrapy.Spider):
 
 	def initlogs(self):
 		try:
-			for logger_name in  self.settings['DISABLE_LOGGER'].split(','):
+			for logger_name in  self.settings['DISABLE_LOGGER']:
 				logging.getLogger(logger_name).disabled=True
 		except:
 			pass
 
 		try:
-			colorformatter = ColorFormatterWrapper(self.logger.logger.parent.handlers[0].formatter)
-			self.logger.logger.parent.handlers[0].setFormatter(colorformatter)
+			
+			for handler in self.logger.logger.parent.handlers:
+				if isinstance(handler, logging.StreamHandler):
+					colorformatter = ColorFormatterWrapper(handler.formatter)
+					handler.setFormatter(colorformatter)
 		except:
 			pass
-
 
 	def configure_proxy(self, proxykey=None):
 		self._proxy_key = None
@@ -246,7 +248,8 @@ class BaseSpider(scrapy.Spider):
 
 
 	def to_utc(self, datetime):
-		return datetime - self.timezone.localize(datetime).utcoffset()
+		localized = datetime if datetime.tzinfo else self.timezone.localize(datetime)
+		return datetime - localized.utcoffset()
 
 	def localnow(self):
 		return self.timezone.localize(datetime.now())
@@ -254,8 +257,11 @@ class BaseSpider(scrapy.Spider):
 	def spider_closed(self, spider, reason):
 		self.add_to_counter('logins', self._loginkey, -1)
 		self.add_to_counter('proxies', self._proxy_key, -1, isglobal=True)
-		self.running = False
 
+		self.logger.info("Flushing all pending data to database")
+		self.dao.flush_all()
+
+		self.running = False
 		self.logger.info("Spider resources released")
 
 	def get_text(self, node):
@@ -392,3 +398,10 @@ class BaseSpider(scrapy.Spider):
 
   	def datetime_to_string(self, dt):
   		return dt.strftime("%Y-%M-%d %H:%M:%S")
+
+  	# This method returns the queue name for the database dao.
+  	# If value is None, data will be enqueued into main queue and will reach database
+  	# If value is different from None. Data will be enqueued in a different queue that cannot reach database unless dao.commit_waiting_queue(name) is called.
+  	# Once commited, data will be transferred to amin queue and dao.flush must be called. 
+	def get_queuename(self, model):	# Called by save2db pipeline.
+		return None	# Default to None. That means go to database. 

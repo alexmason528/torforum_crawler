@@ -41,6 +41,7 @@ class DatabaseDAO:
 			raise ValueError("%s is not a valid cache config" % cacheconfig)
 
 		self.queues = {}
+		self.waiting_queues = {}  #It is possible to put some data in waitings queues. 
 		self.cache = Cache(self.cache_configs[cacheconfig])
 		self.config =  {
 			'dependencies' : {},
@@ -80,6 +81,11 @@ class DatabaseDAO:
 		for modeltype in typelist:
 			if modeltype not in self._donotcache:
 				self._donotcache.append(modeltype)
+
+	def commit_waiting_queue(self, name):
+		if name in self._waiting_queues:
+			for obj in self._waiting_queues[name]:
+				self.enqueue(obj)
 
 	#Add a callback on a queue before/after flush is done
 	def before_flush(self, modeltype, callback, *args, **kwargs):
@@ -136,22 +142,28 @@ class DatabaseDAO:
 		return result
 
 	# Add a peewee model to a queue
-	def enqueue(self, obj, spider=None):
+	def enqueue(self, obj, spider=None, waiting_queue=None):
 		self.assertismodelclass(obj.__class__)
 		if isinstance(obj, BasePropertyOwnerModel):
 			obj._extra_data['spider'] = spider
-		queuename = obj.__class__.__name__
-		if queuename not in self.queues:
-			self.queues[queuename] = []
-		self.queues[queuename].append(obj)
 
-		if queuename not in self.queuestats:
-			self.queuestats[queuename] = {}
-		
-		if spider not in self.queuestats[queuename]:
-			self.queuestats[queuename][spider] = 0
+		if waiting_queue == None:
+			queueindex = obj.__class__
+			if queueindex not in self.queues:
+				self.queues[queueindex] = []
+			self.queues[queueindex].append(obj)
 
-		self.queuestats[queuename][spider] += 1
+			if queueindex not in self.queuestats:
+				self.queuestats[queueindex] = {}
+			
+			if spider not in self.queuestats[queueindex]:
+				self.queuestats[queueindex][spider] = 0
+
+			self.queuestats[queueindex][spider] += 1
+		else:
+			if name not in self._waiting_queues:
+				self._waiting_queues[name] = []
+			self._waiting_queues[name].append(obj)
 
 	#Gives an object just like peewee.get does, but look into the cache first
 	def get(self, modeltype, *args, **kwargs):
@@ -189,6 +201,10 @@ class DatabaseDAO:
 		self.cache.write(obj)
 		return obj
 
+	def flush_all(self):
+		for idx in self.queues:
+			self.flush(idx)
+
 	# Bulk insert a batch of data within a queue
 	def flush(self, modeltype, donotcache = False):
 		
@@ -196,7 +212,7 @@ class DatabaseDAO:
 
 		self.assertismodelclass(modeltype)
 		chunksize = 100
-		if modeltype.__name__ not in self.queues:
+		if modeltype not in self.queues:
 			self.logger.debug("Trying to flush a queue of %s that has never been filled before." % modeltype.__name__ )
 			return
 
@@ -204,7 +220,7 @@ class DatabaseDAO:
 		for deps in self.get_dependencies(modeltype):
 			self.flush(deps)
 
-		queue = self.queues[modeltype.__name__]
+		queue = self.queues[modeltype]
 		queue = self.exec_callbacks('before_flush', modeltype, queue)
 
 		requireCloseSpider = False
@@ -239,9 +255,9 @@ class DatabaseDAO:
 				self.exec_callbacks('after_flush', modeltype, queue)
 
 				#Stats
-				queuename = modeltype.__name__
-				if queuename in self.queuestats:
-					for spider in self.queuestats[queuename]:
+				queueindex = modeltype
+				if queueindex in self.queuestats:
+					for spider in self.queuestats[queueindex]:
 
 						if spider not in self.stats:
 							self.stats[spider] = {}
@@ -249,8 +265,8 @@ class DatabaseDAO:
 						if modeltype not in self.stats[spider]:
 							self.stats[spider][modeltype] = 0
 
-						self.stats[spider][modeltype] += self.queuestats[queuename][spider]		# consume stats for spider
-						self.queuestats[queuename][spider] = 0									# reset to 0
+						self.stats[spider][modeltype] += self.queuestats[queueindex][spider]		# consume stats for spider
+						self.queuestats[queueindex][spider] = 0									# reset to 0
 				
 				#cache
 				self.cache.bulkwrite(queue)
@@ -272,7 +288,7 @@ class DatabaseDAO:
 				if donotcache:
 					self.cache.bulkdeleteobj(reloadeddata)	
 
-		self.queues[modeltype.__name__] = []
+		self.queues[modeltype] = []
 
 		if requireCloseSpider:
 			raise CloseSpider(msg)

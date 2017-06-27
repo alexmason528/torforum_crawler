@@ -6,7 +6,8 @@ class Ads(scrapy.Item) :
 	offer_id = scrapy.Field()
 	title = scrapy.Field()
 	price = scrapy.Field()
-	ships_to = scrapy.Field()	
+	ships_to = scrapy.Field()
+	ships_to_except = scrapy.Field()	
 	ships_from = scrapy.Field()
 	escrow = scrapy.Field()	
 	description = scrapy.Field()
@@ -14,6 +15,10 @@ class Ads(scrapy.Item) :
 	shipping_options = scrapy.Field()
 	relativeurl = scrapy.Field()
 	fullurl = scrapy.Field()
+	ads_class = scrapy.Field()
+	in_stock = scrapy.Field()
+	stock = scrapy.Field()
+	terms_and_conditions = scrapy.Field()
 
 class AdsImage(scrapy.Item):
 	ads_id = scrapy.Field()
@@ -30,6 +35,9 @@ class User(scrapy.Item) :
 	abraxas_rating = scrapy.Field()
 	midlle_earth_rating = scrapy.Field()
 	hansa_rating = scrapy.Field()
+	dreammarket_rating = scrapy.Field()
+	valhalla_rating = scrapy.Field()
+	oasis_rating = scrapy.Field()
 	trusted_seller = scrapy.Field()
 	verified = scrapy.Field()
 	fe_enabled = scrapy.Field()
@@ -39,9 +47,26 @@ class User(scrapy.Item) :
 	public_pgp_key = scrapy.Field()
 	relativeurl = scrapy.Field()
 	fullurl = scrapy.Field()
+	subscribers = scrapy.Field()
+	positive_feedback =  scrapy.Field()
+	neutral_feedback =  scrapy.Field()
+	negative_feedback = scrapy.Field()
+	level = scrapy.Field()
+	avg_volume = scrapy.Field()
+	profile = scrapy.Field()
 
 class ProductRating(scrapy.Item):
 	submitted_on = scrapy.Field()
 	rating = scrapy.Field()
 	comment = scrapy.Field()
 	ads_id = scrapy.Field()
+	submitted_by = scrapy.Field()
+
+
+class UserRating(scrapy.Item):
+	submitted_on = scrapy.Field()
+	rating = scrapy.Field()
+	comment = scrapy.Field()
+	username = scrapy.Field()
+	submitted_by = scrapy.Field()
+	delivery_time = scrapy.Field()
