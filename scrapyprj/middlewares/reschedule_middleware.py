@@ -49,8 +49,6 @@ class RescheduleMiddleware(object):
 			yield {}	#Silently exit
 		elif isinstance(exception, TooManyRescheduleException):
 			self.logger.error('Dropping request %s after %d rescheduling' % (response.url, self.max_reschedule))
-		else:
-			raise exception
 
 	def recrawl(self, spider, response):
 		spider.crawler.engine.crawl(response.request, spider)
