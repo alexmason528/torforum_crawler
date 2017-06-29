@@ -58,7 +58,7 @@ class AlphabayForum(ForumSpider):
         elif reqtype == 'dologin':
            
             data = {
-                'login' : self.login['email'],
+                'login' : self.login['username'],
                 'register' : '0',
                 'password' : self.login['password'],
                 'cookie_check' : '1',
