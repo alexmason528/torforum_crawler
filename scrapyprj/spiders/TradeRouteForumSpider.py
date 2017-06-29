@@ -40,7 +40,8 @@ class TradeRouteForumSpider(ForumSpider):
                 'dologin'       : self.parse_index,
                 'threadlisting' : self.parse_thread_listing,
                 'thread'        : self.parse_thread,
-                'loginpage'     : self.parse_loginpage # void function
+                'loginpage'     : self.parse_loginpage, # void function
+                'userprofile'     : self.parse_userprofile, # void function
             }
 
     def start_requests(self):
@@ -59,7 +60,7 @@ class TradeRouteForumSpider(ForumSpider):
             req = self.craft_login_request_from_form(kwargs['response'])
             req.meta['dont_redirect']=True
             req.dont_filter=True
-        elif reqtype in ['threadlisting', 'thread']:
+        elif reqtype in ['threadlisting', 'thread', 'userprofile']:
             req = Request(self.make_url(kwargs['url']))
             req.meta['shared'] = True
             if 'relativeurl' in kwargs:
@@ -76,8 +77,7 @@ class TradeRouteForumSpider(ForumSpider):
         return req
    
     def parse(self, response):
-        # skip login for now
-        if 0 and not self.islogged(response):
+        if not self.islogged(response):
             if self.is_login_page(response):
                 req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request 
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
@@ -156,14 +156,16 @@ class TradeRouteForumSpider(ForumSpider):
     def parse_thread(self, response):
         threadid =  self.get_url_param(response.url, 'id')
         posts = response.css("#brdmain div.blockpost")
+        message_item_buffer = []
+        requests = []
         for post in posts:
             try:
                 messageitem = items.Message()
                 posttime = self.parse_timestr(self.get_text(post.css("h2 a")))
 
-                userprofile_link = post.css(".postleft dt:first-child a::attr(href)").extract_first()
                 messageitem['author_username'] = self.get_text(post.css(".postleft dt:first-child"))
 
+                userprofile_link = post.css(".postleft dt:first-child a::attr(href)").extract_first()
                 messageitem['postid'] = post.xpath("@id").extract_first()
                 messageitem['threadid'] = threadid
                 messageitem['posted_on'] = posttime
@@ -171,41 +173,80 @@ class TradeRouteForumSpider(ForumSpider):
                 msg = post.css("div.postmsg")
                 messageitem['contenttext'] = self.get_text(msg)
                 messageitem['contenthtml'] = msg.extract_first()
-
+                
                 yield messageitem
-
-                user = self.handle_user(post)
-                if user :
-                    yield user
-                    self.dao.flush(models.User)
-                        
-            except e:
+                
+                if userprofile_link:
+                    requests.append(self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link ))
+    
+            except Exception as e:
                 self.logger.warning("Invalid thread page. %s" % e)
 
-        
-        self.dao.flush#(models.Message)
+
+
+        self.dao.flush(models.Message)
+
+        for request in requests:
+            yield request
 
         for link in response.css("#brdmain .pagelink a::attr(href)").extract():
             yield self.make_request('thread', url=link)
 
-    def handle_user(self, post):
-        username = self.get_text(post.css(".postleft dt:first-child"))
 
-        if username in TradeRouteForumSpider.known_users:
-            return None
+    def parse_userprofile(self, response):
 
-        TradeRouteForumSpider.known_users[username] = True
+        myprofile_username = self.get_text(response.css(".blockform h2"))
+        if self.login['username'].lower() in myprofile_username.lower():
+            self.logger.info("Skipping my own profile")
+        else:
 
-        user = items.User()
-        user['relativeurl'] = ''
-        user['fullurl'] = ''
-        user['username'] = username
+            user = items.User()
+            user['relativeurl'] = response.meta['relativeurl']
+            user['fullurl'] = response.url
 
-        user['title'] = self.get_text(post.css(".postleft dd.usertitle"))
-        user['joined_on'] = self.get_text(post.css(".postleft dd:nth-child(3)"))
-        user['post_count'] = self.get_text(post.css(".postleft dd:nth-child(4)"))
+            dts = response.css("#viewprofile dl dt")
+            
+            for dt in dts:
+                key = self.get_text(dt).lower()
+                ddtext = self.get_text(dt.xpath('following-sibling::dd[1]'))
 
-        return user
+                if key == 'username':
+                    user['username'] = ddtext
+                elif key == 'title':
+                    user['title'] = ddtext
+                elif key == 'registered':
+                    user['joined_on'] = self.parse_timestr(ddtext)
+                elif key == 'last post':
+                    user['last_post'] = self.parse_timestr(ddtext)
+                elif key == 'posts':
+                    m = re.match("^(\d+).+", ddtext)
+                    if m:
+                        user['post_count'] = m.group(1)
+                elif key == 'signature':
+                    user['signature'] = ddtext
+                elif key == 'location':
+                    user['location'] = ddtext
+                elif key == 'jabber':
+                    user['jabber'] = ddtext
+                elif key == 'icq':
+                    user['icq'] = ddtext
+                elif key == 'real name':
+                    user['realname'] = ddtext
+                elif key == 'microsoft account':
+                    user['microsoft_account'] = ddtext            
+                elif key == 'yahoo! messenger':
+                    user['yahoo_messenger'] = ddtext
+                elif key == 'website':
+                    user['website'] = ddtext
+                elif key in ['avatar', 'email', 'pm', 'contacts']:
+                    pass
+                else:
+                    self.logger.warning('New information found on use profile page : %s (%s)' % (key, response.url))
+
+            yield user
+
+            self.dao.flush(models.User)
+
 
     def craft_login_request_from_form(self, response):
         data = {
