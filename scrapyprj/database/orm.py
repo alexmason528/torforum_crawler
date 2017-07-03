@@ -1,7 +1,8 @@
 from peewee import *
 
 #Extension to peewee model that allows to make models that 
-# have some properties listed in another table respecting a predefined structure.
+# have some properties listed in another table respecting a predefined structure.   
+# In other word.  user and user_propval
 class BasePropertyOwnerModel(Model):
 	def __init__(self, *args, **kwargs):
 		if not self.__class__._meta.keymodel:
@@ -49,7 +50,7 @@ class BasePropertyOwnerModel(Model):
 		props = [];
 		keylist = self.__class__.get_keys()
 		for keyname in self._properties:
-			if self._properties[keyname]:
+			if self._properties[keyname] != None:
 				params = {}
 				params['key'] =  keylist[keyname] 
 				params['data'] =  self._properties[keyname]  
