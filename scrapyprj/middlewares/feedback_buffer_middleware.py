@@ -100,7 +100,7 @@ class SpiderAccessor(object):
 		if ads_id not in self.datastruct._product_rating_requests:
 			self.datastruct._product_rating_requests[ads_id] = {}
 
-		if len(self.datastruct._product_rating_items[username]) == 0:
+		if len(self.datastruct._product_rating_items[ads_id]) == 0:
 			return False
 
 		for fingerprint in self.datastruct._product_rating_requests[ads_id]:
@@ -140,7 +140,7 @@ class SpiderAccessor(object):
 		
 		self.datastruct._user_rating_requests[username][fingerprint] = True
 
-	def mark_request_completed_for_product_Rating(self, request, ads_id):
+	def mark_request_completed_for_product_rating(self, request, ads_id):
 		fingerprint = request_fingerprint(request)
 		if ads_id not in self.datastruct._product_rating_requests:
 			self.datastruct._product_rating_requests[ads_id] = {}
@@ -208,7 +208,7 @@ class FeedbackBufferMiddleware(object):
 					self.logger.debug("Product ratings for ads %s are ready to be processed." % (ads_id))
 					for rating in list(accessor.retrieve_held_product_ratings(ads_id)):
 						yield rating
-					self.dao.flush(market_models.AdsFeedback)
+					spider.dao.flush(market_models.AdsFeedback)
 					accessor.erase_product_ratings(ads_id)	# Save some RAM
 
 	# When a response comes in, we mark the request as completed

@@ -121,22 +121,22 @@ class MarketSpider(BaseSpider):
 		#Step 1 : Aggregation
 		objlist_with_count = {}
 		for obj in queue:
-			k = (objtemp.ads.id, objtemp.hash)
+			k = (obj.ads.id, obj.hash)
 			if k not in objlist_with_count:
 				obj.count=1
 				objlist_with_count[k] = obj
 			else:
 				objlist_with_count[k].count += 1
 
-		new_queue = []
+		aggregated = []
 		for k in objlist_with_count:
-			new_queue.append(objlist_with_count[k])
+			aggregated.append(objlist_with_count[k])
 
 		#Step 2 : Remove unwanted entries
 		ads_list = list(set([x.ads.id for x in queue]))
  		hash_list = list(set([x.hash for x in queue]))
 		db_content =  list(AdsFeedback.select()
-			.where(AdsFeedback.seller <<  ads_list, AdsFeedback.hash << hash_list)     #fixme. MySQL may not use index because of IN statement
+			.where(AdsFeedback.ads <<  ads_list, AdsFeedback.hash << hash_list)     #fixme. MySQL may not use index because of IN statement
 			.execute())
 
 		to_delete = [row.id for row in diff(db_content, aggregated)] 					# When its in the databse, but not in the queue : delete
@@ -144,8 +144,8 @@ class MarketSpider(BaseSpider):
 		if len(to_delete) > 0:
 			AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()   	#fixme. MySQL may not use index because of IN statement
 
-		logging.getLogger("SellerFeedbackDiffInsert").debug("AdsFeedback queue size reduced from %d to %d after aggregation" % (len(queue), len(new_queue)))
-		return new_queue
+		logging.getLogger("SellerFeedbackDiffInsert").debug("AdsFeedback queue size reduced from %d to %d after aggregation" % (len(queue), len(aggregated)))
+		return aggregated
 	
 	@staticmethod
 	def SellerFeedbackDiffInsert(queue):

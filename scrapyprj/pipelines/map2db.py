@@ -171,8 +171,12 @@ class MarketMapper(BaseMapper):
 		dbads.external_id	= item['offer_id']	
 
 		# Link the thread with the user. Request the database (or caching system) to get auto-incremented id.
-		dbads.seller = spider.dao.get_or_create(market_models.User,  username= item['vendor_username'], market=spider.market) 	# Unique key here
+		try:
+			dbads.seller = spider.dao.get(market_models.User,  username= item['vendor_username'], market=spider.market) 	# Unique key here
+		except market_models.User.DoesNotExist as e:
+			dbads.seller = spider.dao.get_or_create(market_models.User,  username= item['vendor_username'], market=spider.market, scrape=spider.scrape) 	# Unique key here
 		dbads.scrape = spider.scrape
+		
 		if 'scrape' not in dbads.seller._data or not dbads.seller._data['scrape']: # This could be optimized to be created in get or create above, but that would imply quite a lot of work.
 			dbads.seller.scrape=spider.scrape
 			dbads.seller.save()
@@ -197,7 +201,10 @@ class MarketMapper(BaseMapper):
 		imgs = []
 		for image in item['images']:
 			dbimg 			= market_models.AdsImage()
-			dbimg.ads 		= spider.dao.get_or_create(market_models.Ads, external_id = item['ads_id'], market = spider.market)
+			try:
+				dbimg.ads 		= spider.dao.get(market_models.Ads, external_id = item['ads_id'], market = spider.market)
+			except market_models.Ads.DoesNotExist as e:
+			 	dbimg.ads 		= spider.dao.get_or_create(market_models.Ads, external_id = item['ads_id'], market = spider.market, scrape=spider.scrape)
 			dbimg.path 		= image['path']
 			dbimg.hash 		= image['checksum']
 			dbimg.scrape 	= spider.scrape
