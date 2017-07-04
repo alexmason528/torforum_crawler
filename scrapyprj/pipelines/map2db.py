@@ -6,6 +6,9 @@ import scrapyprj.database.markets.orm.models as market_models
 from IPython import embed
 import hashlib
 
+# This pipeline stages convert items to its equivalent PeeWee ORM model.
+# We also ensure the integrity of data and respect of foreign key before sending that to the Database DAO queue.
+
 class map2db(object):
 	def __init__(self, *args, **kwargs):
 		super(self.__class__, self).__init__(*args, **kwargs)
@@ -13,6 +16,7 @@ class map2db(object):
 		self.forum_mapper = ForumMapper()
 		self.market_mapper = MarketMapper()
 
+		# For each item type, what function does the conversion
 		self.handlers = {
 			forum_items.Thread 		: self.forum_mapper.map_thread,
 			forum_items.Message 	: self.forum_mapper.map_message,
@@ -24,11 +28,11 @@ class map2db(object):
 			market_items.UserRating 	: self.market_mapper.map_user_rating
 		}
 
+	# What is actually called by Scrapy
 	def process_item(self, item, spider):
-
 		for item_type in self.handlers.keys():
 			if item_type == type(item):
-				return {'model' : self.handlers[item_type].__call__(item,spider)}
+				return {'model' : self.handlers[item_type].__call__(item,spider)}	#Scrapy don't like PeeWee models, but likes dict.
 		
 		raise Exception('Unknown item type : %s' % item.__class__.__name__)
 
@@ -37,7 +41,7 @@ class map2db(object):
 
 
 class BaseMapper:
-	def set_if_exist(self, item, model, field):
+	def set_if_exist(self, item, model, field):		# Mainly used for propval/propkey
 		if field in item:
 			model.__setattr__(field, str(item[field]))
 
