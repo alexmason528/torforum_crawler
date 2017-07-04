@@ -39,7 +39,7 @@ class map2db(object):
 class BaseMapper:
 	def set_if_exist(self, item, model, field):
 		if field in item:
-			model.__setattr__(field, item[field])
+			model.__setattr__(field, str(item[field]))
 
 	def drop_if_missign(self, item, field):
 		if field not in item:
