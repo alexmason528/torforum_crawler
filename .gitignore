@@ -1,3 +1,8 @@
 *.pyc
 scrapyprj/settings.py
 scrapyprj/database/settings.py
+*_queuedump.txt
+cleanproject.py
+files/*
+marketenv.py
+runtest.sh
