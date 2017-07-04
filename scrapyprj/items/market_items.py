@@ -6,6 +6,7 @@ class Ads(scrapy.Item) :
 	offer_id = scrapy.Field()
 	title = scrapy.Field()
 	price = scrapy.Field()
+	price_options = scrapy.Field()
 	ships_to = scrapy.Field()
 	ships_to_except = scrapy.Field()	
 	ships_from = scrapy.Field()
@@ -19,6 +20,7 @@ class Ads(scrapy.Item) :
 	in_stock = scrapy.Field()
 	stock = scrapy.Field()
 	terms_and_conditions = scrapy.Field()
+	multilisting = scrapy.Field()
 
 class AdsImage(scrapy.Item):
 	ads_id = scrapy.Field()
@@ -54,6 +56,9 @@ class User(scrapy.Item) :
 	level = scrapy.Field()
 	avg_volume = scrapy.Field()
 	profile = scrapy.Field()
+	ship_from = scrapy.Field()
+	ship_to = scrapy.Field()
+	title = scrapy.Field()
 
 class ProductRating(scrapy.Item):
 	submitted_on = scrapy.Field()
