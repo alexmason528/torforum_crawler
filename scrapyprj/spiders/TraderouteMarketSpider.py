@@ -77,9 +77,6 @@ class TraderouteMarketSpider(MarketSpider):
 			if arg in kwargs:
 				req.meta[arg] = kwargs[arg]
 
-		if reqtype == 'userprofile':
-			req.priority=10
-
 		if reqtype == 'listing':
 			req.meta['product_rating_for'] = kwargs['ads_id']
 
@@ -134,7 +131,7 @@ class TraderouteMarketSpider(MarketSpider):
 		for listing_container in response.css(".wLf"):
 			listing_url = listing_container.css(".wLfName a::attr(href)").extract_first()
 			ads_id = self.get_url_param(self.make_url(listing_url), 'lid')			# Used to gather feedbacks correctly.  feedback_buffer_middleware uses that
-			#yield self.make_request('listing', url=listing_url, category=response.meta['category'], relativeurl=listing_url, ads_id=ads_id)
+			yield self.make_request('listing', url=listing_url, category=response.meta['category'], relativeurl=listing_url, ads_id=ads_id)
 
 			user_url = response.css('.wLfVendor a::attr(href)').extract_first()
 			yield self.make_request('userprofile', url=user_url)

@@ -64,7 +64,7 @@ class HansaMarketSpider(MarketSpider):
 			req.dont_filter=True
 		elif reqtype in ['category', 'listing', 'userprofile', 'listing_feedback', 'user_feedback', 'image']:
 			req = Request(self.make_url(kwargs['url']))
-			#req.meta['shared'] = True
+			req.meta['shared'] = True
 		else:
 			raise Exception('Unsuported request type %s ' % reqtype)
 
@@ -73,8 +73,6 @@ class HansaMarketSpider(MarketSpider):
 
 		elif reqtype == 'user_feedback':
 			req.meta['user_rating_for'] = kwargs['username']
-			req.priority = 10
-
 
 		req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
 		req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
@@ -90,6 +88,14 @@ class HansaMarketSpider(MarketSpider):
 
 			if self.isloginpage(response):
 				req_once_logged = None if not 'req_once_logged' in response.meta else response.meta['req_once_logged']
+
+				self.logintrial +=1
+				self.logger.info("Trying to login")
+				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
+					self.wait_for_input("Too many failed login trials. Giving up.", response.meta['req_once_logged'])
+					self.logintrial=0
+				return 
+
 				yield self.make_request(reqtype='dologin', req_once_logged=req_once_logged, response=response)
 			else:
 				self.logger.info("Not logged, going to login page.")
@@ -129,8 +135,8 @@ class HansaMarketSpider(MarketSpider):
 
 		self.dao.flush(dbmodels.User)
 
-		#for listing_url in response.xpath('//a[starts-with(@href, "/listing/") and not(contains(@href, "also-available"))]/@href').extract():
-		#	req_list.append( self.make_request('listing', url=listing_url))
+		for listing_url in response.xpath('//a[starts-with(@href, "/listing/") and not(contains(@href, "also-available"))]/@href').extract():
+			req_list.append( self.make_request('listing', url=listing_url))
 
 		for cat_url in response.css('ul.pagination li a::attr(href)').extract():
 			req_list.append( self.make_request('category', url=cat_url) )
