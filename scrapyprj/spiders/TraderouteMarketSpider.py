@@ -201,7 +201,6 @@ class TraderouteMarketSpider(MarketSpider):
 				self.logger.warning('Unknown other website score. Title is : %s' % (score_title))
 
 		yield user
-		#self.dao.flush(dbmodels.User)
 	
 
 	def parse_listing(self, response):
@@ -230,7 +229,7 @@ class TraderouteMarketSpider(MarketSpider):
 		else:
 			ads['multilisting'] = True
 			options = []
-			for option in multilisting_select.css('option'):
+			for option in multilisting_select.xpath('.//option[value!=""]'):
 				options.append(self.get_text(option))
 
 			ads['price'] = json.dumps(options)
@@ -259,13 +258,11 @@ class TraderouteMarketSpider(MarketSpider):
 				break;
 
 		yield ads
-		#self.dao.flush(dbmodels.Ads)
 
 		# Ads Image.
 		ads_img['ads_id'] 		= ads['offer_id']
 		ads_img['image_urls']	= [self.make_request('image', url=listing_content.css(".listing_image img::attr(src)").extract_first(), referer=response.url)]
 		yield ads_img
-		#self.dao.flush(dbmodels.AdsImage)
 		
 
 		# Handling listing feedbacks
@@ -287,10 +284,10 @@ class TraderouteMarketSpider(MarketSpider):
 			except Exception as e:
 				self.logger.warning('Could not get listing feedback at %s. Error %s' % (response.url, e))
 
-		#If there is several pages of feedback. feedback_buffer_middleware will buffer them until we have them all and then flush them.
+		#If there is several pages of feedback. feedback_buffer_middleware will buffer them until we have them all and then sends them further in pipeline
 		for url in feedback_content.css('div.pagination a::attr(href)').extract():
 			if self.get_url_param(url, 'pg') != '1':
-				yield self.make_request('listing', url=url, relativeurl=response.meta['relativeurl'], ads_id=ads['offer_id'])
+				yield self.make_request('listing', url=url, relativeurl=response.meta['relativeurl'], ads_id=ads['offer_id'], category=response.meta['category'])
 		
 		yield self.make_request('userprofile', url=user_url)
 
