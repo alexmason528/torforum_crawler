@@ -106,8 +106,9 @@ CONCURRENT_REQUESTS = 16
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
 		'scrapyprj.pipelines.ImagePipelineFromRequest.ImagePipelineFromRequest' : 400,
-		'scrapyprj.pipelines.map2db.map2db': 401,    	# Convert from Items to Models
-		'scrapyprj.pipelines.save2db.save2db': 402       # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
+		'scrapyprj.pipelines.data_formatter.DataFormatterPipeline' : 401,	# Alter some item data to make sure they are properly formatted
+		'scrapyprj.pipelines.map2db.map2db': 402,    	# Convert from Items to Models
+		'scrapyprj.pipelines.save2db.save2db': 403       # Sends models to DatabaseDAO. DatabaseDAO must be explicitly flushed from spider.  self.dao.flush(Model)
     }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
