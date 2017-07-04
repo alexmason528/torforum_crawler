@@ -53,6 +53,13 @@ class DatabaseDAO:
 		self._donotcache = donotcache
 		self.logger = logging.getLogger('DatabaseDAO')
 
+		for m in inspect.getmembers(forum_models, inspect.isclass):
+			if issubclass(m[1], Model):
+				self.initialize_queues(m[1])
+		for m in inspect.getmembers(market_models, inspect.isclass):
+			if issubclass(m[1], Model):
+				self.initialize_queues(m[1])
+
 	#Make a model queue flush when before another
 	def add_dependencies(self, model, deps_list):	
 		self.assertismodelclass(model)
@@ -149,13 +156,9 @@ class DatabaseDAO:
 
 		if waiting_queue == None:
 			queueindex = obj.__class__
-			if queueindex not in self.queues:
-				self.queues[queueindex] = []
-			self.queues[queueindex].append(obj)
+			self.initialize_queues(queueindex)
 
-			if queueindex not in self.queuestats:
-				self.queuestats[queueindex] = {}
-			
+			self.queues[queueindex].append(obj)
 			if spider not in self.queuestats[queueindex]:
 				self.queuestats[queueindex][spider] = 0
 
@@ -164,6 +167,13 @@ class DatabaseDAO:
 			if name not in self._waiting_queues:
 				self._waiting_queues[name] = []
 			self._waiting_queues[name].append(obj)
+
+	def initialize_queues(self, queueindex):
+		if queueindex not in self.queues:
+			self.queues[queueindex] = []
+
+		if queueindex not in self.queuestats:
+				self.queuestats[queueindex] = {}
 
 	#Gives an object just like peewee.get does, but look into the cache first
 	def get(self, modeltype, *args, **kwargs):

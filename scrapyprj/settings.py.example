@@ -76,7 +76,9 @@ ROBOTSTXT_OBEY = False
 SPIDER_MIDDLEWARES = {
 	'scrapyprj.middlewares.shared_queue_middleware.SharedQueueMiddleware' : 100,
     'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 200,
-    'scrapyprj.middlewares.reschedule_middleware.RescheduleMiddleware': 300
+    'scrapyprj.middlewares.reschedule_middleware.RescheduleMiddleware': 300,
+	'scrapyprj.middlewares.feedback_buffer_middleware.FeedbackBufferMiddleware' : 301,
+	'scrapyprj.middlewares.autoflush_middleware.AutoflushMiddleWare' :  302
 }
 
 DOWNLOADER_MIDDLEWARES = {
