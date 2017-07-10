@@ -20,6 +20,8 @@ from urlparse import urlparse, parse_qsl
 
 from twisted.internet import reactor
 
+import profiler
+
 class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
 	def __init__(self, *args, **kwargs):
@@ -27,6 +29,10 @@ class BaseSpider(scrapy.Spider):
 		kwargs['settings'] = self.configure_image_store(kwargs['settings'])
 		super(BaseSpider, self).__init__( *args, **kwargs)
 		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init__()
+
+		enable_profiler = False if 'ENABLE_PROFILER' not in self.settings else self.settings['ENABLE_PROFILER']
+		profiler.enable_all(enable_profiler)
+
 		self.load_spider_settings()
 		self.initlogs()
 		self.configure_login()
@@ -272,17 +278,8 @@ class BaseSpider(scrapy.Spider):
 			text=node.strip()
 		else:
 			text = ''.join(node.xpath(".//text()[normalize-space(.)]").extract()).strip()
-		
-		try:
-			if isinstance(text, unicode):
-				text = text.encode('utf-8', 'ignore')	# Encode in UTF-8 and remove unknown char.
-			else:
-				text = text.decode('utf-8', 'ignore').encode('utf-8', 'ignore')
-		except:
-			# Some hand crafted characters can throw an exception. Remove them silently.
-			text = text.encode('cp1252', 'ignore').decode('utf-8','ignore') # Remove non-utf8 chars. 
 
-		return text
+		return self.make_utf8(text)
 
 	def get_text_first(self, nodes):
 		if nodes == None:
@@ -294,7 +291,17 @@ class BaseSpider(scrapy.Spider):
 		else:
 			return ""
 
+	def make_utf8(self, text):
+		try:
+			if isinstance(text, unicode):
+				text = text.encode('utf-8', 'ignore')	# Encode in UTF-8 and remove unknown char.
+			else:
+				text = text.decode('utf-8', 'ignore').encode('utf-8', 'ignore')
+		except:
+			# Some hand crafted characters can throw an exception. Remove them silently.
+			text = text.encode('cp1252', 'ignore').decode('utf-8','ignore') # Remove non-utf8 chars. 
 
+		return text
 
 	def set_cookies(self, cookie_string):
 		cookie_middleware = self.get_cookie_middleware()

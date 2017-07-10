@@ -2,6 +2,7 @@ from scrapy import Request
 import logging
 import collections
 from IPython import embed
+import profiler
 
 # This middleware will sends the Reqests that have meta[shared] = True into the spider custom queue system with enqueue_request()
 class SharedQueueMiddleware(object):
@@ -9,8 +10,10 @@ class SharedQueueMiddleware(object):
 		self.logger = logging.getLogger('SharedQueueMiddleware')
 
 	def process_spider_output(self, response, result, spider):
+		profiler.start('shared_queue_process')
 		for x in self.process_result(result,spider):
 			yield x
+		profiler.stop('shared_queue_process')
 
 
 	def process_start_requests(self,start_requests, spider):

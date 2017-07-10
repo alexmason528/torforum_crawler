@@ -10,6 +10,8 @@ import scrapyprj.database.forums.orm.models as forum_models
 import scrapyprj.database.markets.orm.models as market_models
 from IPython import embed
 from scrapy.exceptions import CloseSpider
+import profiler
+import gc
 
 
 # This object is meant to stand between the application and the database.
@@ -49,6 +51,7 @@ class DatabaseDAO:
 		}
 		self.stats = {}
 		self.queuestats = {}
+		self.flush_active = {}
 
 		self._donotcache = donotcache
 		self.logger = logging.getLogger('DatabaseDAO')
@@ -175,6 +178,9 @@ class DatabaseDAO:
 		if queueindex not in self.queuestats:
 				self.queuestats[queueindex] = {}
 
+		if queueindex not in self.flush_active:
+				self.flush_active[queueindex] = False
+
 	#Gives an object just like peewee.get does, but look into the cache first
 	def get(self, modeltype, *args, **kwargs):
 		#if self.enablecache:
@@ -213,93 +219,106 @@ class DatabaseDAO:
 
 	def flush_all(self):
 		for idx in self.queues:
-			self.flush(idx)
+			if (len(self.queues[idx]) > 0):
+				self.flush(idx)
 
 	# Bulk insert a batch of data within a queue
 	def flush(self, modeltype, donotcache = False):
-		
 		donotcache = donotcache or modeltype in self._donotcache
-
 		self.assertismodelclass(modeltype)
-		chunksize = 100
+
 		if modeltype not in self.queues:
 			self.logger.debug("Trying to flush a queue of %s that has never been filled before." % modeltype.__name__ )
 			return
 
-		#If we try to flush a model that is dependent on another, flush the dependenciy first.
-		for deps in self.get_dependencies(modeltype):
-			self.flush(deps)
-
-		queue = self.queues[modeltype]
-		queue = self.exec_callbacks('before_flush', modeltype, queue)
-
+		profiler.start('flush_' + modeltype.__name__)
 		requireCloseSpider = False
 		msg = ''
 		success = True
-		if len(queue) > 0 :
-			with db.proxy.atomic():
-				for idx in range(0, len(queue), chunksize):
-					queue_chunked = queue[idx:idx+chunksize]
-					data = list(map(lambda x: (x._data) , queue_chunked)) # Extract a list of dict from our Model queue
-					q = modeltype.insert_many(data)
-					updateablefields = {}
-					for fieldname in modeltype._meta.fields:
-						field = modeltype._meta.fields[fieldname]
-						if not isinstance(field, PrimaryKeyField):
-							updateablefields[fieldname] = field
+		
+		self.flush_active[modeltype] = True
+		try:
+			for deps in self.get_dependencies(modeltype):	#If we try to flush a model that is dependent on another, flush the dependenciy first.
+				self.flush(deps)
 
-					try:
-						sql = self.add_onduplicate_key(q, updateablefields)  # Manually add "On duplicate key update"
-						db.proxy.execute_sql(sql[0], sql[1])
+			queue = self.queues[modeltype]
+			if len(queue) > 0 :
+				chunksize = 100
+				queue = self.exec_callbacks('before_flush', modeltype, queue)
 
-					except Exception as e:	#We have a nasty error. Dumps useful data to a file.
-						filename = "%s_queuedump.txt" % (modeltype.__name__)
-						msg = "%s : Flushing %s data failed. Dumping queue data to %s.\nError is %s." % (self.__class__.__name__, modeltype.__name__, filename, str(e))
-						self.logger.error("%s\n %s" % (msg, traceback.format_exc()))
-						self.dumpqueue(filename, queue)
-						success = False
-						requireCloseSpider = True
+				with db.proxy.atomic():
+					for idx in range(0, len(queue), chunksize):
+						queue_chunked = queue[idx:idx+chunksize]
+						data = list(map(lambda x: (x._data) , queue_chunked)) # Extract a list of dict from our Model queue
+						q = modeltype.insert_many(data)
+						updateablefields = {}
+						for fieldname in modeltype._meta.fields:
+							field = modeltype._meta.fields[fieldname]
+							if not isinstance(field, PrimaryKeyField):
+								updateablefields[fieldname] = field
 
-			if success:
-				#Hooks
-				self.exec_callbacks('after_flush', modeltype, queue)
+						try:
+							sql = self.add_onduplicate_key(q, updateablefields)  # Manually add "On duplicate key update"
+							db.proxy.execute_sql(sql[0], sql[1])
 
-				#Stats
-				queueindex = modeltype
-				if queueindex in self.queuestats:
-					for spider in self.queuestats[queueindex]:
+						except Exception as e:	#We have a nasty error. Dumps useful data to a file.
+							filename = "%s_queuedump.txt" % (modeltype.__name__)
+							msg = "%s : Flushing %s data failed. Dumping queue data to %s.\nError is %s." % (self.__class__.__name__, modeltype.__name__, filename, str(e))
+							self.logger.error("%s\n %s" % (msg, traceback.format_exc()))
+							self.dumpqueue(filename, queue)
+							success = False
+							requireCloseSpider = True
 
-						if spider not in self.stats:
-							self.stats[spider] = {}
+				if success:
+					#Hooks
+					self.exec_callbacks('after_flush', modeltype, queue)
 
-						if modeltype not in self.stats[spider]:
-							self.stats[spider][modeltype] = 0
+					#Stats
+					queueindex = modeltype
+					if queueindex in self.queuestats:
+						for spider in self.queuestats[queueindex]:
 
-						self.stats[spider][modeltype] += self.queuestats[queueindex][spider]		# consume stats for spider
-						self.queuestats[queueindex][spider] = 0									# reset to 0
-				
-				#cache
-				self.cache.bulkwrite(queue)
-				reloadeddata = self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
-				#Propkey/propval
-				if issubclass(modeltype, BasePropertyOwnerModel):	# Our class has a property table defined (propkey/propval)
-					if reloadeddata and len(reloadeddata) > 0:
-						for obj in reloadeddata:
-							obj_spider = obj._extra_data['spider'] 
-							props = obj.getproperties()
-							for prop in props:
-								self.enqueue(prop, obj_spider)
+							if spider not in self.stats:
+								self.stats[spider] = {}
 
-						self.flush(modeltype._meta.valmodel, donotcache)	# Flush db properties
+							if modeltype not in self.stats[spider]:
+								self.stats[spider][modeltype] = 0
 
-				#Remove data from cache if explicitly asked not to cache. That'll save some memory
-				# We delete after inserting instead of simply preventing because we want BasePropertyOwnerModel
-				# object to successfully respect foreign key constraints with Auto Increment fields.
-				if donotcache:
-					self.cache.bulkdeleteobj(reloadeddata)	
+							self.stats[spider][modeltype] += self.queuestats[queueindex][spider]		# consume stats for spider
+							self.queuestats[queueindex][spider] = 0									# reset to 0
+					
+					#cache
+					reloadeddata = None
+					if not donotcache or issubclass(modeltype, BasePropertyOwnerModel):
+						self.cache.bulkwrite(queue)
+						reloadeddata = self.cache.reloadmodels(queue, queue[0]._meta.primary_key)	# Retrieve primary key (autoincrement id)
+					#Propkey/propval
+					if issubclass(modeltype, BasePropertyOwnerModel):	# Our class has a property table defined (propkey/propval)
+						if reloadeddata and len(reloadeddata) > 0:
+							for obj in reloadeddata:
+								obj_spider = obj._extra_data['spider'] 
+								props = obj.getproperties()
+								for prop in props:
+									self.enqueue(prop, obj_spider)
+							
+							if not self.flush_active[modeltype._meta.valmodel]:
+								self.flush(modeltype._meta.valmodel, donotcache)	# Flush db properties
 
-		self.queues[modeltype] = []
+						#Remove data from cache if explicitly asked not to cache. That'll save some memory
+						# We delete after inserting instead of simply preventing because we want BasePropertyOwnerModel
+						# object to successfully respect foreign key constraints with Auto Increment fields.
+						if donotcache:
+							profiler.start('dao_deleteobj')
+							self.cache.bulkdeleteobj(queue)		# Delete BasePropertyOwnerModel after provals are flushed
+							profiler.stop('dao_deleteobj')
 
+			self.queues[modeltype] = []
+			self.flush_active[modeltype] = False
+			profiler.stop('flush_' + modeltype.__name__)
+		except:
+			self.flush_active[modeltype] = False
+			raise
+			
 		if requireCloseSpider:
 			raise CloseSpider(msg)
 

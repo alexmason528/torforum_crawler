@@ -31,6 +31,8 @@ from Cookie import SimpleCookie
 from scrapy.http import Request
 from scrapy.dupefilters import RFPDupeFilter
 
+import profiler
+
 class MarketSpider(BaseSpider):
 	
 	def __init__(self, *args, **kwargs):
@@ -89,7 +91,9 @@ class MarketSpider(BaseSpider):
 			UserProperty,
 			UserPropertyAudit,
 			AdsImage,
-			ScrapeStat
+			ScrapeStat,
+			AdsFeedback,		# We do not need them. They will be temporarily kept by DAO for proval to works
+			SellerFeedback 		# We do not need them. They will be temporarily kept by DAO for proval to works
 		]
 
 		dao = DatabaseDAO(cacheconfig='markets', donotcache=donotcache)
@@ -192,8 +196,6 @@ class MarketSpider(BaseSpider):
 		return aggregated		
 
 
-
-
 	def configure_request_sharing(self):
 		if not hasattr(self._baseclass, '_queue_size'):
 			self._baseclass._queue_size = 0
@@ -279,6 +281,9 @@ class MarketSpider(BaseSpider):
 
 
 	def start_statistics(self):
+		self.ramreader = profiler.get_profiler('ram_reader')	# Get a profiler jsut to read ram usage
+		self.ramreader.enable() # Override Config for this specific profiler.
+
 		self.statsinterval = 30
 		if 'statsinterval' in self.settings:
 			self.statsinterval = int(self.settings['statsinterval'])
@@ -289,7 +294,9 @@ class MarketSpider(BaseSpider):
 	def savestats(self):
 		stat = ScrapeStat(scrape=self.scrape)
 
-		stats_data = self.dao.get_stats(self)
+		stats_data 	= self.dao.get_stats(self)
+		ram_usage 	= self.ramreader.get_usage()	
+		stat.ram_usage					= ram_usage	if ram_usage else 0
 
 		stat.ads						= stats_data[Ads]						if Ads 						in stats_data else 0
 		stat.ads_propval				= stats_data[AdsProperty]				if AdsProperty 				in stats_data else 0

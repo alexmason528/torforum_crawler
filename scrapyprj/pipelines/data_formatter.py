@@ -40,5 +40,5 @@ class DataFormatterPipeline(object):
 			content = ''.join(newlines)
 			return '%s\n\n%s\n%s' % (begin, content, end)
 		
-		self.logger.warning('Failed to clean PGP key.')
+		self.logger.warning('Failed to clean PGP key. \n %s' % key)
 		return key

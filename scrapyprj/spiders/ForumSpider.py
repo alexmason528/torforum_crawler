@@ -20,6 +20,7 @@ from scrapy.dupefilters import RFPDupeFilter
 from Queue import PriorityQueue
 from IPython import embed
 import json
+import profiler
 
 class ForumSpider(BaseSpider):
 	
@@ -160,6 +161,9 @@ class ForumSpider(BaseSpider):
 
 	def start_statistics(self):
 		self.statsinterval = 30
+		self.ramreader = profiler.get_profiler('ram_reader')	# Get a profiler jsut to read ram usage
+		self.ramreader.enable() # Override Config for this specific profiler.
+
 		if 'statsinterval' in self.settings:
 			self.statsinterval = int(self.settings['statsinterval'])
 
@@ -169,6 +173,9 @@ class ForumSpider(BaseSpider):
 		stat = ScrapeStat(scrape=self.scrape)
 
 		stats_data = self.dao.get_stats(self)
+
+		ram_usage 	= self.ramreader.get_usage()	
+		stat.ram_usage			= ram_usage	if ram_usage else 0
 
 		stat.thread 			= stats_data[Thread] 			if Thread 			in stats_data else 0
 		stat.message 			= stats_data[Message] 			if Message 			in stats_data else 0

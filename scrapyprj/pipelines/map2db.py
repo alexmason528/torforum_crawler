@@ -37,13 +37,12 @@ class map2db(object):
 		raise Exception('Unknown item type : %s' % item.__class__.__name__)
 
 
-
-
-
 class BaseMapper:
 	def set_if_exist(self, item, model, field):		# Mainly used for propval/propkey
 		if field in item:
-			model.__setattr__(field, str(item[field]))
+			if isinstance(item[field], basestring):
+				item[field]  = self.make_utf8(item[field])
+			model.__setattr__(field, item[field])
 
 	def drop_if_missign(self, item, field):
 		if field not in item:
@@ -54,6 +53,21 @@ class BaseMapper:
 		
 		if not item[field]:
 			raise DropItem("Empty %s in %s" % (field, item))
+
+	def make_utf8(self, text):
+		try:
+			if not isinstance(text, basestring):
+				text = str(text)
+
+			if isinstance(text, unicode):
+				text = text.encode('utf-8', 'ignore')	# Encode in UTF-8 and remove unknown char.
+			else:
+				text = text.decode('utf-8', 'ignore').encode('utf-8', 'ignore')
+		except:
+			# Some hand crafted characters can throw an exception. Remove them silently.
+			text = text.encode('cp1252', 'ignore').decode('utf-8','ignore') # Remove non-utf8 chars. 
+
+		return text
 
 
 
@@ -70,8 +84,8 @@ class ForumMapper(BaseMapper):
 
 		dbthread.forum 		= spider.forum
 		dbthread.scrape 	= spider.scrape
-		dbthread.title 		= item['title']
-		dbthread.external_id= item['threadid']
+		dbthread.title 		= self.make_utf8(item['title'])
+		dbthread.external_id= self.make_utf8(item['threadid'])
 		dbthread.author = spider.dao.get_or_create(forum_models.User,  username= item['author_username'], forum=spider.forum) # Unique key here
 		dbthread.scrape = spider.scrape
 
@@ -127,9 +141,9 @@ class ForumMapper(BaseMapper):
 			if key not in ['username']:
 				self.set_if_exist(item, dbmsg, key)
 
-		dbmsg.external_id = item['postid']	
-		dbmsg.contenttext = item['contenttext']
-		dbmsg.contenthtml = item['contenthtml']
+		dbmsg.external_id = self.make_utf8(item['postid']	)
+		dbmsg.contenttext = self.make_utf8(item['contenttext'])
+		dbmsg.contenthtml = self.make_utf8(item['contenthtml'])
 
 		for key in item:
 			if key not in ['author_username','contenttext','contenthtml','threadid','postid']:
@@ -141,10 +155,10 @@ class ForumMapper(BaseMapper):
 		self.drop_if_empty(item, 'username')
 
 		dbuser = forum_models.User()	# Extended PeeWee object that handles properties in different table
-		dbuser.username = item['username']
+		dbuser.username = self.make_utf8(item['username'])
 		
-		dbuser.forum = spider.forum
-		dbuser.scrape = spider.scrape
+		dbuser.forum 	= spider.forum
+		dbuser.scrape 	= spider.scrape
 
 		dbuser.setproperties_attribute(scrape = spider.scrape)  #propagate the scrape id to the UserProperty model.
 
@@ -171,8 +185,8 @@ class MarketMapper(BaseMapper):
 		#Direct Mapping
 		dbads.market 		= spider.market
 		dbads.scrape 		= spider.scrape
-		dbads.title 		= item['title']
-		dbads.external_id	= item['offer_id']	
+		dbads.title 		= self.make_utf8(item['title'])
+		dbads.external_id	= self.make_utf8(item['offer_id'])
 
 		# Link the thread with the user. Request the database (or caching system) to get auto-incremented id.
 		try:
@@ -205,10 +219,11 @@ class MarketMapper(BaseMapper):
 		imgs = []
 		for image in item['images']:
 			dbimg 			= market_models.AdsImage()
+			ads_id = self.make_utf8(item['ads_id'])
 			try:
-				dbimg.ads 		= spider.dao.get(market_models.Ads, external_id = item['ads_id'], market = spider.market)
+				dbimg.ads 		= spider.dao.get(market_models.Ads, external_id = ads_id, market = spider.market)
 			except market_models.Ads.DoesNotExist as e:
-			 	dbimg.ads 		= spider.dao.get_or_create(market_models.Ads, external_id = item['ads_id'], market = spider.market, scrape=spider.scrape)
+			 	dbimg.ads 		= spider.dao.get_or_create(market_models.Ads, external_id = ads_id, market = spider.market, scrape=spider.scrape)
 			dbimg.path 		= image['path']
 			dbimg.hash 		= image['checksum']
 			dbimg.scrape 	= spider.scrape
@@ -254,7 +269,7 @@ class MarketMapper(BaseMapper):
 		sha256 = hashlib.sha256()
 		sha256.update(str(dbfeedback.ads.id))
 		for key in item:
-			sha256.update(str(item[key]))
+			sha256.update(self.make_utf8(item[key]))
 
 		dbfeedback.hash = sha256.hexdigest()
 
@@ -288,7 +303,7 @@ class MarketMapper(BaseMapper):
 		sha256 = hashlib.sha256()
 		sha256.update(str(dbfeedback.seller.id))
 		for key in item:
-			sha256.update(str(item[key]))
+			sha256.update(self.make_utf8(item[key]))
 
 		dbfeedback.hash = sha256.hexdigest()
 

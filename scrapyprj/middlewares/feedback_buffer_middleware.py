@@ -6,7 +6,8 @@ from scrapyprj.spiders.MarketSpider import MarketSpider
 import scrapyprj.items.market_items as market_items
 from scrapy.utils.request import request_fingerprint
 import scrapyprj.database.markets.orm.models as market_models
-
+import traceback
+import profiler
 ## 
 ## Since feedbacks are not uniques, we can't rely on the database to remove duplicate.
 ## We need a complete dataset as a reference. 
@@ -76,10 +77,12 @@ class SpiderAccessor(object):
 	# Empty buffer for a specific rating owner
 	def erase_user_ratings(self, username):
 		self.logger.debug("Dropping all ratings for user %s" % username)
-		self.datastruct._user_rating_items[username] = []
+		del self.datastruct._user_rating_items[username] 
+		self.datastruct._user_rating_items[username] =[]
 
 	def erase_product_ratings(self, ads_id):
 		self.logger.debug("Dropping all ratings for product %s" % ads_id)
+		del self.datastruct._product_rating_items[ads_id]
 		self.datastruct._product_rating_items[ads_id] = []
 
 
@@ -135,8 +138,9 @@ class SpiderAccessor(object):
 		if username not in self.datastruct._user_rating_requests:
 			self.datastruct._user_rating_requests[username] = {}
 
-		if self.datastruct._user_rating_requests[username][fingerprint] == False:
-			self.logger.debug("Marking request as completed  %s for user %s" % (request.url, request.meta['user_rating_for']))
+		if fingerprint in self.datastruct._user_rating_requests[username]:
+			if self.datastruct._user_rating_requests[username][fingerprint] == False:
+				self.logger.debug("Marking request as completed  %s for user %s" % (request.url, request.meta['user_rating_for']))
 		
 		self.datastruct._user_rating_requests[username][fingerprint] = True
 
@@ -145,8 +149,9 @@ class SpiderAccessor(object):
 		if ads_id not in self.datastruct._product_rating_requests:
 			self.datastruct._product_rating_requests[ads_id] = {}
 		
-		if self.datastruct._product_rating_requests[ads_id][fingerprint] == False:
-			self.logger.debug("Marking request as completed %s for product %s" % (request.url, request.meta['product_rating_for']))
+		if fingerprint in self.datastruct._product_rating_requests[ads_id]:
+			if self.datastruct._product_rating_requests[ads_id][fingerprint] == False:
+				self.logger.debug("Marking request as completed %s for product %s" % (request.url, request.meta['product_rating_for']))
 		
 		self.datastruct._product_rating_requests[ads_id][fingerprint] = True
 
@@ -179,6 +184,7 @@ class FeedbackBufferMiddleware(object):
 				yield obj
 
 	def process_spider_output(self, response, result, spider):
+		profiler.start('feedback_buffer_process')
 		checkflush_user = False
 		checkflush_product = False
 
@@ -194,22 +200,36 @@ class FeedbackBufferMiddleware(object):
 
 		#### Executed once request callback is completed! (generator empty) ###
 		if isinstance(spider, MarketSpider):
+			user_flushed = False
+			ads_flushed = False
 			accessor = SpiderAccessor(spider)
-			if checkflush_user:	# Check only if items has been yielded. Speed optimisation
-				for username in list(accessor.get_all_completed_user_ratings_username()):	# List is important. We force full tieration before yield. Dictionary can change between yields
+			if checkflush_user:	# Check only if items has been yielded. Speed optimisation			
+				for username in list(accessor.get_all_completed_user_ratings_username()): # List is important. We force full tieration before yield. Dictionary can change between yields
 					self.logger.debug("User ratings for user %s are ready to be processed." % (username))
 					for rating in list(accessor.retrieve_held_user_ratings(username)):
+						if not user_flushed:
+							spider.dao.flush(market_models.User)	# We force flush because map2db may need a User that is waiting in the DAO queue. Item will be drop if that happen.
+							user_flushed = True
 						yield rating
 					spider.dao.flush(market_models.SellerFeedback)
+					profiler.start('fdbk_buffer_erase_user_rating')
 					accessor.erase_user_ratings(username)	# Save some RAM
+					profiler.stop('fdbk_buffer_erase_user_rating')
 			
 			if checkflush_product:
 				for ads_id in list(accessor.get_all_completed_product_ratings_id()):		# List is important. We force full tieration before yield. Dictionary can change between yields
 					self.logger.debug("Product ratings for ads %s are ready to be processed." % (ads_id))
 					for rating in list(accessor.retrieve_held_product_ratings(ads_id)):
+						if not ads_flushed:
+							spider.dao.flush(market_models.Ads)
+							ads_flushed = True
 						yield rating
+
 					spider.dao.flush(market_models.AdsFeedback)
+					profiler.start('fdbk_buffer_erase_product_rating')
 					accessor.erase_product_ratings(ads_id)	# Save some RAM
+					profiler.stop('fdbk_buffer_erase_product_rating')
+		profiler.stop('feedback_buffer_process')
 
 	# When a response comes in, we mark the request as completed
 	def process_spider_input(self, response, spider ):
@@ -237,9 +257,6 @@ class FeedbackBufferMiddleware(object):
 		
 		if not block_item:
 			return x
-
-	def process_spider_exception(self, response, exception, spider):
-		self.logger.error("%s" % exception)
 
 
 
