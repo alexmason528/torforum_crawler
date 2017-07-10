@@ -135,6 +135,43 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER delete_message_pop_history AFTER DELETE on message
+FOR EACH ROW
+BEGIN
+	insert into message 
+    (`id`, `external_id`, `thread`, `author`, `contenttext`, `contenthtml`, `posted_on`, `modified_on`, `forum`, `scrape` )
+    (
+
+		select 
+			`old`.`id`, 
+			`old`.`external_id`, 
+			`old`.`thread`, 
+			`message_audit`.`author`, 
+			`message_audit`.`contenttext`, 
+			`message_audit`.`contenthtml`, 
+			`message_audit`.`posted_on`, 
+			`message_audit`.`modified_on`, 
+            `old`.`forum`,
+			`message_audit`.`scrape`  as 'scrape' 
+		from message_audit 
+		where message=`old`.`id` order by `message_audit`.`modified_on`
+		limit 1
+		);
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `message_audit`
@@ -184,7 +221,7 @@ DROP TABLE IF EXISTS `message_propval`;
 CREATE TABLE `message_propval` (
   `propkey` bigint(11) NOT NULL,
   `message` bigint(11) NOT NULL,
-  `data` text,
+  `data` mediumtext,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`propkey`,`message`),
@@ -239,7 +276,7 @@ DROP TABLE IF EXISTS `message_propvalaudit`;
 CREATE TABLE `message_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `message` bigint(11) NOT NULL,
-  `data` text,
+  `data` mediumtext,
   `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) DEFAULT NULL,
   KEY `message_propvalaudit_modifiedon_index` (`modified_on`),
@@ -306,6 +343,7 @@ CREATE TABLE `scrapestat` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `scrape` bigint(11) NOT NULL,
   `logtime` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `ram_usage` bigint(20) DEFAULT NULL,
   `request_sent` bigint(20) DEFAULT NULL,
   `request_bytes` bigint(20) DEFAULT NULL,
   `response_received` bigint(20) DEFAULT NULL,
@@ -448,7 +486,7 @@ DROP TABLE IF EXISTS `user_propval`;
 CREATE TABLE `user_propval` (
   `propkey` bigint(11) NOT NULL,
   `user` bigint(11) NOT NULL,
-  `data` text,
+  `data` mediumtext,
   `modified_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `scrape` bigint(11) DEFAULT NULL,
   PRIMARY KEY (`propkey`,`user`),
@@ -503,7 +541,7 @@ DROP TABLE IF EXISTS `user_propvalaudit`;
 CREATE TABLE `user_propvalaudit` (
   `propkey` bigint(11) NOT NULL,
   `user` bigint(11) NOT NULL,
-  `data` text,
+  `data` mediumtext,
   `modified_on` timestamp NOT NULL,
   `scrape` bigint(11) DEFAULT NULL,
   KEY `user_propvalaudit_user_idx` (`user`),
@@ -621,4 +659,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-06-04 23:11:25
+-- Dump completed on 2017-07-09 23:31:01

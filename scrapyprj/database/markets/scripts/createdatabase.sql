@@ -456,6 +456,7 @@ CREATE TABLE `scrapestat` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
   `scrape` bigint(11) NOT NULL,
   `logtime` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `ram_usage` bigint(20) DEFAULT NULL,
   `request_sent` bigint(20) DEFAULT NULL,
   `request_bytes` bigint(20) DEFAULT NULL,
   `response_received` bigint(20) DEFAULT NULL,
@@ -834,4 +835,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-06-27  1:25:02
+-- Dump completed on 2017-07-09 23:30:48
