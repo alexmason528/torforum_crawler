@@ -44,6 +44,7 @@ class ScrapeStat(Model):
 	id = PrimaryKeyField()
 	scrape = ForeignKeyField(Scrape, related_name='stats', db_column='scrape')
 	logtime = DateTimeField()
+	ram_usage = BigIntegerField()
 	request_sent = BigIntegerField()
 	request_bytes = BigIntegerField()
 	response_received = BigIntegerField()
