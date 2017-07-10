@@ -21,7 +21,9 @@ class TraderouteMarketSpider(MarketSpider):
 	custom_settings = {
 		'IMAGES_STORE' : './files/img/traderoute_market',
 		'RANDOMIZE_DOWNLOAD_DELAY' : True,
-		'RESCHEDULE_RULES' : {}
+		'RESCHEDULE_RULES' : {
+		'An error occured, please refresh the page or contact support if the problem persists' : 60 
+		}
 	}
 
 

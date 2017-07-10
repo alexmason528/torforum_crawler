@@ -72,6 +72,9 @@ class AppleMarketForumSpider(ForumSpider):
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
         req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
 
+        if 'req_once_logged' in kwargs:
+            req.meta['req_once_logged'] = kwargs['req_once_logged']        
+
         return req
    
     def parse(self, response):
@@ -107,14 +110,9 @@ class AppleMarketForumSpider(ForumSpider):
             yield response.meta['req_once_logged']
 
         for line in response.css("#brdmain tbody tr"):
-            link = line.css("h3>a::attr(href)").extract_first()
-            
-            yield self.make_request('threadlisting', url=link)
+            yield self.make_request('threadlisting', url=line.css("h3>a::attr(href)").extract_first())
     
     def parse_thread_listing(self, response):
-        threads_requests = []
-        
-
         for line in response.css("#brdmain tbody tr"):
             threaditem = items.Thread()
             title =  self.get_text(line.css("td:first-child a"))
@@ -142,18 +140,12 @@ class AppleMarketForumSpider(ForumSpider):
                 threaditem['views']     = self.get_text(line.css("td:nth-child(3)"))
                 yield threaditem
 
-                threads_requests.append(self.make_request('thread', url=threadlinkhref))
-
-        self.dao.flush(models.Thread)
-
-        for req in threads_requests:
-            yield req
+                yield self.make_request('thread', url=threadlinkhref)
 
         for link in response.css("#brdmain .pagelink a::attr(href)").extract():
             yield self.make_request('threadlisting', url=link)
 
     def parse_thread(self, response):
-        requests = []
         threadid =  self.get_url_param(response.url, 'id')
         posts = response.css("#brdmain div.blockpost")
         for post in posts:
@@ -169,19 +161,13 @@ class AppleMarketForumSpider(ForumSpider):
 
                 msg = post.css("div.postmsg")
                 messageitem['contenttext'] = self.get_text(msg)
-                messageitem['contenthtml'] = msg.extract_first()
+                messageitem['contenthtml'] = self.get_text(msg.extract_first())
 
                 yield messageitem
+                yield self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link )
 
-                requests.append(self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link ))
-            except e:
+            except Exception as e:
                 self.logger.warning("Invalid thread page. %s" % e)
-
-        
-        self.dao.flush(models.Message)
-
-        for req in requests:
-            yield req
 
         for link in response.css("#brdmain .pagelink a::attr(href)").extract():
             yield self.make_request('thread', url=link)
@@ -232,8 +218,6 @@ class AppleMarketForumSpider(ForumSpider):
 
         yield user
 
-        self.dao.flush(models.User)
-
     def craft_login_request_from_form(self, response):
         data = {
             'req_username' : self.login['username'],
@@ -275,10 +259,4 @@ class AppleMarketForumSpider(ForumSpider):
 
     def get_url_param(self, url, key):
          return dict(parse_qsl(urlparse(url).query))[key]
-
-    def is_meaningless_error(self, response):
-        s = 'The post table and topic table seem to be out of sync'
-        if s in response.css('body').extract_first():
-            return True
-        return False
 

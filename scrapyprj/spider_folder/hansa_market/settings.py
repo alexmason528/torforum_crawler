@@ -11,6 +11,10 @@ settings = {
 		'vivarossa1': {			
 			'username' : 'vivarossa1',
 			'password' : 'pass0000'
+		},
+		'amiralsander': {			
+			'username' : 'amiralsander',
+			'password' : 'pqowieuryt'
 		}
 	}
 }

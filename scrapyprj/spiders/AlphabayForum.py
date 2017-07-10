@@ -112,7 +112,6 @@ class AlphabayForum(ForumSpider):
     def parse_threadlisting(self, response):
         threaddivs = response.css("li.discussionListItem")
         oldestthread_datetime = datetime.utcnow()
-        request_buffer = []
         for threaddiv in threaddivs:
             try:
                 threaditem = items.Thread();
@@ -130,31 +129,24 @@ class AlphabayForum(ForumSpider):
                 
                 author_url = threaddiv.css(".username::attr(href)").extract_first()
 
-                request_buffer.append( self.make_request('userprofile',  url = author_url))
-                request_buffer.append( self.make_request('threadpage', url=threadurl, threadid=threaditem['threadid'])) # First page of thread
+                yield self.make_request('userprofile',  url = author_url)
+                yield self.make_request('threadpage',   url = threadurl, threadid=threaditem['threadid']) # First page of threa
 
                 yield threaditem # sends data to pipelne
                 
             except Exception as e:
-                self.logger.error("Failed parsing response for threadlisting at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
+                self.logger.error("Failed parsing response for threadlisting at %s. Error is %s.\n Skipping thread\n %s" % ( response.url, e.message, traceback.format_exc() ))
                 continue
         
         # Parse next page.
         for link in response.css("div.PageNav nav a::attr(href)").extract():
-            request_buffer.append( self.make_request(reqtype='threadlisting', url = link)  )
+            yield self.make_request(reqtype='threadlisting', url = link)  
         
-        self.dao.flush(models.Thread)  # Flush threads to database.
-        
-        #We yield requests AFTER writing to database. This will avoid race condition that could lead to foreign key violation. (Thread post linked to a thread not written yet.)
-        for request in request_buffer: 
-            yield request
-
     # Parse messages from a thread page.
     def parse_threadpage(self, response):   
         threadid = response.meta['threadid']
 
         for message in response.css(".messageList .message"):
-
             msgitem = items.Message();
             try:
                 fullid                      = message.xpath("@id").extract_first()
@@ -166,11 +158,10 @@ class AlphabayForum(ForumSpider):
                 msgitem['contenttext']      = self.get_text(textnode)
                 msgitem['threadid']         = threadid
             except Exception as e:
-                self.logger.error("Failed parsing response for thread at " + response.url + ". Error is "+e.message+".\n Skipping thread\n" + traceback.format_exc())
+                self.logger.error("Failed parsing response for thread at %s. Error is %s.\n Skipping thread\n %s" % (response.url, e.message, traceback.format_exc()))
 
             yield msgitem
 
-        self.dao.flush(models.Message)
 
         for link in response.css("a.username::attr(href)").extract():           # Duplicates will be removed by dupefilter
             yield self.make_request('userprofile', url=self.make_url(link))
@@ -221,12 +212,10 @@ class AlphabayForum(ForumSpider):
 
             yield useritem
 
-        self.dao.flush(models.User) 
 
     def handle_login_response(self, response):
         if self.islogged(response):
             self.logger.info('Login success, continuing where we were.')
-            self.dao.flush(models.CaptchaQuestion)
             if response.meta['req_once_logged']:
                 yield response.meta['req_once_logged']
             else:

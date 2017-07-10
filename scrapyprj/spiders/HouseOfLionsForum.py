@@ -70,6 +70,9 @@ class HouseOfLionsSpider(ForumSpider):
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
         req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
 
+        if 'req_once_logged' in kwargs:
+            req.meta['req_once_logged'] = kwargs['req_once_logged']
+
         return req
    
     def parse(self, response):
@@ -104,7 +107,6 @@ class HouseOfLionsSpider(ForumSpider):
             yield self.make_request('board', url=link)
 
     def parse_board(self, response):
-        request_buffer = []
         for threadline in response.css('#messageindex table tbody tr'):
             try:
                 threaditem = items.Thread()
@@ -139,25 +141,19 @@ class HouseOfLionsSpider(ForumSpider):
                 yield threaditem
                 
                 for pagelink in response.css(".pagelinks a.navPages"):
-                    request_buffer.append(self.make_request('board', url = pagelink.xpath("@href").extract_first() ))
+                    yield self.make_request('board', url = pagelink.xpath("@href").extract_first() )
 
                 for userlink in threadline.xpath('.//a[contains(@href, "action=profile")]'):
                     u = userlink.xpath("@href").extract_first()
-                    request_buffer.append(self.make_request('userprofile', url = u, relativeurl=u ))
+                    yield self.make_request('userprofile', url = u, relativeurl=u )
 
                 for threadlink in threadline.xpath('.//a[contains(@href, "?topic=") and not(contains(@href, "#new"))]'):
-                    request_buffer.append(self.make_request('thread', url = threadlink.xpath("@href").extract_first(), threadid=threaditem['threadid'] ))
+                    yield self.make_request('thread', url = threadlink.xpath("@href").extract_first(), threadid=threaditem['threadid'] )
             except Exception as e:
                 self.logger.error("Cannot parse thread item : %s" % e)
                 raise
 
-        self.dao.flush(models.Thread)
-
-        for req in request_buffer:
-            yield req
-
     def parse_thread(self, response):
-        request_buffer = []
         for postwrapper in response.css(".post_wrapper"):
             try:
                 msgitem = self.get_message_item_from_postwrapper(postwrapper, response)
@@ -167,20 +163,14 @@ class HouseOfLionsSpider(ForumSpider):
                 yield useritem
 
                 for pagelink in response.css(".pagelinks a.navPages"):
-                    request_buffer.append(self.make_request('thread', url = pagelink.xpath("@href").extract_first(), threadid=msgitem['threadid'] ))
+                    yield self.make_request('thread', url = pagelink.xpath("@href").extract_first(), threadid=msgitem['threadid'] )
 
                 for userlink in postwrapper.css(".poster h4").xpath(".//a[not(contains(@href, 'action=pm'))]"):
                     u = userlink.xpath("@href").extract_first();
-                    request_buffer.append(self.make_request('userprofile', url = u, relativeurl=u))
+                    yield self.make_request('userprofile', url = u, relativeurl=u)
             except Exception as e:
                 self.logger.error("Cannot parse Message item : %s" % e)
                 raise
-
-        self.dao.flush(models.User)
-        self.dao.flush(models.Message)
-
-        for req in request_buffer:
-            yield req
 
 
     def get_message_item_from_postwrapper(self, postwrapper, response):
@@ -199,7 +189,7 @@ class HouseOfLionsSpider(ForumSpider):
 
         msgitem['threadid']         = response.meta['threadid']
         msgitem['author_username']  = self.get_text(postwrapper.css(".poster h4"))  
-        msgitem['contenthtml']      = postcontent.extract_first()
+        msgitem['contenthtml']      = self.get_text(postcontent.extract_first())
         msgitem['contenttext']      = self.get_text(postcontent)
 
         return msgitem
@@ -282,8 +272,6 @@ class HouseOfLionsSpider(ForumSpider):
                 self.logger.warning('New information found on user profile page : %s. (%s)' % (key, response.url))
 
         yield user
-
-        self.dao.flush(models.User)
 
     def parse_timestr(self, timestr):
         timestr = timestr.lower()

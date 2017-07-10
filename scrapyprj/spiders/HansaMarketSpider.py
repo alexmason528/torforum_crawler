@@ -30,10 +30,10 @@ class HansaMarketSpider(MarketSpider):
 		
 		self.logintrial = 0
 
-		self.max_concurrent_requests = 4	# Scrapy config
+		self.max_concurrent_requests = 1	# Scrapy config
 		self.download_delay = 0				# Scrapy config
-		self.request_queue_chunk = 10 		# Custom Queue system
-		self.statsinterval = 30;			# Custom Queue system
+		self.request_queue_chunk = 1 		# Custom Queue system
+		self.statsinterval = 60;			# Custom Queue system
 
 		self.parse_handlers = {
 				'index' 		: self.parse_index,
@@ -62,6 +62,12 @@ class HansaMarketSpider(MarketSpider):
 		elif reqtype == 'dologin':
 			req = self.craft_login_request_from_form(kwargs['response'])
 			req.dont_filter=True
+		elif reqtype == 'captcha':
+			req = Request(self.make_url(kwargs['url']))
+			req.dont_filter=True
+		elif reqtype=='ddos_protection':
+			req = self.create_request_from_ddos_protection(kwargs['response'])
+			req.dont_filter=True
 		elif reqtype in ['category', 'listing', 'userprofile', 'listing_feedback', 'user_feedback', 'image']:
 			req = Request(self.make_url(kwargs['url']))
 			req.meta['shared'] = True
@@ -80,6 +86,10 @@ class HansaMarketSpider(MarketSpider):
 		if 'req_once_logged' in kwargs:
 			req.meta['req_once_logged'] = kwargs['req_once_logged']
 
+
+		if reqtype == 'user_feedback':	# Disabled user feedback because it is redundant with ads_feedback
+			return None	
+
 		return req
 
 
@@ -94,9 +104,24 @@ class HansaMarketSpider(MarketSpider):
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
 					self.wait_for_input("Too many failed login trials. Giving up.", response.meta['req_once_logged'])
 					self.logintrial=0
-				return 
+					return 
 
 				yield self.make_request(reqtype='dologin', req_once_logged=req_once_logged, response=response)
+			elif self.is_ddos_challenge(response):
+				self.logger.warning('Encountered a DDOS protection page')
+				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
+					req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
+					self.logintrial = 0
+					self.wait_for_input("Can't bypass DDOS Protection",req_once_logged)
+					return
+				self.logger.info("Trying to overcome DDOS protection")
+				self.logintrial += 1
+
+				req_once_logged = response.request
+				if ('req_once_logged' in response.meta):
+					req_once_logged = response.meta['req_once_logged']
+
+				yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response, priority=10)
 			else:
 				self.logger.info("Not logged, going to login page.")
 				yield self.make_request(reqtype='loginpage', req_once_logged=response.request)
@@ -104,17 +129,22 @@ class HansaMarketSpider(MarketSpider):
 			self.logintrial = 0
 
 			# We restore the missed request when protection kicked in
-			if response.meta['reqtype'] == 'dologin':
-				self.logger.info("Login Success!")
+			if response.meta['reqtype'] in ['dologin', 'ddos_protection']:
+				if response.meta['reqtype'] == 'dologin':
+					self.logger.info("Login Success!")
+				elif response.meta['reqtype'] == 'ddos_protection':
+					self.logger.info("Bypassed DDOS protection!")
+
 				if response.meta['req_once_logged']:
 					yield response.meta['req_once_logged']
 			
 			# Normal parsing
 			else:
 				it = self.parse_handlers[response.meta['reqtype']].__call__(response)
-				for x in it:
-					if x:
-						yield x
+				if it:
+					for x in it:
+						if x:
+							yield x
 
 	def parse_index(self, response):
 		for url in response.css('a.list-group-item::attr(href)').extract():
@@ -122,8 +152,6 @@ class HansaMarketSpider(MarketSpider):
 
 
 	def parse_category(self, response):
-		req_list = []
-
 		for user_link in response.xpath('//a[starts-with(@href, "/vendor/")]'):
 			user = items.User()
 			user['username'] = self.get_text(user_link)
@@ -131,18 +159,14 @@ class HansaMarketSpider(MarketSpider):
 			user['fullurl'] = self.make_url(user['relativeurl'])
 
 			yield user
-			req_list.append( self.make_request('userprofile', url=user['relativeurl']))
-
-		self.dao.flush(dbmodels.User)
+			yield self.make_request('userprofile', url=user['relativeurl'])
 
 		for listing_url in response.xpath('//a[starts-with(@href, "/listing/") and not(contains(@href, "also-available"))]/@href').extract():
-			req_list.append( self.make_request('listing', url=listing_url))
+			yield self.make_request('listing', url=listing_url)
 
 		for cat_url in response.css('ul.pagination li a::attr(href)').extract():
-			req_list.append( self.make_request('category', url=cat_url) )
+			yield self.make_request('category', url=cat_url)
 
-		for req in req_list:
-			yield req
 
 	def parse_userprofile(self, response):
 		try:
@@ -205,8 +229,6 @@ class HansaMarketSpider(MarketSpider):
 				user['terms_and_conditions'] = self.get_text(response.xpath('//h4[contains(text(), "Terms & Conditions")]/../p'))
 			elif active_presentation == 'pgp':
 				user['public_pgp_key'] = self.get_text(response.xpath('//h4[contains(text(), "Vendor Public PGP Key")]/../code'))
-				
-
 
 			# Ratings from other websites.
 			fbhistory_container = response.xpath("//h3[contains(text(), 'Feedback History')]/..")
@@ -241,14 +263,12 @@ class HansaMarketSpider(MarketSpider):
 				user['oasis_rating'] =  m.group(0)
 
 			yield user
-			self.dao.flush(dbmodels.User)
-
 
 			for url in response.css("ul li[role='presentation'] a::attr(href)").extract():
 				if 'feedback' in url :
 					yield self.make_request('user_feedback', url=url, username=user['username'])
-				#else:
-				#	yield self.make_request('userprofile', url=url)	# Will reload profile with new info in it. They will add in database.
+				else:
+					yield self.make_request('userprofile', url=url)	# Will reload profile with new info in it. They will add in database.
 
 		except WarningException as e:
 			self.logger.warning("Could not parse profile at %s. %s" % (response.url, e))
@@ -256,7 +276,6 @@ class HansaMarketSpider(MarketSpider):
 			
 	def parse_listing(self, response):
 		try:
-			requests = []
 			ads = items.Ads()
 			lis = response.css('.container ol li')
 			title_cat = []
@@ -286,7 +305,7 @@ class HansaMarketSpider(MarketSpider):
 				val = tds[1]
 				if prop == 'vendor':
 					vendor_link = val.xpath('a[contains(@href, "vendor")]')
-					requests.append(self.make_request('userprofile', url=vendor_link.xpath('@href').extract_first()))
+					yield self.make_request('userprofile', url=vendor_link.xpath('@href').extract_first())
 					ads['vendor_username'] = self.get_text(vendor_link)
 				elif prop == 'class':
 					ads['ads_class'] = self.get_text(val)
@@ -320,8 +339,6 @@ class HansaMarketSpider(MarketSpider):
 
 			yield ads
 
-			self.dao.flush(dbmodels.Ads)
-
 
 			## ===================== IMAGES =====================
 			images_url = response.css('img.img-thumbnail::attr(src)').extract();
@@ -332,7 +349,7 @@ class HansaMarketSpider(MarketSpider):
 					img_item['ads_id'] = ads['offer_id']
 					yield img_item
 
-			self.dao.flush(dbmodels.AdsImage)
+			#self.dao.flush(dbmodels.AdsImage)
 			## =========
 
 
@@ -346,11 +363,6 @@ class HansaMarketSpider(MarketSpider):
 					yield self.make_request('listing_feedback', url=link, listing_id=ads['offer_id'])
 				else:
 					self.logger.warning('Encountered an unknown tab %s. Listing at %s' % (name, response.url))
-
-
-			for request in requests:
-				yield request
-		
 
 		except WarningException as e:
 			self.logger.warning("Cannot parse listing.  %s" % e) 
@@ -390,7 +402,7 @@ class HansaMarketSpider(MarketSpider):
 				if m:
 					rating['submitted_by'] 	= self.get_text(m.group(1))
 
-				self.hold_rating(rating)
+				yield rating
 
 			except WarningException as e:
 				self.logger.warning("Could not get listing feedback at %s. %s" % (response.url, e))
@@ -478,7 +490,7 @@ class HansaMarketSpider(MarketSpider):
 		captcha_src = response.css("form img::attr(src)").extract_first()
 		
 		req.meta['captcha'] = {        # CaptchaMiddleware will take care of that.
-			'request' : self.make_request('image', url=captcha_src),
+			'request' : self.make_request('captcha', url=captcha_src),
 			'name' : 'sec'   
 		}
 
@@ -497,3 +509,14 @@ class HansaMarketSpider(MarketSpider):
 			return dt
 		except Exception as e:
 			self.logger.error("Cannot parse time string '%s'. Error : %s" % (timestr, e))
+
+
+	def create_request_from_ddos_protection(self, response):
+		captcha_src = response.css('.container img::attr(src)').extract_first().strip()
+		req = FormRequest.from_response(response, formcss='form[action="/challenge/"]')
+		
+		req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
+			'request' : self.make_request('captcha', url=captcha_src),
+			'name' : 'sec'
+			}
+		return req

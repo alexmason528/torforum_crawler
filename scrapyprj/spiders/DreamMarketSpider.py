@@ -67,6 +67,9 @@ class DreamMarketSpider(MarketSpider):
 			req = Request(self.make_url(kwargs['url']))
 			req.meta['shared'] = True
 
+		if reqtype == 'ads':
+			req.meta['product_rating_for'] = kwargs['ads_id']
+
 
 		req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
 		req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
@@ -136,9 +139,10 @@ class DreamMarketSpider(MarketSpider):
 			# Normal parsing
 			else:
 				it = self.parse_handlers[response.meta['reqtype']].__call__(response)
-				for x in it:
-					if x:
-						yield x
+				if it:
+					for x in it:
+						if x:
+							yield x
 
 		
 	def parse_index(self, response):
@@ -151,10 +155,9 @@ class DreamMarketSpider(MarketSpider):
 
 
 	def parse_ads_list(self, response):
-
 		ads_url = response.css(".main .content .shopItem .oTitle>a::attr(href)").extract()
 		for url in ads_url:
-			yield self.make_request('ads', url=url)
+			yield self.make_request('ads', url=url, ads_id = self.get_url_param(url, 'offer'))
 
 		page_urls = response.css(".main .content .pageNavContainer ul.pageNav li a.pager::attr(href)").extract()
 		for url in page_urls: 
@@ -189,8 +192,7 @@ class DreamMarketSpider(MarketSpider):
 				self.logger.warning('Found an ads detail (%s) that is unknown to this spider. Consider hadnling it.' % label_txt)
 
 		ads_item['description'] = self.get_text(response.css("#offerDescription"))
-
-		ads_item['offer_id'] = dict(parse_qsl(urlparse(response.url).query))['offer']
+		ads_item['offer_id'] = self.get_url_param(response.url, 'offer')
 		
 		try:
 			ads_item['category'] = self.get_active_category(response)
@@ -208,8 +210,6 @@ class DreamMarketSpider(MarketSpider):
 
 		yield ads_item
 
-		self.dao.flush(dbmodels.Ads)
-
 		## ===================== IMAGES =====================
 		images_url = response.css('img.productImage::attr(src)').extract();
 		for url in images_url:
@@ -217,8 +217,6 @@ class DreamMarketSpider(MarketSpider):
 			img_item['image_urls'].append(self.make_request('image', url=url))
 			img_item['ads_id'] = ads_item['offer_id']
 			yield img_item
-
-		self.dao.flush(dbmodels.AdsImage)
 
 		## ===================== Product Ratings (feedback) =========
 		rating_lines = response.css('.ratings table tr')
@@ -242,9 +240,6 @@ class DreamMarketSpider(MarketSpider):
 
 			except Exception, e:
 				self.logger.warning("Could not get product rating. %s" % e)
-
-		self.dao.flush(dbmodels.AdsFeedback)
-
 
 	
 	def parse_user(self, response):
@@ -300,11 +295,9 @@ class DreamMarketSpider(MarketSpider):
 		user_item['relativeurl'] = "%s?%s" % (parsed_url.path, (parsed_url.query))
 
 		yield user_item
-		self.dao.flush(dbmodels.User)
-
 
 		for url in response.css("div.shop div.oTitle a::attr(href)").extract():
-			yield self.make_request('ads', url=url) 	# We rely on dupe filter te remove duplicate.
+			yield self.make_request('ads', url=url, ads_id=self.get_url_param(url, 'offer')) 	# We rely on dupe filter te remove duplicate.
 
 	def loggedin(self, response):
 		profile_links = response.css('.main .headNavitems ul li a[href="./profile"]')

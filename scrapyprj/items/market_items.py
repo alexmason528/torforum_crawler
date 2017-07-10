@@ -66,7 +66,7 @@ class ProductRating(scrapy.Item):
 	comment = scrapy.Field()
 	ads_id = scrapy.Field()
 	submitted_by = scrapy.Field()
-
+	delivery_time = scrapy.Field()
 
 class UserRating(scrapy.Item):
 	submitted_on = scrapy.Field()
