@@ -250,7 +250,7 @@ class MarketMapper(BaseMapper):
 		return dbuser
 
 	def map_product_rating(self, item, spider):
-		self.drop_if_empty(item, 'username')
+		self.drop_if_empty(item, 'ads_id')
 
 		dbfeedback = market_models.AdsFeedback()
 		dbfeedback.market = spider.market
