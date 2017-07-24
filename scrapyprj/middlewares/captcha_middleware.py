@@ -6,6 +6,7 @@ import urllib
 import logging
 from scrapy.exceptions import IgnoreRequest
 from scrapyprj.captcha.DreamMarketRectangleCropper import DreamMarketRectangleCropper
+from scrapyprj.captcha.WallstreetMarketAddBackground import WallstreetMarketAddBackground
 import base64
 
 class CaptchaMiddleware(object):
@@ -49,6 +50,9 @@ class CaptchaMiddleware(object):
 			if request.meta['captcha']['preprocess'] == 'DreamMarketRectangleCropper':
 				cropper = DreamMarketRectangleCropper()
 				data = cropper.process(data)
+			elif request.meta['captcha']['preprocess'] == 'WallstreetMarketAddBackground':
+				bgadder = WallstreetMarketAddBackground()
+				data = bgadder.process(data)
 		
 		dbc_username = spider.settings['DEATHBYCAPTHA']['username']
 		dbc_password = spider.settings['DEATHBYCAPTHA']['password']

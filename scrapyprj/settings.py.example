@@ -78,7 +78,8 @@ SPIDER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 200,
     'scrapyprj.middlewares.reschedule_middleware.RescheduleMiddleware': 300,
 	'scrapyprj.middlewares.feedback_buffer_middleware.FeedbackBufferMiddleware' : 301,
-	'scrapyprj.middlewares.autoflush_middleware.AutoflushMiddleWare' :  302
+	'scrapyprj.middlewares.autoflush_middleware.AutoflushMiddleWare' :  302,
+	'scrapyprj.middlewares.start_requests_cookie_middleware.StartRequestCookie' :  303
 }
 
 DOWNLOADER_MIDDLEWARES = {

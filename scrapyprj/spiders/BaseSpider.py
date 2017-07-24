@@ -24,6 +24,7 @@ import profiler
 
 class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
+
 	def __init__(self, *args, **kwargs):
 		self.running = True
 		kwargs['settings'] = self.configure_image_store(kwargs['settings'])
@@ -38,7 +39,7 @@ class BaseSpider(scrapy.Spider):
 		self.configure_login()
 		self.configure_proxy()
 		self.mailer =  MailSender.from_settings(self.settings)
-		
+
 		if not hasattr(BaseSpider, '_allspiders'):
 			BaseSpider._allspiders = {}
 
@@ -286,6 +287,8 @@ class BaseSpider(scrapy.Spider):
 			return ''	
 		elif isinstance(nodes, basestring):
 			return self.get_text(nodes)
+		elif not hasattr(nodes, '__len__'):
+			return self.get_text(nodes)
 		elif len(nodes) > 0:
 			return self.get_text(nodes[0])
 		else:
@@ -412,3 +415,10 @@ class BaseSpider(scrapy.Spider):
   	# Once commited, data will be transferred to amin queue and dao.flush must be called. 
 	def get_queuename(self, model):	# Called by save2db pipeline.
 		return None	# Default to None. That means go to database. 
+
+	def get_relative_url(self, url):
+		parsed = urlparse(url)
+		relativeurl = parsed.path
+		if parsed.query:
+			relativeurl += '?%s' % parsed.query
+		return  relativeurl

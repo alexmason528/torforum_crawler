@@ -223,7 +223,8 @@ class MarketMapper(BaseMapper):
 			try:
 				dbimg.ads 		= spider.dao.get(market_models.Ads, external_id = ads_id, market = spider.market)
 			except market_models.Ads.DoesNotExist as e:
-			 	dbimg.ads 		= spider.dao.get_or_create(market_models.Ads, external_id = ads_id, market = spider.market, scrape=spider.scrape)
+			 	raise DropItem("Invalid Ads Image : Unable to get Ads from database. Cannot respect foreign key constraint.")
+			 	
 			dbimg.path 		= image['path']
 			dbimg.hash 		= image['checksum']
 			dbimg.scrape 	= spider.scrape
@@ -249,7 +250,7 @@ class MarketMapper(BaseMapper):
 		return dbuser
 
 	def map_product_rating(self, item, spider):
-		self.drop_if_empty(item, 'rating')
+		self.drop_if_empty(item, 'username')
 
 		dbfeedback = market_models.AdsFeedback()
 		dbfeedback.market = spider.market
@@ -283,7 +284,7 @@ class MarketMapper(BaseMapper):
 
 
 	def map_user_rating(self, item, spider):
-		self.drop_if_empty(item, 'rating')
+		self.drop_if_empty(item, 'username')
 
 		dbfeedback = market_models.SellerFeedback()
 		dbfeedback.market = spider.market

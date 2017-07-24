@@ -21,6 +21,14 @@ class Ads(scrapy.Item) :
 	stock = scrapy.Field()
 	terms_and_conditions = scrapy.Field()
 	multilisting = scrapy.Field()
+	multisig = scrapy.Field()
+	views = scrapy.Field()
+	minimum_order = scrapy.Field()
+	maximum_order = scrapy.Field()
+	already_sold = scrapy.Field()
+	country = scrapy.Field()
+	replace_time = scrapy.Field()
+	auto_accept = scrapy.Field()
 
 class AdsImage(scrapy.Item):
 	ads_id = scrapy.Field()
@@ -59,6 +67,9 @@ class User(scrapy.Item) :
 	ship_from = scrapy.Field()
 	ship_to = scrapy.Field()
 	title = scrapy.Field()
+	exp = scrapy.Field()
+	successful_transactions_as_buyer = scrapy.Field()
+	news = scrapy.Field()
 
 class ProductRating(scrapy.Item):
 	submitted_on = scrapy.Field()
@@ -75,3 +86,13 @@ class UserRating(scrapy.Item):
 	username = scrapy.Field()
 	submitted_by = scrapy.Field()
 	delivery_time = scrapy.Field()
+
+	communication = scrapy.Field()
+	speed = scrapy.Field()
+	stealth = scrapy.Field()
+	quality = scrapy.Field()
+	payment_type = scrapy.Field()
+	item_name = scrapy.Field()
+	submitter_level = scrapy.Field()
+
+
