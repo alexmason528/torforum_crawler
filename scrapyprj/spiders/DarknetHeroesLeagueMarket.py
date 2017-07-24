@@ -139,6 +139,10 @@ class DarknetHeroesLeague(MarketSpider):
 
 			yield self.make_request('category', url=url, category=category)
 
+		for url in response.xpath('//a[contains(@href, "product/")]/@href').extract():
+			yield self.make_request('product', url=url) 	# We do not have a category from here. It won't delete an existing entry having a category
+
+
 	def parse_category(self, response):
 		for row in  response.css('table.product-list tbody tr'):
 			user_link = row.xpath('.//a[contains(@href, "vid=")]')
@@ -153,7 +157,7 @@ class DarknetHeroesLeague(MarketSpider):
 
 			product_link = row.xpath('.//a[contains(@href, "product/") and not(img)]');
 			url = product_link.xpath('@href').extract_first()
-			yield self.make_request('product', url=url, priority=20, username=username, category=response.meta['category'])	
+			yield self.make_request('product', url=url, username=username, category=response.meta['category'])	
 
 			for page_url in response.css('.pagination a::attr(href)').extract():
 				yield self.make_request('category', url=page_url, category=response.meta['category'])
@@ -161,10 +165,15 @@ class DarknetHeroesLeague(MarketSpider):
 	def parse_product(self, response):
 		ads = items.Ads()
 
+		if 'username' in response.meta:
+			username = response.meta['username']
+		else:
+			username = self.get_username_from_header(response)
+
 		ads['offer_id'] 		= self.get_product_id_from_url(response.url)
 		ads['relativeurl'] 		= 'product/%s' % ads['offer_id']
 		ads['fullurl'] 			= self.make_url(ads['relativeurl'])
-		ads['vendor_username'] 	= response.meta['username']
+		ads['vendor_username'] 	= username
 
 		if 'category' in response.meta and response.meta['category'] != None:
 			ads['category'] 	= response.meta['category']
@@ -236,7 +245,6 @@ class DarknetHeroesLeague(MarketSpider):
 
 	def parse_userprofile(self, response):
 		user = items.User()
-		#embed()
 
 		user['username'] 	= response.meta['username']
 		user['fullurl'] 	= response.url
@@ -349,8 +357,6 @@ class DarknetHeroesLeague(MarketSpider):
 
 		for url in response.css('.pagination').xpath('.//a[not(contains(@href, "start=0"))]/@href').extract():
 			yield self.make_request('userfeedback', url=url, username=response.meta['username'])
-
-
 
 	def isloginpage(self, response):
 		return True if len(response.css('.main-login-form')) > 0 else False
