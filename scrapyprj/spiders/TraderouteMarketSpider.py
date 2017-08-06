@@ -32,9 +32,9 @@ class TraderouteMarketSpider(MarketSpider):
 		
 		self.logintrial = 0
 
-		self.max_concurrent_requests = 1	# Scrapy config
-		self.download_delay = 1.5			# Scrapy config
-		self.request_queue_chunk = 1 		# Custom Queue system
+		self.set_max_concurrent_request(1)	# Scrapy config
+		self.set_download_delay(1.5)			# Scrapy config
+		self.set_max_queue_transfer_chunk(1) 		# Custom Queue system
 		self.statsinterval = 30;			# Custom Queue system
 
 		self.parse_handlers = {
@@ -61,8 +61,11 @@ class TraderouteMarketSpider(MarketSpider):
 		elif reqtype == 'loginpage':
 			req = Request(self.make_ur('login'))
 			req.dont_filter=True
-		elif reqtype == 'dologin':
-			req = req = self.craft_login_request_from_form(kwargs['response'])
+		elif reqtype == 'dologin_username':
+			req = req = self.craft_login_username_request_from_form(kwargs['response'])
+			req.dont_filter=True
+		elif reqtype == 'dologin_password':
+			req = req = self.craft_login_password_request_from_form(kwargs['response'])
 			req.dont_filter=True
 		elif reqtype=='image':
 			req = Request(url = kwargs['url'])
@@ -94,21 +97,31 @@ class TraderouteMarketSpider(MarketSpider):
 	def parse(self, response):
 		if self.is_expulsed(response):
 			self.wait_for_input("Crawler have been expulsed.", self.make_request('index'))
-		elif self.isloginpage(response):
+		elif self.isloginpage_username(response):
 			self.logintrial +=1
-			self.logger.info("Trying to login")
+			self.logger.info("Trying to login. Page 1 (Login + Captcha)")
 			
 			if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
 				self.wait_for_input("Too many failed login trials. Giving up.", self.make_request('index'))
 				self.logintrial=0
 				return 
 
-			yield self.make_request(reqtype='dologin', response=response)
+			yield self.make_request(reqtype='dologin_username', response=response)
+		elif self.isloginpage_password(response):
+			self.logintrial +=1
+			self.logger.info("Trying to login. Page 2 (Password)")
+			
+			if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
+				self.wait_for_input("Too many failed login trials. Giving up.", self.make_request('index'))
+				self.logintrial=0
+				return 
+
+			yield self.make_request(reqtype='dologin_password', response=response)
 		else: 
 			self.logintrial = 0
 
 			# We restore the missed request when protection kicked in
-			if response.meta['reqtype'] == 'dologin':
+			if response.meta['reqtype'] == 'dologin_password':
 				self.logger.info("Login Success!")
 				yield self.make_request('index')
 			
@@ -294,16 +307,18 @@ class TraderouteMarketSpider(MarketSpider):
 		yield self.make_request('userprofile', url=user_url)
 
 
-	def isloginpage(self, response):
-		return True if len(response.css(".login_form")) else False
+	def isloginpage_username(self, response):
+		return True if len(response.css(".login_form #username")) else False
+
+	def isloginpage_password(self, response):
+		return True if len(response.css(".login_form #password")) else False
 
 	def is_expulsed(self, response):
 		return True if 'action=expulsed' in response.url else False
 
-	def craft_login_request_from_form(self, response):
+	def craft_login_username_request_from_form(self, response):
 		data = {
 			'username' : self.login['username'],
-			'password' : self.login['password']
 		}
 
 		req = FormRequest.from_response(response, formdata=data, formcss='.login_form form')
@@ -314,6 +329,15 @@ class TraderouteMarketSpider(MarketSpider):
 			'request' : self.make_request('image', url=captcha_src),
 			'name' : 'captcha'   
 		}
+
+		return req
+
+	def craft_login_password_request_from_form(self, response):
+		data = {
+			'password' : self.login['password']
+		}
+
+		req = FormRequest.from_response(response, formdata=data, formcss='.login_form form')
 
 		return req
 

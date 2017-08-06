@@ -28,11 +28,17 @@ class BaseSpider(scrapy.Spider):
 	def __init__(self, *args, **kwargs):
 		self.running = True
 		kwargs['settings'] = self.configure_image_store(kwargs['settings'])
+
 		super(BaseSpider, self).__init__( *args, **kwargs)
 		self.settings = kwargs['settings']	# If we don't do that, the setting sobject only exist after __init__()
 
 		enable_profiler = False if 'ENABLE_PROFILER' not in self.settings else self.settings['ENABLE_PROFILER']
 		profiler.enable_all(enable_profiler)
+
+		if 'MODE' in self.settings:
+			self.replay = True if self.settings['MODE'] == 'replay' else False
+		else:
+			self.replay = False
 
 		self.load_spider_settings()
 		self.initlogs()
@@ -87,6 +93,7 @@ class BaseSpider(scrapy.Spider):
 			return cls._counters[name]
 		else:
 			return cls._counters[name][key]
+
 
 	#Return the requested login information from the spier settings.
 	# attribute "login" must be given (-a login="paramValue" using the CLI)
@@ -163,15 +170,23 @@ class BaseSpider(scrapy.Spider):
 
 		return selected_key			
 
-
+	#Load some urls from the spider specific settings. 
 	def resource(self, name):
 		if name not in self.spider_settings['resources']:
 			raise Exception('Cannot access resources %s. Ressource is not specified in spider settings.' % name)  
 		return self.spider_settings['resources'][name]
 
+	# Build an URL with the information given in the spider specifcs settings.
 	def make_url(self, url):
 		endpoint = self.spider_settings['endpoint'].strip('/');
 		prefix = self.spider_settings['prefix'].strip('/');
+
+		if not url:
+			raise ValueError('Cannot make make URL. Given string is empty.')
+		
+		if not isinstance(url, basestring):
+			raise ValueError('Cannot make make URL. Given input is not a string.')
+
 		if url.startswith('http') or url.startswith('data:'):
 			return url
 		elif url in self.spider_settings['resources'] :
@@ -194,9 +209,7 @@ class BaseSpider(scrapy.Spider):
 				logging.getLogger(logger_name).disabled=True
 		except:
 			pass
-
 		try:
-			
 			for handler in self.logger.logger.parent.handlers:
 				if isinstance(handler, logging.StreamHandler):
 					colorformatter = ColorFormatterWrapper(handler.formatter)
@@ -422,3 +435,22 @@ class BaseSpider(scrapy.Spider):
 		if parsed.query:
 			relativeurl += '?%s' % parsed.query
 		return  relativeurl
+
+	def set_download_delay(self, delay):
+		if self.replay:
+			self.download_delay = 0
+		else:
+			self.download_delay = delay
+
+	def set_max_concurrent_request(self, concurrent_requests):
+		if self.replay:
+			self.max_concurrent_requests = 16
+			self.request_queue_chunk = 100
+		else:
+			self.max_concurrent_requests = concurrent_requests
+
+	def set_max_queue_transfer_chunk(self, chunksize):
+		if self.replay:
+			self.request_queue_chunk = 100
+		else:
+			self.request_queue_chunk = chunksize
