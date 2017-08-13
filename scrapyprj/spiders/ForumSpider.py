@@ -8,6 +8,7 @@ from scrapyprj.database.dao import DatabaseDAO
 from scrapyprj.database import db
 from scrapyprj.spiders.BaseSpider import BaseSpider
 from scrapy.exceptions import DontCloseSpider
+from scrapyprj.middlewares.replay_spider_middleware import ReplaySpiderMiddleware
 
 import os, time, sys
 from dateutil import parser
@@ -105,9 +106,14 @@ class ForumSpider(BaseSpider):
 	# When Spider is idle, this callback is called.
 	def spider_idle(self, spider):
 		spider.logger.debug("IDLE")
-
 		scheduled_request = False
-
+		
+		if hasattr(self, ReplaySpiderMiddleware.SPIDER_ATTRIBUTE):
+			replay_mw = getattr(self, ReplaySpiderMiddleware.SPIDER_ATTRIBUTE)
+			for request in replay_mw.get_remaining_response_requests():
+				self.crawler.engine.crawl(request, spider)
+				scheduled_request = True
+				
 		newinput = self.look_for_new_input()
 
 		if newinput and self.request_after_manual_input:
@@ -279,4 +285,7 @@ class ForumSpider(BaseSpider):
 					new_input = True
 			else:
 				self.logger.debug('No new input given by database.')
-		return new_input			
+		return new_input
+
+	def get_shared_data_struct(self):
+		return self._baseclass			

@@ -11,11 +11,6 @@ from datetime import datetime
 from scrapyprj.spiders.MarketSpider import MarketSpider
 
 
-
-def maincrawl(r, crawlerprocess, spider_attr):
-	for i in range(0,args.instances):
-		crawlerprocess.crawl(args.spider, **spider_attr)	# Launch the spider.
-
 def start_dbprocess():
 	dbprocess = Process()
 	dbprocess.start = datetime.now()
@@ -29,6 +24,19 @@ def end_dbprocess(r, dbprocess):
 	dbprocess.end = datetime.now()
 	dbprocess.save()
 
+def assert_good_spider_type(settings, spider_name):
+	spider_modules = settings['SPIDER_MODULES']
+	if isinstance(spider_modules, basestring):
+		spider_modules = [spider_modules]
+		
+	for spider_module in spider_modules:
+		for module in walk_modules(spider_module):
+			for spcls in iter_spider_classes(module):
+				if spcls.name == spider_name:
+					if not issubclass(spcls, MarketSpider):
+						raise Exception('Spider %s is not a Market Spider. Please use the right script for your spider.' % spider_name)
+
+
 if __name__ == '__main__':
 	
 	parser = argparse.ArgumentParser()
@@ -36,6 +44,7 @@ if __name__ == '__main__':
 	parser.add_argument('--spider',  required=True, help='The spider name to launch')
 	parser.add_argument('--instances', default=1, type=int, help='Number of instance of the spider to launch')
 	parser.add_argument('--login', nargs='*', help='List of logins to use by the spider. Each item represent to name of the key in the spider settings file.')
+	parser.add_argument('--mode', choices=['crawl', 'replay'], default='crawl', help='Select the crawl mode. When "crawl", download all pages from target website. When "replay", uses the downlaoded response in the HTTP cache.')
 
 	args = parser.parse_args()
 
@@ -44,6 +53,7 @@ if __name__ == '__main__':
 	db.init(dbsettings);
 
 	settings.set('login', args.login)	# List of allowed login to use
+	settings.set('MODE', args.mode)		# replay : use filesystem cache to read response
 	
 	crawlerprocess = CrawlerProcess(settings)
 	dbprocess = start_dbprocess()	# Create an Process entry in the database. We'll pass this object to the spider so we knows they have been launched together.
