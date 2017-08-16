@@ -27,7 +27,6 @@ class ReplaySpiderMiddleware(object):
 	def from_crawler(cls, crawler):
 		o = cls(crawler.settings)
 		crawler.signals.connect(o.spider_opened, signal=signals.spider_opened)
-		crawler.signals.connect(o.spider_closed, signal=signals.spider_closed)
 		return o
 
 	def spider_opened(self, spider):
@@ -38,14 +37,11 @@ class ReplaySpiderMiddleware(object):
 			self.storage.make_dir()
 
 		if self.replay:
-			setattr(spider, self.SPIDER_ATTRIBUTE, self)	# We need to do some work in spider IDLE callback. 
-
-	def spider_closed(self, spider):
-		pass
+			setattr(spider, self.SPIDER_ATTRIBUTE, self)	# We need to do some work in spider IDLE callback. So we give the spider a reference tot his middleware 
 
 	def process_spider_input(self, response, spider):
 		if not self.replay:
-			self.save(response)
+			self.save(response, spider)
 
 	def process_spider_output(self, response, result, spider):
 		for x in result:
@@ -53,7 +49,7 @@ class ReplaySpiderMiddleware(object):
 				if isinstance(x, Item): # Don't yield requests in replay mode
 					yield x
 				elif isinstance(x, Request):
-					requests_generator = self.yield_responses_from_spider_request(x) 	# This returns a ReplayRequest which already contain the response.
+					requests_generator = self.yield_responses_from_spider_request(x, spider) 	# This returns a ReplayRequest which already contain the response.
 					if requests_generator is not None:
 						for request in requests_generator:
 							yield request
@@ -72,7 +68,7 @@ class ReplaySpiderMiddleware(object):
 				self.remaining_filenames[responseinfo.filename] = True
 
 			for x in start_requests:
-				requests_generator = self.yield_responses_from_spider_request(x)	# This returns a ReplayRequest which already contain the response.
+				requests_generator = self.yield_responses_from_spider_request(x, spider)	# This returns a ReplayRequest which already contain the response.
 				if requests_generator is not None:
 					for request in requests_generator:
 						yield request
@@ -80,17 +76,29 @@ class ReplaySpiderMiddleware(object):
 			for x in start_requests:
 				yield x
 
-	def yield_responses_from_spider_request(self, request):
+	def yield_responses_from_spider_request(self, request, spider):
 		fingerprint = request_fingerprint(request)
 		if fingerprint in self.filenames_by_fingerprint:
 			for filename in self.filenames_by_fingerprint[fingerprint]:
 				if filename in self.remaining_filenames:
 					del self.remaining_filenames[filename]
-					yield self.make_request_from_response(self.storage.load(filename))
+					yield self.make_request_from_response(self.storage.load(filename, spider))
 
-	def get_remaining_response_requests(self):
-		for filename in self.remaining_filenames:
-			yield self.make_request_from_response(self.storage.load(filename))
+	def pop_remaining_replay_request(self, spider):
+		while len(self.remaining_filenames) > 0:
+			filename = self.remaining_filenames.keys()[0]
+			response = self.storage.load(filename, spider)
+			
+			if response.request is not None:
+				request = self.make_request_from_response(response)
+			else:
+				request = None
+				self.logger.info('Discarding saved response with no request')
+			
+			del self.remaining_filenames[filename]
+			
+			if request is not None:
+				return request
 
 	def process_spider_exception(self, response, exception, spider):
 		self.logger.error("%s \n %s" % (exception, traceback.format_exc()))
@@ -101,8 +109,8 @@ class ReplaySpiderMiddleware(object):
 		request._meta['__replay__response__'] = response
 		return request
 
-	def save(self, response):
+	def save(self, response, spider):
 		try:
-			self.storage.save(response)
+			self.storage.save(response, spider)
 		except Exception as e:
 			self.logger.error("%s \n %s" % (e, traceback.format_exc()))

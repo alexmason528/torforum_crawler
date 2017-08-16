@@ -32,7 +32,7 @@ class map2db(object):
 	def process_item(self, item, spider):
 		for item_type in self.handlers.keys():
 			if item_type == type(item):
-				return {'model' : self.handlers[item_type].__call__(item,spider)}	#Scrapy don't like PeeWee models, but likes dict.
+				return {'model' : self.handlers[item_type].__call__(item,spider), 'item' : item}	#Scrapy don't like PeeWee models, but likes dict.
 		
 		raise Exception('Unknown item type : %s' % item.__class__.__name__)
 

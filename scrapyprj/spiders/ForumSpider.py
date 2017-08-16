@@ -51,7 +51,6 @@ class ForumSpider(BaseSpider):
 			self._baseclass._cache_preloaded = True
 
 		self.request_after_manual_input = None
-		#self.configure_thread_indexing()
 		self.register_new_scrape()
 		self.start_statistics()
 		self.manual_input = None
@@ -110,8 +109,9 @@ class ForumSpider(BaseSpider):
 		
 		if hasattr(self, ReplaySpiderMiddleware.SPIDER_ATTRIBUTE):
 			replay_mw = getattr(self, ReplaySpiderMiddleware.SPIDER_ATTRIBUTE)
-			for request in replay_mw.get_remaining_response_requests():
-				self.crawler.engine.crawl(request, spider)
+			replay_remaining_request = replay_mw.pop_remaining_replay_request(spider)
+			if replay_remaining_request is not None:
+				self.crawler.engine.crawl(replay_remaining_request, spider)
 				scheduled_request = True
 				
 		newinput = self.look_for_new_input()

@@ -9,6 +9,7 @@ from scrapyprj.database.dao import DatabaseDAO
 from scrapyprj.database import db
 from scrapyprj.ColorFormatterWrapper import ColorFormatterWrapper
 from scrapyprj.spiders.BaseSpider import BaseSpider
+from scrapyprj.middlewares.replay_spider_middleware import ReplaySpiderMiddleware
 
 import scrapyprj.items.market_items as items
 
@@ -146,9 +147,10 @@ class MarketSpider(BaseSpider):
 		to_delete = list(row.id for row in diff(db_content, aggregated)) 					# When its in the databse, but not in the queue : delete
 
 		if len(to_delete) > 0:
+			logging.getLogger("AdsFeedbackDiffInsert").debug('Deleting %s elements Ads Feedback : %s ' % (str(len(to_delete)), str(to_delete)))
 			AdsFeedback.delete().where(AdsFeedback.id << to_delete).execute()   	#fixme. MySQL may not use index because of IN statement
 
-		logging.getLogger("SellerFeedbackDiffInsert").debug("AdsFeedback queue size reduced from %d to %d after aggregation" % (len(queue), len(aggregated)))
+		logging.getLogger("AdsFeedbackDiffInsert").debug("AdsFeedback queue size reduced from %d to %d after aggregation" % (len(queue), len(aggregated)))
 		return aggregated
 	
 	@staticmethod
@@ -189,6 +191,7 @@ class MarketSpider(BaseSpider):
 
 		to_delete = list(row.id for row in diff(db_content, aggregated)) 					# When its in the databse, but not in the queue : delete
 		if len(to_delete) > 0:
+			logging.getLogger("SellerFeedbackDiffInsert").debug('Deleting %s elements Seller Feedback : %s ' % (str(len(to_delete)), str(to_delete)))
 			SellerFeedback.delete().where(SellerFeedback.id << to_delete).execute()   	#fixme. MySQL may not use index because of IN statement
 
 		logging.getLogger("SellerFeedbackDiffInsert").debug("SellerFeedback queue size reduced from %d to %d after aggregation" % (len(queue), len(aggregated)))
@@ -229,8 +232,9 @@ class MarketSpider(BaseSpider):
 
 		if hasattr(self, ReplaySpiderMiddleware.SPIDER_ATTRIBUTE):
 			replay_mw = getattr(self, ReplaySpiderMiddleware.SPIDER_ATTRIBUTE)
-			for request in replay_mw.get_remaining_response_requests():
-				self.crawler.engine.crawl(request, spider)
+			replay_remaining_request = replay_mw.pop_remaining_replay_request(spider)
+			if replay_remaining_request is not None:
+				self.crawler.engine.crawl(replay_remaining_request, spider)
 				scheduled_request = True
 
 		newinput = self.look_for_new_input()

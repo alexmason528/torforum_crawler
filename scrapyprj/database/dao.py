@@ -217,9 +217,9 @@ class DatabaseDAO:
 		self.cache.write(obj)
 		return obj
 
-	def flush_all(self):
+	def flush_all(self, exceptions=[]):
 		for idx in self.queues:
-			if (len(self.queues[idx]) > 0):
+			if (len(self.queues[idx]) > 0 and idx not in exceptions):
 				self.flush(idx)
 
 	# Bulk insert a batch of data within a queue

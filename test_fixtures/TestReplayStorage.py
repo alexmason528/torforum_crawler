@@ -87,30 +87,17 @@ class TestReplayStorage(unittest.TestCase):
 		d = self.storage.response_to_dict(response)
 		self.assertTrue(isinstance(d, dict))
 
-		self.assertEquals(base64.b64decode(d['body']), response.body)
-		self.assertEquals(d['status'], response.status)
-		self.assertEquals(d['url'], response.url)
-		self.assertEquals(d['flags'], response.flags)
-		if hasattr(response, 'meta'):
-			self.assertEquals(d['meta'], response.meta)
-		self.assertEquals(d['request'], response.request)
-
 	def test_response_from_dict(self):
-		data = {}
-		body = randstring(20)
-		data['body'] = base64.b64encode(body)
-		data['status'] = 201
-		data['url'] = 'http://127.0.0.1/' + randstring(20)
-		data['flags'] = ['zzz', 'yyy','xxx']
-		data['headers'] = {'Aaa' : ['bbb'], 'Ccc' : ['ddd']}
-		data['request'] = self.make_request()
-		response = self.storage.response_from_dict(data)
-		self.assertEquals(body, response.body)
-		self.assertEquals(data['status'], response.status)
-		self.assertEquals(data['url'], response.url)
-		self.assertEquals(data['flags'], response.flags)
-		self.assertEquals(data['headers'], response.headers)
-		self.assertEquals(data['request'], response.request)
+		response1 = self.make_response()
+		data = self.storage.response_to_dict(response1)
+		response2 = self.storage.response_from_dict(data)
+		self.assertIsInstance(response2, Response)
+
+		self.assertEquals(response1.body, response2.body)
+		self.assertEquals(response1.headers, response2.headers)
+		self.assertEquals(response1.flags, response2.flags)
+		self.assertEquals(response1.status, response2.status)
+		self.assertEquals(response1.url, response2.url)
 
 	def test_complex_reload(self):
 		response = self.make_response()
@@ -199,6 +186,35 @@ class TestReplayStorage(unittest.TestCase):
 			if not isinstance(response.meta['request2'].meta['request3'].meta, Request):
 				self.assertEquals(response.meta['request2'].meta['request3'].meta[k], request3.meta[k])
 
+
+	def test_reload_with_request_looping_reference(self):
+		response = self.make_response()
+		request1 = self.make_request()
+		request1.meta[randstring(10)] = randstring(10)
+		request2 = self.make_request()
+		request2.meta[randstring(10)] = randstring(10)
+		request2.meta['request'] = request1
+		request1.meta['request'] = request2
+
+		response.request = request1
+		filename = self.storage.save(response)
+		response2 = self.storage.load(filename)
+
+		self.assertResponseEqualNoMeta(response, response2)
+		self.assertRequestEqualNoMeta(response.request, response2.request)
+
+		for k in response.meta:
+			if not isinstance(response.meta[k], Request):
+				self.assertEquals(response.meta[k], response2.meta[k])
+
+		self.assertTrue(isinstance(response.meta['request'], Request))
+		self.assertRequestEqualNoMeta(response.meta['request'], request2)
+
+		for k in response.meta['request'].meta:
+			if not isinstance(response.meta['request'].meta, Request):
+				self.assertEquals(response.meta['request'].meta[k], request2.meta[k])
+
+		self.assertIsNone(response2.meta['request'].meta['request'])	# Loops are broken avoiding infinite recursion
 
 		
 

@@ -7,7 +7,7 @@ import scrapyprj.items.market_items as market_items
 from scrapy.utils.request import request_fingerprint
 import scrapyprj.database.markets.orm.models as market_models
 import traceback
-import profiler
+from scrapy import signals
 ## 
 ## Since feedbacks are not uniques, we can't rely on the database to remove duplicate.
 ## We need a complete dataset as a reference. 
@@ -166,6 +166,14 @@ class SpiderAccessor(object):
 			if self.has_all_product_ratings(ads_id):
 				yield ads_id
 
+	def get_all_user_ratings_username(self):
+		for username in self.datastruct._user_rating_items:
+			yield username
+
+	def get_all_product_ratings_id(self):
+		for ads_id in self.datastruct._product_rating_items:
+			yield ads_id
+
 
 
 ### This class is the middleware
@@ -173,6 +181,31 @@ class SpiderAccessor(object):
 class FeedbackBufferMiddleware(object):
 	def __init__(self):
 		self.logger = logging.getLogger('FeedbackBufferMiddleware')
+		self.ads_flush_when_all_scraped = {}
+		self.user_flush_when_all_scraped = {}
+
+	@classmethod
+	def from_crawler(cls, crawler):
+		o = cls()
+		crawler.signals.connect(o.spider_closed, signal=signals.spider_closed)
+		crawler.signals.connect(o.item_scraped, signal=signals.item_scraped)
+		crawler.signals.connect(o.item_dropped, signal=signals.item_dropped)
+		return o
+
+
+	def spider_closed(self, spider):
+		for username in list(accessor.get_all_user_ratings_username()):
+			for rating in list(accessor.retrieve_held_user_ratings(username)):
+				yield rating
+			accessor.erase_user_ratings(username)
+		spider.dao.flush(market_models.SellerFeedback)
+
+		for ads_id in list(accessor.get_all_product_ratings_id()):
+			for rating in list(accessor.retrieve_held_product_ratings(ads_id)):
+				yield rating
+			accessor.erase_product_ratings(ads_id)
+		spider.dao.flush(market_models.AdsFeedback)
+
 
 	def process_start_requests(self, start_requests, spider):
 		if isinstance(spider, MarketSpider):
@@ -184,7 +217,6 @@ class FeedbackBufferMiddleware(object):
 				yield obj
 
 	def process_spider_output(self, response, result, spider):
-		profiler.start('feedback_buffer_process')
 		checkflush_user = False
 		checkflush_product = False
 
@@ -200,40 +232,83 @@ class FeedbackBufferMiddleware(object):
 
 		#### Executed once request callback is completed! (generator empty) ###
 		if isinstance(spider, MarketSpider):
-			user_flushed = False
-			ads_flushed = False
 			accessor = SpiderAccessor(spider)
 			if checkflush_user:	# Check only if items has been yielded. Speed optimisation			
 				for username in list(accessor.get_all_completed_user_ratings_username()): # List is important. We force full tieration before yield. Dictionary can change between yields
 					self.logger.debug("User ratings for user %s are ready to be processed." % (username))
-					for rating in list(accessor.retrieve_held_user_ratings(username)):
-						if not user_flushed:
-							spider.dao.flush(market_models.User)	# We force flush because map2db may need a User that is waiting in the DAO queue. Item will be drop if that happen.
-							user_flushed = True
-						yield rating
-					spider.dao.flush(market_models.SellerFeedback)
-					profiler.start('fdbk_buffer_erase_user_rating')
+					ratings_to_yield = list(accessor.retrieve_held_user_ratings(username))
 					accessor.erase_user_ratings(username)	# Save some RAM
-					profiler.stop('fdbk_buffer_erase_user_rating')
+
+					if len(ratings_to_yield) > 0:
+						spider.dao.flush(market_models.User) 	# We force flush because map2db may need a User that is waiting in the DAO queue. Item will be drop if that happen.
+					
+					for rating in ratings_to_yield:
+						self.user_flush_when_all_scraped[id(rating)] = False
+						self.logger.debug("Requiring User rating %s to be scraped before flush" % id(rating))
+
+					for rating in ratings_to_yield:
+						yield rating
 			
 			if checkflush_product:
 				for ads_id in list(accessor.get_all_completed_product_ratings_id()):		# List is important. We force full tieration before yield. Dictionary can change between yields
 					self.logger.debug("Product ratings for ads %s are ready to be processed." % (ads_id))
-					for rating in list(accessor.retrieve_held_product_ratings(ads_id)):
-						if not ads_flushed:
-							spider.dao.flush(market_models.Ads)
-							ads_flushed = True
+					ratings_to_yield = list(accessor.retrieve_held_product_ratings(ads_id))
+					accessor.erase_product_ratings(ads_id)	# Save some RAM
+					
+					if len(ratings_to_yield) > 0:
+						spider.dao.flush(market_models.Ads)	# We force flush because map2db may need a User that is waiting in the DAO queue. Item will be drop if that happen.
+							
+					for rating in ratings_to_yield:
+						self.ads_flush_when_all_scraped[id(rating)] = False
+						self.logger.debug("Requiring Product rating %s to be scraped before flush" % id(rating))
+					
+					for rating in ratings_to_yield:
 						yield rating
 
-					spider.dao.flush(market_models.AdsFeedback)
-					profiler.start('fdbk_buffer_erase_product_rating')
-					accessor.erase_product_ratings(ads_id)	# Save some RAM
-					profiler.stop('fdbk_buffer_erase_product_rating')
-		profiler.stop('feedback_buffer_process')
+						
+	# When an item is completely processed, we check if we are in position to flush to queue.
+	# We can only if all feedbacks are processed.
+	def item_scraped(self, item, response, spider):
+		if isinstance(spider, MarketSpider):
+			if isinstance(item, market_items.ProductRating):
+				if id(item) in self.ads_flush_when_all_scraped:
+					self.logger.debug("Product rating  %s scraped and found in dict" % id(item))
+					self.ads_flush_when_all_scraped[id(item)] = True
+					
+					must_flush = True
+					for key in self.ads_flush_when_all_scraped:
+						if self.ads_flush_when_all_scraped[key] == False:	# Not scraped yet
+							must_flush = False
+					
+					if must_flush:
+						self.logger.debug("Must flush Ads Feedback")
+						spider.dao.flush(market_models.AdsFeedback)
+						self.ads_flush_when_all_scraped = {}
+				else:
+					self.logger.debug('Unknown product rating : %s' % id(item))
+
+			elif isinstance(item, market_items.UserRating):
+				if id(item) in self.user_flush_when_all_scraped:
+					self.logger.debug("User rating  %s scraped and found in dict" % id(item))
+					self.user_flush_when_all_scraped[id(item)] = True
+					
+					must_flush = True
+					for key in self.user_flush_when_all_scraped:
+						if self.user_flush_when_all_scraped[key] == False:	# Not scraped yet
+							must_flush = False
+					
+					if must_flush:
+						self.logger.debug("Must flush Seller Feedback")
+						spider.dao.flush(market_models.SellerFeedback)
+						self.user_flush_when_all_scraped = {}
+				else:
+					self.logger.debug('Unknown user rating : %s' % id(item))
+
+	def item_dropped(self, item, response, exception, spider):
+		pass
 
 	# When a response comes in, we mark the request as completed
 	def process_spider_input(self, response, spider ):
-		
 		if isinstance(spider, MarketSpider):
 			accessor = SpiderAccessor(spider)
 			if 'user_rating_for' in response.meta:

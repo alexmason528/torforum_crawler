@@ -12,7 +12,7 @@ class save2db(object):
 		else:
 			self.route_to_queue(item['model'],spider)		
 		
-		return item['model']
+		return item['item']
 
 	def route_to_queue(self, model,spider):
 		queue_name = spider.get_queuename(model)
