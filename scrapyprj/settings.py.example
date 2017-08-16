@@ -75,6 +75,7 @@ ROBOTSTXT_OBEY = False
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 SPIDER_MIDDLEWARES = {
 	'scrapyprj.middlewares.shared_queue_middleware.SharedQueueMiddleware' : 100,
+	'scrapyprj.middlewares.replay_spider_middleware.ReplaySpiderMiddleware' : 101,
     'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 200,
     'scrapyprj.middlewares.reschedule_middleware.RescheduleMiddleware': 300,
 	'scrapyprj.middlewares.feedback_buffer_middleware.FeedbackBufferMiddleware' : 301,
@@ -83,12 +84,13 @@ SPIDER_MIDDLEWARES = {
 }
 
 DOWNLOADER_MIDDLEWARES = {
-	'scrapyprj.middlewares.captcha_middleware.CaptchaMiddleware' : 200,
+	'scrapyprj.middlewares.replay_request_middleware.ReplayRequestMiddleware' : 1,
+	'scrapyprj.middlewares.captcha_middleware.CaptchaMiddleware' : 200
 }
 
 
 LOG_LEVEL = 'INFO'
-DISABLE_LOGGER  = ''
+DISABLE_LOGGER  = []
 
 CONCURRENT_REQUESTS = 16
 
