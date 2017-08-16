@@ -90,6 +90,9 @@ class DreamMarketForumSpider(ForumSpider):
 
         else : 
             self.logintrial = 0
+            if response.meta['reqtype'] == 'dologin':
+                self.logger.info('Login success!')
+                
             it = self.parse_handlers[response.meta['reqtype']].__call__(response)
             if it:
                 for x in it:
