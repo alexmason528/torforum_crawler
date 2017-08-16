@@ -48,7 +48,6 @@ class WallstreetMarket(MarketSpider):
 	def start_requests(self):
 		yield self.make_request('index')
 
-
 	def make_request(self, reqtype,  **kwargs):
 
 		passthru = ['category']
@@ -73,6 +72,9 @@ class WallstreetMarket(MarketSpider):
 		elif reqtype=='ddos_protection':
 			req = self.create_request_from_ddos_protection(kwargs['response'])
 			req.dont_filter=True
+		elif reqtype == 'category':
+			req = FormRequest.from_response(kwargs['response'], formcss=kwargs['formcss'], clickdata=kwargs['clickdata'])
+
 		elif reqtype=='category-page':	# Changing page is done with a POST form.
 			btn = kwargs['btn']
 			name = btn.xpath('@name').extract_first()	# "page"
@@ -171,21 +173,23 @@ class WallstreetMarket(MarketSpider):
 							yield x
 
 	def parse_index(self, response):
-		category_lut = self.make_category_lut(response)
-		for url in category_lut:
-			yield self.make_request(reqtype='category', url=url, category=category_lut[url])
+		formcss = '#mCont > form'
+		for button in response.css(formcss + ' ol.tree button'):
+			clickdata = {}
+			clickdata['name'] 	= self.get_text(button.xpath('@name').extract_first())
+			clickdata['value'] 	= self.get_text(button.xpath('@value').extract_first())
+			yield self.make_request(reqtype='category', response=response, formcss=formcss, clickdata=clickdata)
 
 	def parse_category(self, response):
-		category = response.meta['category']
 		for url in response.xpath('.//a[contains(@href, "offer/")]/@href').extract():
-			yield self.make_request(reqtype='offer', url=url, category=category)
+			yield self.make_request(reqtype='offer', url=url)
 
 		for url in response.xpath('.//a[contains(@href, "profile/")]/@href').extract():
 			yield self.make_request(reqtype='userprofile', url=url)
 	
- 		# All buttons that are not disabled and are not page 1
+ 		#All buttons that are not disabled and are not page 1
 		for btn in response.css('.pagination').xpath('.//li[contains(@class, "page-item") and not(contains(@class, "disabled"))]').xpath('.//button[@value!="1"]'):
-			yield self.make_request('category-page', category=category, btn=btn, response=response)
+			yield self.make_request('category-page', btn=btn, response=response)
 
 	def parse_offer(self, response):
 		ads = items.Ads()
@@ -204,7 +208,10 @@ class WallstreetMarket(MarketSpider):
 
 		ads['title']			= self.get_text(response.css('h1.fheading'))
 		ads['vendor_username']	= self.get_text(info_block.xpath('.//a[contains(@href, "profile")]'))
-		ads['category']			= response.meta['category'];
+		if 'category' in response.meta and response.meta['category'] is not None:
+			ads['category']			= response.meta['category'];
+		else:
+			ads['category']	 = None
 		
 		
 		ads['fullurl']		= response.url.replace('/refund', '');
@@ -290,13 +297,6 @@ class WallstreetMarket(MarketSpider):
 		## =====================
 
 
-		if response.url.endswith('refund'):
-			ads['terms_and_conditions']		= self.get_text(response.css("#tabcontent"))
-		else:
-			ads['description']				= self.get_text(response.css("#tabcontent"));
-			yield self.make_request('offer-refund', url=response.url + '/refund', category=response.meta['category'])
-
-
 		# ===================   Info block 2. List of key/value with key in bold.
 		if layout == 'with_headings':
 			p = response.xpath('.//h4[contains(text(), "Information")]/..').extract_first()
@@ -305,51 +305,68 @@ class WallstreetMarket(MarketSpider):
 			p = info_block.xpath('./p[2]').extract_first()
 
 		for line in p.split('<br>'):
-			line = self.get_text(scrapy.Selector(text=line))
+			line_txt = self.get_text(scrapy.Selector(text=line))
 			known = False
-			m = re.search('minimum amount per order:?\s*(.+)', line, re.IGNORECASE)
+			m = re.search('minimum amount per order:?\s*(.+)', line_txt, re.IGNORECASE)
 			if m:
 				ads['minimum_order'] = m.group(1)
 				known = True
 			
-			m = re.search('maximum amount per order:?\s*(.+)', line, re.IGNORECASE)
+			m = re.search('maximum amount per order:?\s*(.+)', line_txt, re.IGNORECASE)
 			if m:
 				ads['maximum_order'] = m.group(1)
 				known = True
 
-			m = re.search('views:?\s*(.+)', line, re.IGNORECASE)
+			m = re.search('views:?\s*(.+)', line_txt, re.IGNORECASE)
 			if m:
 				ads['views'] = m.group(1)
 				known = True
 
-			m = re.search('Quantity in stock:?\s*(.+)', line, re.IGNORECASE)
+			m = re.search('Quantity in stock:?\s*(.+)', line_txt, re.IGNORECASE)
 			if m:
 				ads['stock'] = m.group(1)
 				known = True
 			
-			m = re.search('Already sold:?\s*(.+)', line, re.IGNORECASE)
+			m = re.search('Already sold:?\s*(.+)', line_txt, re.IGNORECASE)
 			if m:
 				ads['already_sold'] = m.group(1)
 				known = True
 
-			m = re.search('Country:?\s*(.+)', line, re.IGNORECASE)
+			m = re.search('Country:?\s*(.+)', line_txt, re.IGNORECASE)
 			if m:
 				ads['country'] = m.group(1)
 				known = True
 			
-			m = re.search('Replace-Time:?\s*(.+)', line, re.IGNORECASE)
+			m = re.search('Replace-Time:?\s*(.+)', line_txt, re.IGNORECASE)
 			if m:
 				ads['replace_time'] = m.group(1)
 				known = True
 
-			if 'Category' in line:
+			m = re.search('Category', line_txt, re.IGNORECASE)
+			if m:
 				known = True
+				if ads['category'] is None:
+					splitted_html = re.sub('\s*<i[^\>]+>\s*</i>\s*', '/', line)
+					line_txt2 = self.get_text(scrapy.Selector(text=splitted_html))
+
+					m = re.search('Category:\s*(.+)\s*', line_txt2, re.IGNORECASE)
+					if m:
+						ads['category'] = m.group(1)
+						known = True
 
 			if not known:
-				self.logger.warning('Unknown information type (%s) in ads at %s' % (line, response.url))
+				self.logger.warning('Unknown information type (%s) in ads at %s' % (line_txt, response.url))
 
 		yield ads
 		#=================================================
+
+
+		if response.url.endswith('refund'):
+			ads['terms_and_conditions']		= self.get_text(response.css("#tabcontent"))
+		else:
+			ads['description']				= self.get_text(response.css("#tabcontent"));
+			yield self.make_request('offer-refund', url=response.url + '/refund', category=ads['category'])
+
 
 		## ===================== IMAGES =====================
 		images_url = response.css('img.img-thumbnail::attr(src)').extract();
@@ -553,28 +570,6 @@ class WallstreetMarket(MarketSpider):
 		except Exception as e:
 			self.logger.error("Cannot parse time string '%s'. Error : %s" % (timestr, e))
 
-	def make_category_lut(self, response):
-		start_node = response.css('ol.tree').xpath('./..')
-		return self.dig_category(start_node)
-
-	#Recursive function to dig into the tree view
-	def dig_category(self, nodes, actual_txt = '', lut={}):
-		for node in nodes:
-			c = node.xpath('@class').extract_first()
-			c = c.strip() if c else ''
-			if 'file' in c.split(' '):		# Leaf node
-				link = node.xpath('.//a')
-				if link:
-					url = link.xpath('@href').extract_first()
-					lut[url] = actual_txt + self.get_text(link.xpath('text()').extract_first())
-				else:
-					self.logger.warning('Did not find a link in leaf of category tree.')
-			else:	# Category with subnodes
-				txt = self.get_text(node.xpath('./label/a/text()').extract_first())
-				if txt:
-					txt +='/'
-				self.dig_category(nodes=node.xpath('./ol/li'), actual_txt=actual_txt+txt, lut=lut)
-		return lut
 
 	def get_offer_id_from_url(self, url):
 		m = re.search('offer/(\d+)', url)
