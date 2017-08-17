@@ -110,7 +110,6 @@ class ReplayStorage(object):
 		for k in data:
 			if isinstance(data[k], unicode):
 				data[k] = data[k].encode('utf8')
-		#status = 200 if 'status' not in data or data['status'] is None else data['status']
 		return cls(body=body, headers=data['headers'], status=data['status'], url=data['url'], flags=data['flags'], request=self.recurse_from_dict(data['request']))
 
 	def recurse_to_dict(self, node, spider=None, seen_node=None):
