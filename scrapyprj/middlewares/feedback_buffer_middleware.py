@@ -166,6 +166,7 @@ class SpiderAccessor(object):
 			if self.has_all_product_ratings(ads_id):
 				yield ads_id
 
+	# Gives the items without checking if they are ready to be given
 	def get_all_user_ratings_username(self):
 		for username in self.datastruct._user_rating_items:
 			yield username
@@ -177,7 +178,6 @@ class SpiderAccessor(object):
 
 
 ### This class is the middleware
-
 class FeedbackBufferMiddleware(object):
 	def __init__(self):
 		self.logger = logging.getLogger('FeedbackBufferMiddleware')
@@ -187,25 +187,9 @@ class FeedbackBufferMiddleware(object):
 	@classmethod
 	def from_crawler(cls, crawler):
 		o = cls()
-		crawler.signals.connect(o.spider_closed, signal=signals.spider_closed)
-		crawler.signals.connect(o.item_scraped, signal=signals.item_scraped)
+		crawler.signals.connect(o.item_scraped, signal=signals.item_scraped)	
 		crawler.signals.connect(o.item_dropped, signal=signals.item_dropped)
 		return o
-
-
-	def spider_closed(self, spider):
-		for username in list(accessor.get_all_user_ratings_username()):
-			for rating in list(accessor.retrieve_held_user_ratings(username)):
-				yield rating
-			accessor.erase_user_ratings(username)
-		spider.dao.flush(market_models.SellerFeedback)
-
-		for ads_id in list(accessor.get_all_product_ratings_id()):
-			for rating in list(accessor.retrieve_held_product_ratings(ads_id)):
-				yield rating
-			accessor.erase_product_ratings(ads_id)
-		spider.dao.flush(market_models.AdsFeedback)
-
 
 	def process_start_requests(self, start_requests, spider):
 		if isinstance(spider, MarketSpider):
@@ -216,6 +200,9 @@ class FeedbackBufferMiddleware(object):
 			if obj:
 				yield obj
 
+
+	# Request and most items apsses through without being touched
+	# Only UserRating and ProductRating get a different treatment.
 	def process_spider_output(self, response, result, spider):
 		checkflush_user = False
 		checkflush_product = False
@@ -225,13 +212,13 @@ class FeedbackBufferMiddleware(object):
 			checkflush_user 	= True if isinstance(x, market_items.UserRating) else checkflush_user
 			checkflush_product 	= True if isinstance(x, market_items.ProductRating) else checkflush_product
 			
-			obj = self.process_single_result(x,spider)
+			obj = self.process_single_result(x,spider)	# Returns None id item is put aside to be yielded later
 			if obj:
 				yield  obj
 
 
 		#### Executed once request callback is completed! (generator empty) ###
-		if isinstance(spider, MarketSpider):
+		if isinstance(spider, MarketSpider):	# Only Market Spider handles ProductRatin and UserRating objects.
 			accessor = SpiderAccessor(spider)
 			if checkflush_user:	# Check only if items has been yielded. Speed optimisation			
 				for username in list(accessor.get_all_completed_user_ratings_username()): # List is important. We force full tieration before yield. Dictionary can change between yields
@@ -265,24 +252,23 @@ class FeedbackBufferMiddleware(object):
 					for rating in ratings_to_yield:
 						yield rating
 
-						
 	# When an item is completely processed, we check if we are in position to flush to queue.
 	# We can only if all feedbacks are processed.
-	def item_scraped(self, item, response, spider):
+	def item_processed(self, item, spider):
 		if isinstance(spider, MarketSpider):
 			if isinstance(item, market_items.ProductRating):
 				if id(item) in self.ads_flush_when_all_scraped:
 					self.logger.debug("Product rating  %s scraped and found in dict" % id(item))
-					self.ads_flush_when_all_scraped[id(item)] = True
+					self.ads_flush_when_all_scraped[id(item)] = True		# Mark this object like 'scraped'
 					
 					must_flush = True
 					for key in self.ads_flush_when_all_scraped:
 						if self.ads_flush_when_all_scraped[key] == False:	# Not scraped yet
 							must_flush = False
 					
-					if must_flush:
+					if must_flush:	# All rating has been scraped
 						self.logger.debug("Must flush Ads Feedback")
-						spider.dao.flush(market_models.AdsFeedback)
+						spider.dao.flush(market_models.AdsFeedback)		# Note that Autoflush middleware does not flush Ads Feedback
 						self.ads_flush_when_all_scraped = {}
 				else:
 					self.logger.debug('Unknown product rating : %s' % id(item))
@@ -290,22 +276,26 @@ class FeedbackBufferMiddleware(object):
 			elif isinstance(item, market_items.UserRating):
 				if id(item) in self.user_flush_when_all_scraped:
 					self.logger.debug("User rating  %s scraped and found in dict" % id(item))
-					self.user_flush_when_all_scraped[id(item)] = True
+					self.user_flush_when_all_scraped[id(item)] = True	# Mark this object like 'scraped'
 					
 					must_flush = True
 					for key in self.user_flush_when_all_scraped:
 						if self.user_flush_when_all_scraped[key] == False:	# Not scraped yet
 							must_flush = False
 					
-					if must_flush:
+					if must_flush:	# All rating has been scraped
 						self.logger.debug("Must flush Seller Feedback")
-						spider.dao.flush(market_models.SellerFeedback)
+						spider.dao.flush(market_models.SellerFeedback)		# Note that Autoflush middleware does not flush Seller Feedback
 						self.user_flush_when_all_scraped = {}
 				else:
 					self.logger.debug('Unknown user rating : %s' % id(item))
+						
+	
+	def item_scraped(self, item, response, spider):
+		self.item_processed(item, spider)
 
 	def item_dropped(self, item, response, exception, spider):
-		pass
+		self.item_processed(item, spider)
 
 	# When a response comes in, we mark the request as completed
 	def process_spider_input(self, response, spider ):

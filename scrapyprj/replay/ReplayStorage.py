@@ -87,7 +87,6 @@ class ReplayStorage(object):
 			return json.dumps(self.recurse_to_dict(response, spider=spider))
 		except Exception as e:
 			traceback.print_exc()
-			embed()
 
 	def decode_response(self, j, spider):
 		temp = json.loads(j)
@@ -168,12 +167,9 @@ class ReplayStorage(object):
 				newnode = self.response_from_dict(node, cls)
 		
 			elif '__request__' in node:
-				try:
-					newnode = request_from_dict(node, spider)
-					for k in newnode.meta:
-						newnode.meta[k] = self.recurse_from_dict(newnode.meta[k], spider=spider)
-				except:
-					embed()
+				newnode = request_from_dict(node, spider)
+				for k in newnode.meta:
+					newnode.meta[k] = self.recurse_from_dict(newnode.meta[k], spider=spider)
 			else:
 				for k in node:
 					newnode[k] = self.recurse_from_dict(node[k], spider=spider)

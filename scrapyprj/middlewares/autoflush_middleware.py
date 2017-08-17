@@ -12,7 +12,7 @@ import scrapyprj.database.forums.orm.models as forum_models
 import scrapyprj.database.markets.orm.models as market_models
 
 # This spiders will flush to database once all items are received.
-# It will force the requets to be sent to the engine AFTER the items so that there is no race condition (like message dependent on threads).
+# It will force the requets to be sent to the engine after the items so that there is no race condition (like message dependent on threads).
 class AutoflushMiddleWare(object):
 	def __init__(self):
 		self.logger = logging.getLogger('AutoflushMiddleWare')

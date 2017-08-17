@@ -31,7 +31,9 @@ class DreamMarketForumSpider(ForumSpider):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
-        self.max_concurrent_requests=1
+        self.set_max_concurrent_request(1)      # Scrapy config
+        self.set_download_delay(0)             # Scrapy config
+        self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 
         self.logintrial = 0
         self.parse_handlers = {

@@ -32,10 +32,11 @@ class TraderouteMarketSpider(MarketSpider):
 		
 		self.logintrial = 0
 
-		self.set_max_concurrent_request(1)	# Scrapy config
+		self.set_max_concurrent_request(1)		# Scrapy config
 		self.set_download_delay(1.5)			# Scrapy config
-		self.set_max_queue_transfer_chunk(1) 		# Custom Queue system
-		self.statsinterval = 30;			# Custom Queue system
+		self.set_max_queue_transfer_chunk(1) 	# Custom Queue system
+		
+		self.statsinterval = 30;				# Custom Queue system
 
 		self.parse_handlers = {
 				'index' 		: self.parse_index,

@@ -29,10 +29,10 @@ class WallstreetMarket(MarketSpider):
 		
 		self.logintrial = 0
 
-		self.max_concurrent_requests = 4	# Scrapy config
-		self.download_delay = 0				# Scrapy config
-		self.request_queue_chunk = 5 		# Custom Queue system
-		self.statsinterval = 60;			# Custom Queue system
+		self.set_max_concurrent_request(4)      # Scrapy config
+		self.set_download_delay(0)              # Scrapy config
+		self.set_max_queue_transfer_chunk(5)    # Custom Queue system
+		self.statsinterval = 60					# Custom Queue system
 
 		self.parse_handlers = {
 				'index' 		: self.parse_index,			# Home page

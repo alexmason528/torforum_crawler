@@ -14,6 +14,7 @@ class RescheduleException(Exception):
 
 class TooManyRescheduleException(Exception):
 	pass	
+	
 # This middleware will sends the Reqests that have meta[shared] = True into the spider custom queue system with enqueue_request()
 class RescheduleMiddleware(object):
 	max_reschedule = 3

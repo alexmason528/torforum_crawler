@@ -24,8 +24,9 @@ class TradeRouteForumSpider(ForumSpider):
     custom_settings = {
         'MAX_LOGIN_RETRY' : 10,
         'RESCHEDULE_RULES' : {
-            'The post table and topic table seem to be out of sync' : 60
-        }
+            'The post table and topic table seem to be out of sync' : 60,
+        },
+        'RANDOMIZE_DOWNLOAD_DELAY' : True
     }
 
     known_users = {}
@@ -34,6 +35,9 @@ class TradeRouteForumSpider(ForumSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.logintrial = 0
+        self.set_max_concurrent_request(1)      # Scrapy config
+        self.set_download_delay(3)              # Scrapy config
+        self.set_max_queue_transfer_chunk(4)    # Custom Queue system
 
         self.parse_handlers = {
                 'index'         : self.parse_index,
@@ -72,12 +76,11 @@ class TradeRouteForumSpider(ForumSpider):
             req.meta['req_once_logged'] = kwargs['req_once_logged']
 
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
-        req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
+        req.meta['proxy'] = self.proxy  # meta[proxy] is handled by scrapy.
 
         return req
    
     def parse(self, response):
-        #embed()
         if not self.islogged(response):
             if self.is_login_page(response):
                 req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request 

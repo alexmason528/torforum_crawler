@@ -24,10 +24,10 @@ class DreamMarketSpider(MarketSpider):
 		
 		self.logintrial = 0
 
-		self.max_concurrent_requests = 1	# Scrapy config
-		self.download_delay = 12			# Scrapy config
-		self.request_queue_chunk = 1 		# Custom Queue system
-		self.statsinterval = 60;			# Custom Queue system
+		self.set_max_concurrent_request(1)      # Scrapy config
+		self.set_download_delay(12)             # Scrapy config
+		self.set_max_queue_transfer_chunk(1)    # Custom Queue system
+		self.statsinterval = 60;				# Custom Queue system
 
 		self.parse_handlers = {
 				'index' 	: self.parse_index,

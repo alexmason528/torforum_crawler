@@ -30,6 +30,9 @@ class RsClubMarketSpider(ForumSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.logintrial = 0
+        self.set_max_concurrent_request(16)      # Scrapy config
+        self.set_download_delay(0)              # Scrapy config
+        self.set_max_queue_transfer_chunk(16)    # Custom Queue system
 
         self.parse_handlers = {
                 'index'         : self.parse_index,
