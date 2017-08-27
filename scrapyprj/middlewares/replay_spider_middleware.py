@@ -6,6 +6,7 @@ from scrapy.utils.request import request_fingerprint
 from scrapyprj.replay.ReplayStorage import ReplayStorage
 from scrapyprj.replay.ReplayRequest import ReplayRequest
 import traceback
+from scrapy.exceptions import CloseSpider
 
 # This middleware takes care of saving / reloading request from the file systems.
 class ReplaySpiderMiddleware(object):
@@ -34,6 +35,11 @@ class ReplaySpiderMiddleware(object):
 		self.storage = ReplayStorage(spider, self.STORAGE_FOLDER)
 		if not self.replay and spider.name not in self.folder_deleted:
 			self.folder_deleted[spider.name]  = True
+			try:
+				self.storage.backup_dir()
+			except Exception as e:
+				self.logger.error("Cannot backup replay folder. Exiting.\n %s" % (e))
+				raise CloseSpider('Cannot backup replay folder.')
 			self.storage.delete_dir()
 			self.storage.make_dir()
 

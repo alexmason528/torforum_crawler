@@ -13,6 +13,8 @@ from scrapy.utils.request import request_fingerprint
 import re
 import functools
 from scrapy import Spider
+import shutil
+from datetime import datetime
 
 # This class save/load scrapy Responses.
 # There is not native tools to serialize responses, so we do quite a lot of manual work.
@@ -44,6 +46,21 @@ class ReplayStorage(object):
 					os.rmdir(os.path.join(root, name))
 			os.rmdir(final_dir)
 
+	def backup_dir(self):
+		dirname = self.get_dir()
+		if os.path.exists(dirname):
+			if len(os.listdir(dirname)) > 0:
+				backup_dir = self.get_backup_dir()
+				if not os.path.exists(backup_dir):
+					os.makedirs(backup_dir)
+				now_datestr = datetime.now().strftime('%Y-%m-%d_%H.%M.%S')
+				basename = os.path.basename(os.path.normpath(dirname))
+				output_filename = os.path.join(backup_dir, '%s_%s' % (basename, now_datestr))
+				self.logger.info("Backing up replay folder %s to zip archive : %s" % (dirname, output_filename))
+				raise ValueError('test')
+				shutil.make_archive(output_filename, 'zip', dirname)
+
+
 	def save(self, response, spider=None):
 		filename = self.make_filename(self.make_unique_name(response))
 		with open(filename, 'wb') as f:	
@@ -64,6 +81,9 @@ class ReplayStorage(object):
 
 	def get_dir(self):
 		return os.path.join(self.storage_dir,self.spider.name)
+
+	def get_backup_dir(self):
+		return os.path.join(self.storage_dir,'backup')
 
 	def make_unique_name(self, response):
 		index = str(int(round(time.time() * 1000, 0)))
