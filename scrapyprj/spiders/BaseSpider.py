@@ -19,8 +19,29 @@ from scrapy import Request
 from urlparse import urlparse, parse_qsl
 
 from twisted.internet import reactor
+from scrapy.utils.log import configure_logging
 
 import profiler
+
+class PrintLoginFilter(logging.Filter):
+	def __init__(self, spider):
+		self.spider = spider
+		super(PrintLoginFilter, self).__init__()
+
+	def filter(self, record):
+		if not hasattr(record, '_PrintLoginFilter_done'):
+			record.msg = '<%s/%s> %s' % (self.spider._loginkey, self.spider._proxy_key, record.msg)
+			record._PrintLoginFilter_done = True
+		return True
+
+class MinMaxLevelFilter(logging.Filter):
+	def __init__(self, min=logging.INFO, max=logging.CRITICAL):
+		self.min = min
+		self.max = max
+		super(MinMaxLevelFilter, self).__init__()
+
+	def filter(self, record):
+		return self.min <= record.levelno <= self.max
 
 class BaseSpider(scrapy.Spider):
 	user_agent  = UserAgent().random
@@ -44,6 +65,7 @@ class BaseSpider(scrapy.Spider):
 		self.initlogs()
 		self.configure_login()
 		self.configure_proxy()
+		self.add_log_filter()
 		self.mailer =  MailSender.from_settings(self.settings)
 
 		if not hasattr(BaseSpider, '_allspiders'):
@@ -202,20 +224,71 @@ class BaseSpider(scrapy.Spider):
 			else:
 				return "%s/%s" % (endpoint, url.lstrip('/'))
 
-
+	# Configure logging.
+	# Either use scrapy mechanism or override with custom way
 	def initlogs(self):
+
+		# If we want our custom logs and override scrapy mechanism.
+		if 'USE_SCRAPY_LOGGING' in self.settings and self.settings['USE_SCRAPY_LOGGING'] == False:
+			configure_logging(install_root_handler=False)
+
+			# Create a folder for log files.
+			logfolder = 'logs' if 'LOG_FOLDER' not in self.settings else self.settings['LOG_FOLDER']
+			if not os.path.exists(logfolder):
+				os.makedirs(logfolder)
+
+			rootlogger = logging.getLogger()	# Other loggers inherit from this one.
+
+			#Handlers
+			logfilename = '%s_%s.log' % (self.name, datetime.now().strftime('%Y-%m-%d_%H.%M.%S'))
+			logfile_handler = logging.FileHandler(os.path.join(logfolder, logfilename), mode='w')
+			streamhandler = logging.StreamHandler()
+			
+			#Formatter
+			formatter = logging.Formatter('%(asctime)s [%(name)s] %(levelname)s: %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
+			logfile_handler.setFormatter(formatter)
+			streamhandler.setFormatter(ColorFormatterWrapper(formatter))
+			
+			# Filters
+			screen_minmax = (logging.INFO, logging.WARNING)
+			if 'LOG_SCREEN_MINMAX' in self.settings:
+				if len(self.settings['LOG_SCREEN_MINMAX']) == 2:
+					screen_minmax = map(lambda s: getattr(logging, s), self.settings['LOG_SCREEN_MINMAX'])
+
+			file_minmax = (logging.WARNING, logging.CRITICAL)
+			if 'LOG_FILE_MINMAX' in self.settings:
+				if len(self.settings['LOG_FILE_MINMAX']) == 2:
+					file_minmax = map(lambda s: getattr(logging, s), self.settings['LOG_FILE_MINMAX'])
+
+			# These filters will show only message with level between min and max
+			streamhandler.addFilter(MinMaxLevelFilter(min=screen_minmax[0], max=screen_minmax[1]))
+			logfile_handler.addFilter(MinMaxLevelFilter(min=file_minmax[0], max=file_minmax[1]))
+
+			rootlogger.handlers = []	# Remove the handlers scrapy added
+			rootlogger.addHandler(logfile_handler)
+			rootlogger.addHandler(streamhandler)
+			
+		else: # If we use scrapy config, we at least colorize the logs.
+			try:
+				for handler in self.logger.logger.parent.handlers:
+					if isinstance(handler, logging.StreamHandler):
+						colorformatter = ColorFormatterWrapper(handler.formatter)
+						handler.setFormatter(colorformatter)
+			except:
+				pass
+
+		# Option to disable certain logger that produce too much output in debug mode
 		try:
 			for logger_name in  self.settings['DISABLE_LOGGER']:
 				logging.getLogger(logger_name).disabled=True
 		except:
 			pass
-		try:
-			for handler in self.logger.logger.parent.handlers:
-				if isinstance(handler, logging.StreamHandler):
-					colorformatter = ColorFormatterWrapper(handler.formatter)
-					handler.setFormatter(colorformatter)
-		except:
-			pass
+
+	def add_log_filter(self):
+		rootlogger = logging.getLogger()
+		for handler in rootlogger.handlers:
+			handler.addFilter(PrintLoginFilter(self))
+
 
 	def configure_proxy(self, proxykey=None):
 		self._proxy_key = None
