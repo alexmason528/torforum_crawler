@@ -57,7 +57,6 @@ class ReplayStorage(object):
 				basename = os.path.basename(os.path.normpath(dirname))
 				output_filename = os.path.join(backup_dir, '%s_%s' % (basename, now_datestr))
 				self.logger.info("Backing up replay folder %s to zip archive : %s" % (dirname, output_filename))
-				raise ValueError('test')
 				shutil.make_archive(output_filename, 'zip', dirname)
 
 
