@@ -283,6 +283,7 @@ class ForumSpider(BaseSpider):
 				else:
 					self.manual_input = None
 					new_input = True
+				new_manual_input.delete_instance()
 			else:
 				self.logger.debug('No new input given by database.')
 		return new_input
