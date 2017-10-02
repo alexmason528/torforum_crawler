@@ -239,8 +239,7 @@ class TraderouteMarketSpider(MarketSpider):
 		ads['relativeurl']	= response.meta['relativeurl']
 		ads['fullurl']		= self.make_url(ads['relativeurl'])
 		user_url			= response.css('.listing_right').xpath('.//a[contains(@href, "page=profile")]/@href').extract_first()
-		# This might yield an error. Likely because vendor-name wasn't brought along.
-		# For some reason, the vendor can't be identified on inspection of the URL.
+		# Some items don't have an associated vendor.
 		try:	
 			ads['vendor_username']	= self.get_url_param(user_url, 'user') 
 		except:
