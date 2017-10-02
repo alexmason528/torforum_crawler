@@ -11,6 +11,7 @@ import json
 import scrapyprj.database.markets.orm.models as dbmodels
 from datetime import datetime, timedelta
 import dateutil
+from dateutil.relativedelta import relativedelta
 
 
 class WallstreetMarket(MarketSpider):
@@ -392,7 +393,12 @@ class WallstreetMarket(MarketSpider):
 					continue
 				
 				rating['rating'] 		= "%s/5" % m.group(1)
-				rating['comment'] 		= self.get_text(line.css('td:nth-child(2)'))
+				#rating['comment'] 		= self.get_text(line.css('td:nth-child(2)'))
+				comment = line.xpath('./td[2]/text()')[0].extract().strip()
+				if comment is None:
+					self.logger.warning("Couldn't find the review. Inserting an empty string at URL: %s" % url)
+				else:
+					rating['comment']   = comment
 				rating['ads_id']		= ads['offer_id']
 				rating['submitted_by']	= self.get_text(line.css('td:nth-child(3)'))
 				rating['submitted_on']	= self.parse_timestr(self.get_text(line.css('td:nth-child(4)')))
@@ -461,6 +467,7 @@ class WallstreetMarket(MarketSpider):
 
 		# ===== Main tab =============
 		if response.url.endswith('info'):
+			#user['profile'] = response.xpath('.//div[@id = "tabcontent"]').extract()
 			user['profile'] = self.get_text(response.css("#tabcontent"))
 		elif response.url.endswith('pgp'):
 			user['public_pgp_key'] = self.get_text(response.css("#tabcontent"))
@@ -566,7 +573,13 @@ class WallstreetMarket(MarketSpider):
 			# =========================================
 			else:
 				timestr = timestr.replace('UTC', '').strip()
-				return self.to_utc(dateutil.parser.parse(timestr))
+				timestr = self.to_utc(dateutil.parser.parse(timestr))
+				# If block to catch dates which are in the future.
+				# For now, we just subtract a year.
+				if timestr > datetime.utcnow():
+					self.logger.warning("Date is unrealistic. Subtracting a year from %s leaving %s" % (timestr, timestr - relativedelta(years=1)))
+					timestr = timestr - relativedelta(years=1)
+				return timestr
 		except Exception as e:
 			self.logger.error("Cannot parse time string '%s'. Error : %s" % (timestr, e))
 
