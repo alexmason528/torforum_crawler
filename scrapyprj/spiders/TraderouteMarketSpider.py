@@ -215,6 +215,8 @@ class TraderouteMarketSpider(MarketSpider):
 				user['alphabay_rating'] = score_text
 			else:
 				self.logger.warning('Unknown other website score. Title is : %s' % (score_title))
+		# Number of sales.
+		user['successful_transactions'] = self.get_text(profile_content.xpath('.//div[@class = "col-2"]/span[@class = "bigInfo"]/text()').extract_first())
 
 		yield user
 	
@@ -227,11 +229,24 @@ class TraderouteMarketSpider(MarketSpider):
 		feedback_content = response.css("#content2")	# Tabs
 
 		ads['title'] 		= self.get_text_first(response.css('.listing_right span'))
-		ads['offer_id']		= self.get_url_param(response.url, 'lid')
+		#ads['offer_id']		= self.get_url_param(response.url, 'lid')
+		try:
+			offer_id	= self.get_url_param(response.url, 'lid')
+			ads['offer_id']		= self.get_url_param(response.url, 'lid')
+		except:
+			self.logger.warning("Ran into a URL parameter issue at URL: %s. Offer_ID is not recorded." % (response.url))
+			ads['offer_id']		= self.get_url_param(response.url, 'lid')
 		ads['relativeurl']	= response.meta['relativeurl']
 		ads['fullurl']		= self.make_url(ads['relativeurl'])
 		user_url			= response.css('.listing_right').xpath('.//a[contains(@href, "page=profile")]/@href').extract_first()
-		ads['vendor_username']	= self.get_url_param(user_url, 'user')
+		# This might yield an error. Likely because vendor-name wasn't brought along.
+		# For some reason, the vendor can't be identified on inspection of the URL.
+		try:	
+			ads['vendor_username']	= self.get_url_param(user_url, 'user') 
+		except:
+			self.logger.warning('No seller available at URL: %s. Seller is noted as \'\'. Inspect the URL post-crawl.' % (response.url))
+			ads['vendor_username']  = ''
+		
 		ads['category'] = response.meta['category']
 
 		multilisting_select = listing_content.css('select[name="multilistingChild"]') 	# 2 types of Ads. Multilisting or not.
@@ -240,12 +255,18 @@ class TraderouteMarketSpider(MarketSpider):
 			ads['multilisting'] = False
 			listing_right_p = self.get_text(listing_content.css(".listing_right p"))
 			m = re.search(r'\((\d+(\.\d+)?)\s*\xe0\xb8\xbf\)',listing_right_p)		# Search for bitcoin icon \xe0\b8\xbf is unicode char for bitcoin encoded in UTF8
+			m2 = re.search(r'([0-9.]{1,10}) \xe0\xb8\xbf', listing_right_p) 
 			if m:
 				ads['price'] = m.group(1)
+			# minor error handling in case the previous regex written by Pier-Yver doesn't catch bitcoin prices.
+			elif m is None and m2 is not None:
+				ads['price']= m2.group(1)
+				#self.logger.warning('Encountered an error with the old price-regex. Using RM\'s regex at URL: %s' % (response.url))
 		else:
 			ads['multilisting'] = True
 			options = []
-			for option in multilisting_select.xpath('.//option[value!=""]'):
+			# Just added @ below which should fix everything.
+			for option in multilisting_select.xpath('.//option[@value!=""]'):
 				options.append(self.get_text(option))
 
 			ads['price'] = json.dumps(options)
@@ -264,9 +285,7 @@ class TraderouteMarketSpider(MarketSpider):
 		for option in listing_content.css('.listing_right form select[name="shipment"] option[value!=""]::text').extract():
 			shipping_options.append(self.get_text(option))
 		ads['shipping_options'] = json.dumps(shipping_options)
-
 		ads['description'] = self.get_text(listing_content.xpath('./p'))
-		
 		stocks_possibilities = ['Excellent stock', 'Good stock', 'Low stock', 'Very low stock']
 		for possibility in stocks_possibilities:
 			if possibility in listing_right_span_text:
@@ -287,9 +306,16 @@ class TraderouteMarketSpider(MarketSpider):
 				rating = items.ProductRating()
 				rating['ads_id'] 		= ads['offer_id']
 				rating['comment'] 		= self.get_text(feedback.css('p'))
-				rating['submitted_by'] 	= self.get_text(feedback.css('.feedback_header span a'))
+				#rating['submitted_by'] 	= self.get_text(feedback.css('.feedback_header span a'))
+				try:
+					username            = feedback.css('.feedback_header span a').xpath("./text()")[0].extract().strip()
+				except:
+					username            = ''
+					self.logger.warning('Found a review with no username. URL: %s' % response.url)
 				rating['submitted_on'] 	= self.parse_timestr(self.get_text(feedback.css('.feedback_header').xpath('span/text()').extract_first()))
-				star_styles = feedback.css('.feedback_subheader').xpath('./div[1]/@style').extract_first()
+				rating['submitted_by']  = username
+				#star_styles = feedback.css('.feedback_subheader').xpath('./div[1]/@style').extract_first()
+				star_styles = feedback.css('.feedback_subheader').xpath('./div/div')[0].extract()
 				m = re.search(r'width:(\d+)px', star_styles)
 				if m:	
 					width =	int(m.group(1))
@@ -304,8 +330,9 @@ class TraderouteMarketSpider(MarketSpider):
 		for url in feedback_content.css('div.pagination a::attr(href)').extract():
 			if self.get_url_param(url, 'pg') != '1':
 				yield self.make_request('listing', url=url, relativeurl=response.meta['relativeurl'], ads_id=ads['offer_id'], category=response.meta['category'])
-		
-		yield self.make_request('userprofile', url=user_url)
+		# If statement to avoid requesting vendors pages when there is no vendor associated with an item.
+		if ads['vendor_username'] is not '':
+			yield self.make_request('userprofile', url=user_url)
 
 
 	def isloginpage_username(self, response):
