@@ -127,6 +127,7 @@ class DreamMarketSpider(MarketSpider):
 				response.request.dont_filter = True
 				yield response.request
 			else:
+				self.logger.warning('Something went wrong. See the exception and investigate %s. Dumping html: %s' % (response.url, response.body))
 				raise Exception("Not implemented yet, figure what to do here !")
 		else : 
 			self.logintrial = 0
@@ -218,7 +219,6 @@ class DreamMarketSpider(MarketSpider):
 					self.logger.warning("Couldn't determine currency. Inserted: %s" % self.get_text(span))
 					price = self.get_text(span)
 				# Add it to the database export pipeline.
-				self.logger.warning("Inserted price: %s based on %s" % (price, self.get_text(span)))
 				ads_item['price'] = price
 			elif label_txt == 'ships to':
 				ads_item['ships_to'] = self.get_text(span)
