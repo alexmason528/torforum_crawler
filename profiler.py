@@ -33,7 +33,7 @@ class Profiler(object):
 
 		if self.platform == 'Linux':
 			try:
-				globals()['meminfo'] = __import__('meminfo')
+				globals()['psutil'] = __import__('psutil')
 			except Exception as e:
 				self.ready = False
 				self.logger.warning("Cannot run profiler. memusage module is missing. %s" % e)
@@ -101,8 +101,8 @@ class Profiler(object):
 			return
 		
 		if self.platform=='Linux':
-			s = meminfo.proc_stat()
-			return s['vsize']
+			return psutil.Process(os.getpid()).memory_info().vms
+			
 		elif self.platform == 'Windows':
 			w = wmi.WMI('.')
 			result = w.query("SELECT WorkingSet FROM Win32_PerfRawData_PerfProc_Process WHERE IDProcess=%d" % os.getpid())
