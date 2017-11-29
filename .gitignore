@@ -6,3 +6,6 @@ cleanproject.py
 files/*
 marketenv.py
 runtest.sh
+.vscode/*
+logs/*
+replayfolder/*

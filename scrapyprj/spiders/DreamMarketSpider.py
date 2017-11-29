@@ -30,10 +30,11 @@ class DreamMarketSpider(MarketSpider):
 		self.statsinterval = 60;				# Custom Queue system
 
 		self.parse_handlers = {
-				'index' 	: self.parse_index,
-				'ads_list' 	: self.parse_ads_list,
-				'ads' 		: self.parse_ads,
-				'user' 		: self.parse_user
+				'index' 		: self.parse_index,
+				'ads_list' 		: self.parse_ads_list,
+				'ads' 			: self.parse_ads,
+				'user' 			: self.parse_user,
+				'user_ratings'	: self.parse_user_ratings
 			}
 
 	def start_requests(self):
@@ -63,13 +64,16 @@ class DreamMarketSpider(MarketSpider):
 			req.meta['req_once_logged'] = kwargs['req_once_logged']
 			req.meta['ddos_protection'] = True
 			req.dont_filter=True
-		elif reqtype in ['ads_list', 'ads', 'user', 'image']:
+		elif reqtype in ['ads_list', 'ads', 'user', 'image', 'user_ratings']:
 			req = Request(self.make_url(kwargs['url']))
 			req.meta['shared'] = True
 
 		if reqtype == 'ads':
 			req.meta['product_rating_for'] = kwargs['ads_id']
 
+		if reqtype == 'user_ratings':
+			req.meta['user_rating_for'] = kwargs['username']
+			req.meta['username'] = kwargs['username']
 
 		req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
 		req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
@@ -338,8 +342,40 @@ class DreamMarketSpider(MarketSpider):
 
 		yield user_item
 
+		for user_tabs in response.css("a.pTabLabel"):
+			if self.get_text(user_tabs) == "Ratings":
+				ratings_url = user_tabs.css("::attr(href)").extract_first()
+				if ratings_url.startswith("?"):
+					ratings_url = "contactMember" + ratings_url
+				yield self.make_request("user_ratings", url=ratings_url, username=user_item['username'])
+
 		for url in response.css("div.shop div.oTitle a::attr(href)").extract():
 			yield self.make_request('ads', url=url, ads_id=self.get_url_param(url, 'offer')) 	# We rely on dupe filter te remove duplicate.
+
+	def parse_user_ratings(self, response):
+		for rating_row in response.css("table.ratingTable tr"):
+			rating_cells = rating_row.css("td")
+			if len(rating_cells) == 5:
+				rating = items.UserRating()
+				rating['username'] = response.meta['username']
+				rating['submitted_on'] = self.parse_days_ago(self.get_text(rating_cells[0]))
+				rating['rating'] = len(rating_cells[1].css('img[alt="gold"]'))
+				rating['comment'] = self.get_text(rating_cells[2])
+				rating['submitted_by'] = self.get_text(rating_cells[3])
+
+				yield rating
+			
+	def parse_days_ago(self, daysstr):
+		try:
+			match = re.search('(\d+)d.*', daysstr)
+			if match:
+				days_ago = timedelta(days = int(match.group(1)))
+				dt = datetime.utcnow() - days_ago
+				dt = dt.replace(hour=12, minute=0, second=0, microsecond=0)
+				return dt
+		except Exception as e:
+			self.logger.error("Cannot parse days ago string '%s'. Error : %s" % (daystr, e))
+			return datetime.utcnow().replace(hour=12, minute=0, second=0, microsecond=0)
 
 	def loggedin(self, response):
 		profile_links = response.css('.main .headNavitems ul li a[href="./profile"]')
