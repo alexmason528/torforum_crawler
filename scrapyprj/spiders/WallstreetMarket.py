@@ -357,16 +357,22 @@ class WallstreetMarket(MarketSpider):
 
 			if not known:
 				self.logger.warning('Unknown information type (%s) in ads at %s' % (line_txt, response.url))
-
+		if response.url.endswith('refund'):
+			ads['terms_and_conditions']		= self.get_text(response.css("#tabcontent"))
+		else:
+			#ads['description']				= self.get_text(response.css("#tabcontent"));
+			ads['description']				= self.get_text(response.css("#tabcontent"))
+			yield self.make_request('offer-refund', url=response.url + '/refund', category=ads['category'])
 		yield ads
 		#=================================================
 
 
-		if response.url.endswith('refund'):
-			ads['terms_and_conditions']		= self.get_text(response.css("#tabcontent"))
-		else:
-			ads['description']				= self.get_text(response.css("#tabcontent"));
-			yield self.make_request('offer-refund', url=response.url + '/refund', category=ads['category'])
+		#if response.url.endswith('refund'):
+		#	ads['terms_and_conditions']		= self.get_text(response.css("#tabcontent"))
+		#else:
+		#	#ads['description']				= self.get_text(response.css("#tabcontent"));
+		#	ads['description']				= self.get_text(response.css("#tabcontent"))
+		#	yield self.make_request('offer-refund', url=response.url + '/refund', category=ads['category'])
 
 
 		## ===================== IMAGES =====================
