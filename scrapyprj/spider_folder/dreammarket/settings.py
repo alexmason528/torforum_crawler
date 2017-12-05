@@ -5,7 +5,8 @@
 
 settings = {
 	'timezone' : 'UTC',								# Timezone used on the website. 
-	'endpoint' : 'http://lchudifyeqm4ldjj.onion',	# Endpoint of the site. Hostname only
+	'endpoint' : 'http://uffti3lhacanefgy.onion', # Using a mirror. URL below is main.
+	#'endpoint' : 'http://lchudifyeqm4ldjj.onion',	# Endpoint of the site. Hostname only
 	'prefix' : '',					# http://myhost.onion/prefix1/prefixe2/profix3/page.php
 	'resources' : {									# List of availables resources. Url can be created like   self.make_url('MyResource1')  = http://blahblahblah.onion/prefix1/prefix2/section1/page2.php
 		'index' : "/"
@@ -16,81 +17,97 @@ settings = {
 			'username' : 'malleybono',
 			'password' : 'pass0000'
 		},
-		'lkdsegksjhgdfb': {		
-			'username' : 'lkdsegksjhgdfb',
-			'password' : 'pqowieuryt'
+		'atomscurl': {		
+			'username' : 'atomscurl',
+			'password' : 'pass0000'
 		},
-		'examplescritic': {		
-			'username' : 'examplescritic',
-			'password' : 'pqowieuryt'
+		'ocelotcylinders': {		
+			'username' : 'ocelotcylinders',
+			'password' : 'pass0000'
 		},
-		'isaacrichard': {		
-			'username' : 'isaacrichard',
-			'password' : 'pqowieuryt'
+		'stirringtoddlers': {		
+			'username' : 'stirringtoddlers',
+			'password' : 'pass0000'
 		},
-		'laidminimize': {		
-			'username' : 'laidminimize',
-			'password' : 'pqowieuryt'
+		'baguetterabbitsfoot': {		
+			'username' : 'baguetterabbitsfoot',
+			'password' : 'pass0000'
 		},
-		'webglhip': {		
-			'username' : 'webglhip',
-			'password' : 'pqowieuryt'
+		'shoddyalmond': {		
+			'username' : 'shoddyalmond',
+			'password' : 'pass0000'
 		},
 		'methaneoutlying': {		
 			'username' : 'methaneoutlying',
 			'password' : 'pqowieuryt'
 		},
-		'absolutecrib': {		
-			'username' : 'absolutecrib',
-			'password' : 'pqowieuryt'
+		'mimicrycomposed': {		
+			'username' : 'mimicrycomposed',
+			'password' : 'pass0000'
 		},
-		'logisticvenerated': {		
-			'username' : 'logisticvenerated',
-			'password' : 'pqowieuryt'
+		'gratifiedmixcloud': {		
+			'username' : 'gratifiedmixcloud',
+			'password' : 'pass0000'
 		},
-		'variantisapi': {		
-			'username' : 'variantisapi',
-			'password' : 'pqowieuryt'
+		'carillonaffine': {		
+			'username' : 'carillonaffine',
+			'password' : 'pass0000'
 		},
 		'bumphamilton': {		
 			'username' : 'bumphamilton',
 			'password' : 'pqowieuryt'
 		},
-		'rawfishbipedal': {		
-			'username' : 'rawfishbipedal',
-			'password' : 'pqowieuryt'
+		'untriedmineral': {		
+			'username' : 'untriedmineral',
+			'password' : 'pass0000'
 		},
 		'metalmalboro': {		
 			'username' : 'metalmalboro',
 			'password' : 'pqowieuryt'
 		},
-		'maggotfrantic': {		
-			'username' : 'maggotfrantic',
-			'password' : 'pqowieuryt'
+		'wholesalebah': {		
+			'username' : 'wholesalebah',
+			'password' : 'pass0000'
 		},
-		'vectorchampion': {		
-			'username' : 'vectorchampion',
-			'password' : 'pqowieuryt'
+		'annumgadwall': {		
+			'username' : 'annumgadwall',
+			'password' : 'pass0000'
 		},
-		'evolvedbegging': {		
-			'username' : 'evolvedbegging',
-			'password' : 'pqowieuryt'
+		'italybowline': {		
+			'username' : 'italybowline',
+			'password' : 'pass0000'
 		},
-		'worshipterrestrial': {		
-			'username' : 'worshipterrestrial',
-			'password' : 'pqowieuryt'
+		'measureretrieve': {		
+			'username' : 'measureretrieve',
+			'password' : 'pass0000'
 		},
 		'heelperseus': {		
 			'username' : 'heelperseus',
 			'password' : 'pqowieuryt'
 		},
-		'bibspanel': {		
-			'username' : 'bibspanel',
-			'password' : 'pqowieuryt'
+		'appearcrossed': {		
+			'username' : 'appearcrossed',
+			'password' : 'pass0000'
 		},
-		'unctiongodwottery': {		
-			'username' : 'unctiongodwottery',
-			'password' : 'pqowieuryt'
+		'archivestwinkling': {		
+			'username' : 'archivestwinkling',
+			'password' : 'pass0000'
+		},
+		'analyticcavity': {		
+			'username' : 'analyticcavity',
+			'password' : 'pass0000'
+		},
+		'huhrocket': {		
+			'username' : 'huhrocket',
+			'password' : 'pass0000'
+		},
+		'newkiedrhyolite': {		
+			'username' : 'newkiedrhyolite',
+			'password' : 'pass0000'
 		}
 	}
 }
+
+
+
+
