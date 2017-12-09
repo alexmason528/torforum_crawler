@@ -130,7 +130,6 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 
 	def parse_ads_list(self, response):
-		self.logger.info("Parsing ad list " + response.url)
 		ads_url = response.css("div.listing a.image::attr(href)").extract()
 		for url in ads_url:
 			yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url))
@@ -140,7 +139,6 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			yield self.make_request('ads_list', url=next_page_url)
 
 	def parse_ads(self, response):
-		self.logger.info("parsing ad " + response.url)
 		ads_id = self.get_ad_id(response.url)
 		ads_item = items.Ads()
 		ads_item['offer_id'] = ads_id
@@ -172,8 +170,6 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			yield self.make_request('ads_ratings', url=ratings_url, priority=5, ads_id=ads_id)
 
 	def parse_ads_ratings(self, response):
-		self.logger.info('parsing ad rating ' + response.url)
-
 		for rating_element in response.css("ul.list-ratings li"):
 			rating = items.ProductRating()
 			rating['ads_id'] = response.meta['ads_id']
@@ -198,7 +194,6 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		return self.get_text(url).split("/")[-2]
 
 	def parse_user(self, response):
-		self.logger.info("parse user : " + response.url)
 		user = items.User()
 		user['username'] = self.get_text(response.css('section#main .vendor-box h2'))
 		user['public_pgp_key'] = self.get_text(response.css('.textarea.pgp textarea'))
@@ -240,7 +235,6 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			yield self.make_request('user_ratings', url=reviews_url, username=user['username'], priority=5)
 
 	def parse_user_ratings(self, response):
-		self.logger.info("parsing user rating " + response.url)
 		for rating_element in response.css("ul.list-ratings li"):
 			rating = items.UserRating()
 			rating['username'] = response.meta['username']
