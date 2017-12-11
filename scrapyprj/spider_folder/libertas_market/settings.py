@@ -5,11 +5,11 @@
 
 settings = {
 	'timezone' : 'UTC',								# Timezone used on the website. 
-	'endpoint' : 'http://cgmcoopwhempo6a5.onion/',	# Endpoint of the site. Hostname only
+	'endpoint' : 'http://trzcq7g2w4nzg6tc.onion',	# Endpoint of the site. Hostname only
 	'prefix' : '',					# http://myhost.onion/prefix1/prefixe2/profix3/page.php
 	'resources' : {									# List of availables resources. Url can be created like   self.make_url('MyResource1')  = http://blahblahblah.onion/prefix1/prefix2/section1/page2.php
-		'index' : "/",
-		'ads_list' : "/listings/"
+		'login' 	: "/login",
+		'ads_list' 	: "/advanced-search?index=&category=&term=&ships-from=&unit=&unit-value=&order-by=&payment-option=&active-vendors=yes&price-from=&price-to="
 		},
 	
 	'logins' : {				# Login information. They will be selected in a round robin fashioned when multiple spider is launched at once.

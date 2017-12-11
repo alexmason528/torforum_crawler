@@ -19,7 +19,7 @@ class Profiler(object):
 		self.ready = True
 		self.supported_platform = ['Windows', 'Linux']
 		self.logger = logging.getLogger('profiler')
-		self.enabled = _global_enabled
+		self.enabled = True
 
 		self.logger.debug("Initializing profiler.")
 		if len(self.logger.handlers) == 0:
@@ -50,6 +50,8 @@ class Profiler(object):
 		except Exception as e:
 			self.ready = False
 			self.logger.warning("Cannot run profiler. Unable to get memory usage. %s " % e)	
+		
+		self.enabled = _global_enabled
 		self.logger.debug("Profiler initialized")	
 
 

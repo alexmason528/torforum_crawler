@@ -304,7 +304,7 @@ class MarketSpider(BaseSpider):
 		stat = ScrapeStat(scrape=self.scrape)
 
 		stats_data 	= self.dao.get_stats(self)
-		ram_usage 	= self.ramreader.get_usage()	
+		ram_usage 	= self.ramreader.get_usage() if self.ramreader.canrun()	else 0
 		stat.ram_usage					= ram_usage	if ram_usage else 0
 
 		stat.ads						= stats_data[Ads]						if Ads 						in stats_data else 0

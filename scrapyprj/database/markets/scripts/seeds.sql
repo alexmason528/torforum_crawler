@@ -6,7 +6,8 @@ insert ignore into `market` (`name`, `spider`) values
 	( 'Traderoute Market', 'traderoute_market'),
 	('Wallstreet Market', 'wallstreet_market'),
 	('Darknet Heroes League Market', 'dhl_market'),
-	('Cannabis Growers & Merchants Coop', 'cgmc_market');
+	('Cannabis Growers & Merchants Coop', 'cgmc_market'),
+	('Libertas Market', 'libertas_market');
 
 insert ignore into `ads_propkey` (`name`, `prettyname`) values 
 	('price', 'Price'),
