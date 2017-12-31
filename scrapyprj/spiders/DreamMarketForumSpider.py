@@ -157,7 +157,8 @@ class DreamMarketForumSpider(ForumSpider):
                 posttime = self.parse_timestr(self.get_text(post.css("h2 a")))
 
                 userprofile_link = post.css(".postleft dt:first-child a::attr(href)").extract_first()
-                messageitem['author_username'] = self.get_text(post.css(".postleft dt:first-child a"))
+
+                messageitem['author_username'] = self.get_text(post.xpath(".//div[@class='postleft']/dl/dt/strong/a/text()").extract_first())
                 messageitem['postid'] = post.xpath("@id").extract_first()
                 messageitem['threadid'] = threadid
                 messageitem['posted_on'] = posttime
