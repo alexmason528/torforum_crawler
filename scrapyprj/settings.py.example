@@ -14,7 +14,8 @@ import database.settings
 BOT_NAME = 'scrapyprj'
 
 PROXIES = {	
-	'debug' : 'http://127.0.0.1:8888'
+	'debug' : "http://127.0.0.1:8118",
+	#'debug' : 'http://127.0.0.1:8888'
 	#"tor9050" : "http://127.0.0.1:8118",
 	#"tor9051" : "http://127.0.0.1:8119",
 	#"tor9052" : "http://127.0.0.1:8120",
