@@ -1,6 +1,6 @@
 settings = {
 	'timezone' : 'UTC',							
-	'endpoint' : 'http://wallst4qihu6lvsa.onion',
+	'endpoint' : 'http://wallstyizjhkrvmj.onion/',
 	'prefix' : '',					
 	'resources' : {									
 		'index' : "/",

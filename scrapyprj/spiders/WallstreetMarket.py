@@ -509,10 +509,10 @@ class WallstreetMarket(MarketSpider):
 
 
 	def isloginpage(self, response):
-		return True if len(response.css('form input[name="username"]')) > 0 else False
+		return True if len(response.css('form input[name="form[username]"]')) > 0 else False
 
 	def is_ddos_challenge(self, response):
-		return True if len(response.css('form input[name="captcha"]')) > 0 and not self.isloginpage(response) else False
+		return True if len(response.css('form input[name="form[captcha]"]')) > 0 and not self.isloginpage(response) else False
 
 	def loggedin(self, response):
 		return True if len(response.css('.content').xpath('.//form[contains(@action, "logout")]')) > 0 else False
@@ -520,12 +520,12 @@ class WallstreetMarket(MarketSpider):
 	# Some pages require only a captcha, nothing else.
 	# We fill the form and return a request that will overcome the DDOS protection
 	def create_request_from_ddos_protection(self, response):
-		captcha_src = response.css('.wms_captcha_field img::attr(src)').extract_first().strip()
+		captcha_src = response.css('form img.captcha_image::attr(src)').extract_first().strip()
 		
 		req = FormRequest.from_response(response)
 		req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
 			'request' : self.make_request('captcha', url=captcha_src),
-			'name' : 'captcha',
+			'name' : 'form[captcha]',
 			'preprocess' : 'WallstreetMarketAddBackground'
 			}
 		return req
@@ -534,19 +534,22 @@ class WallstreetMarket(MarketSpider):
 	# Receive the login page response and return a request with a filled form.
 	def craft_login_request_from_form(self, response):
 		data = {
-			'username' : self.login['username'],
-			'password' : self.login['password'],
-			'picq' : '1',		# Picture quality. 1 = Bad (we don't need Hi resolution)
-			'captcha' : ''		# Will be filled by Captcha Middleware
+			'form[_token]' : response.css('form input[name="form[_token]"]::attr(value)').extract_first(),
+			'form[username]' : self.login['username'],
+			'form[password]' : self.login['password'],
+			'form[pictureQuality]' : '1',		# Picture quality. 1 = Bad (we don't need Hi resolution)
+			'form[language]' : 'en',
+			'form[sessionLength]' : '43200', # Session length, 12h max value = 43200
+			'form[captcha]' : ''		# Will be filled by Captcha Middleware
 		}
 
 		req = FormRequest.from_response(response, formdata=data)	# No selector for form as there is just one in the page	
 
-		captcha_src = response.css('.wms_captcha_field img::attr(src)').extract_first().strip()
+		captcha_src = response.css('form img.captcha_image::attr(src)').extract_first().strip()
 		
 		req.meta['captcha'] = {        # CaptchaMiddleware will take care of that.
 			'request' : self.make_request('captcha', url=captcha_src),
-			'name' : 'captcha',
+			'name' : 'form[captcha]',
 			'preprocess' : 'WallstreetMarketAddBackground'	# Add a black background because text is white on transparent background
 		}
 
