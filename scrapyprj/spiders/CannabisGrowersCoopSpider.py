@@ -160,14 +160,19 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		
 		yield img_item
 
+		# Sublistings
+		for sublisting_url in response.css("div.listing_options a::attr(href)").extract():
+			yield self.make_request('ads', url=sublisting_url)
+
 		vendor_url = response.css('section#main .product .col-7.rows-10 .row.rows-20 .row a::attr(href)').extract_first()
 
 		yield self.make_request('user', url = vendor_url, priority=5)
 		
 		ratings_url = response.css('section#main .product .row.big-list a::attr(href)').extract_first()
 
-		if ratings_url:
-			yield self.make_request('ads_ratings', url=ratings_url, priority=5, ads_id=ads_id)
+		# We don't get ratings from the products page anymore, only from vendor pages
+		#if ratings_url:
+		#		yield self.make_request('ads_ratings', url=ratings_url, priority=5, ads_id=ads_id)
 
 	def parse_ads_ratings(self, response):
 		for rating_element in response.css("ul.list-ratings li"):
@@ -236,12 +241,21 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 	def parse_user_ratings(self, response):
 		for rating_element in response.css("ul.list-ratings li"):
-			rating = items.UserRating()
-			rating['username'] = response.meta['username']
+			product_name_element = rating_element.css('div.left small')
+			product_url = product_name_element.css("a::attr(href)").extract_first()
+			if (product_url):
+				rating = items.ProductRating()
+				ad_id = self.get_ad_id(product_url)
+				rating['ads_id'] = ad_id
+				yield self.make_request('ads', url=product_url, ads_id = ad_id)
+			else: # No product URL found, still save it with the product name
+				rating = items.UserRating()
+				rating['username'] = response.meta['username']
+				rating['item_name'] = self.get_text(product_name_element)
+			
 			rating['submitted_on'] = self.get_text(rating_element.css('.left date'))
 			rating['rating'] = len(rating_element.css('.rating.stars i.full'))
 			rating['comment'] = self.get_text(rating_element.css('div.right.formatted'))
-			rating['item_name'] = self.get_text(rating_element.css('div.left small'))
 			yield rating
 		
 		
