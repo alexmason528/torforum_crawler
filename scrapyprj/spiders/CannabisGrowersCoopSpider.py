@@ -153,12 +153,13 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		ads_item['shipping_options'] = json.dumps(self.get_shipping_options(response))
 		yield ads_item
 
-		img_item = items.AdsImage(image_urls = [])
-		img_url = response.css('section#main .product figure a::attr(href)').extract_first()
-		img_item['image_urls'].append(self.make_request('image', url=img_url))
-		img_item['ads_id'] = ads_id
-		
-		yield img_item
+		image_urls = response.css('section#main .product figure a::attr(href)').extract()
+		if len(image_urls) > 0:
+			img_item = items.AdsImage(image_urls = [])
+			for img_url in image_urls:
+				img_item['image_urls'].append(self.make_request('image', url=img_url))
+			img_item['ads_id'] = ads_id
+			yield img_item
 
 		# Sublistings
 		for sublisting_url in response.css("div.listing_options a::attr(href)").extract():
