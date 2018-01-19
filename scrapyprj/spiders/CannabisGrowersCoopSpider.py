@@ -11,6 +11,7 @@ import json
 import scrapyprj.database.markets.orm.models as dbmodels
 from datetime import datetime, timedelta, date
 from random import randint
+import dateutil.parser
 
 class CannabisGrowersCoopSpider(MarketSpider):
 	name = "cgmc_market"
@@ -179,7 +180,8 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		for rating_element in response.css("ul.list-ratings li"):
 			rating = items.ProductRating()
 			rating['ads_id'] = response.meta['ads_id']
-			rating['submitted_on'] = self.get_text(rating_element.css('.left date'))
+			#rating['submitted_on'] = self.get_text(rating_element.css('.left date'))
+			rating['submitted_on'] = self.to_utc(dateutil.parser.parse(self.get_text(rating_element.css('.left date'))))
 			rating['rating'] = len(rating_element.css('.rating.stars i.full'))
 			rating['comment'] = self.get_text(rating_element.css('div.right.formatted'))
 			yield rating
@@ -254,7 +256,9 @@ class CannabisGrowersCoopSpider(MarketSpider):
 				rating['username'] = response.meta['username']
 				rating['item_name'] = self.get_text(product_name_element)
 			
-			rating['submitted_on'] = self.get_text(rating_element.css('.left date'))
+			#rating['submitted_on'] = self.get_text(rating_element.css('.left date'))
+			rating['submitted_on'] = self.to_utc(dateutil.parser.parse(self.get_text(rating_element.css('.left date'))))
+
 			rating['rating'] = len(rating_element.css('.rating.stars i.full'))
 			rating['comment'] = self.get_text(rating_element.css('div.right.formatted'))
 			yield rating
