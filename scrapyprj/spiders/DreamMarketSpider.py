@@ -130,6 +130,8 @@ class DreamMarketSpider(MarketSpider):
 
 				response.request.dont_filter = True
 				yield response.request
+			elif self.unknown_error(response):
+				self.logger.warning('Encountered an error which Dream Market does not describe.')
 			else:
 				self.logger.warning('Something went wrong. See the exception and investigate %s. Dumping html: %s' % (response.url, response.body))
 				raise Exception("Not implemented yet, figure what to do here !")
@@ -171,85 +173,91 @@ class DreamMarketSpider(MarketSpider):
 	def parse_ads(self, response):
 		
 		##  =============   ADS   ======================
-		ads_item = items.Ads()
-		ads_item['title'] = self.get_text(response.css('.viewProduct .title'))
-		details = response.css('div.tabularDetails>div')
-		for div in details:
-			label = div.css('label:first-child')
-			label_txt = self.get_text(label).lower()
-			span = div.xpath('./span')
+		listing_not_found = self.get_text(response.xpath('.//div[@class="content"]/div/div[1]/text()').extract_first())
+		if listing_not_found != 'Listing not found':
+			ads_item = items.Ads()
+			ads_item['title'] = self.get_text(response.css('.viewProduct .title'))
+			details = response.css('div.tabularDetails>div')
+			for div in details:
+				label = div.css('label:first-child')
+				label_txt = self.get_text(label).lower()
+				span = div.xpath('./span')
 
-			if label_txt == 'vendor':
-				link = span.css('a:first-child')
-				ads_item['vendor_username'] = self.get_text(link)
-				url = link.css('::attr(href)').extract_first().strip()
-				yield self.make_request('user', url = url, priority=5)
-				
-			elif label_txt == 'price':
-				# ads_item['price'] = self.get_text(span) malfunctions and returns prices 
-				# in different currencies. The issue is that when accidentally clicking 
-				# selectCurrency we return currencies to the database that should not be there. 
-				# Price is denoted in one of these formats using currency symbols.
-				# BTC1 (USD5000)
-				# BTC1
-				# BTC1 (POUND/EURO6000)
-				price 		 = self.get_text(span)
-				btc_price    = re.search(r'\xe0\xb8\xbf([0-9.]{1,10})', price)
-				dollar_price = re.search('\$([0-9.]{1,10})', price)
-				# If the price is available in BTC, use that as the price.
-				if btc_price is not None:
-					price = btc_price.group(1)
-					#self.logger.warning('BTC price: %s. Pier-Yver\'s price was: %s' % (price, self.get_text(span)))
-				# If it's not, convert USD to BTC.
-				elif btc_price is None and dollar_price is not None:
-					self.logger.warning('Using dollar price %s' % (price))
-					price = dollar_price.group(1)
-					# Try to find the exchange rate.
-					exchange_rates = response.xpath('.//*[@class = "exchangeRateListing"]').extract()[0]
-					try:
-						dollar_rate    = re.search('USD.*?([0-9\\.]{1,10})', exchange_rates, re.DOTALL).group(1)
-					except:
-						self.logger.warning("Couldn't get the dollar exchange rate. Dumping the XML: %s" % exchange_rates)
-					# Then try to convert.
-					try:
-						dollar_rate      = float(dollar_rate)
-						price = float(price) / dollar_rate
-						self.logger.warning('Found a product in dollar at (%s). Converted to BTC. Math was: $ %s / exchange rate %s = %s' % (response.url, dollar_price.group(1), dollar_rate, price))
-					except:
-						self.logger.warning("Failed to convert. Dumping values dollar rate %s, price %s and raw price %s. Using Pier-Yver's price." % (dollar_rate, price, price_raw))
-						price = self.get_text(span)						
-				# Worst case scenario, use a price that works somewhat - Pier-Yver's old price.
+				if label_txt == 'vendor':
+					link = span.css('a:first-child')
+					ads_item['vendor_username'] = self.get_text(link)
+					url = link.css('::attr(href)').extract_first().strip()
+					yield self.make_request('user', url = url, priority=5)
+					
+				elif label_txt == 'price':
+					# ads_item['price'] = self.get_text(span) malfunctions and returns prices 
+					# in different currencies. The issue is that when accidentally clicking 
+					# selectCurrency we return currencies to the database that should not be there. 
+					# Price is denoted in one of these formats using currency symbols.
+					# BTC1 (USD5000)
+					# BTC1
+					# BTC1 (POUND/EURO6000)
+					price 		 = self.get_text(span)
+					btc_price    = re.search(r'\xe0\xb8\xbf([0-9.]{1,10})', price)
+					dollar_price = re.search('\$([0-9.]{1,10})', price)
+					# If the price is available in BTC, use that as the price.
+					if btc_price is not None:
+						price = btc_price.group(1)
+						#self.logger.warning('BTC price: %s. Pier-Yver\'s price was: %s' % (price, self.get_text(span)))
+					# If it's not, convert USD to BTC.
+					elif btc_price is None and dollar_price is not None:
+						self.logger.warning('Using dollar price %s' % (price))
+						price = dollar_price.group(1)
+						# Try to find the exchange rate.
+						exchange_rates = response.xpath('.//*[@class = "exchangeRateListing"]').extract()[0]
+						try:
+							dollar_rate    = re.search('USD.*?([0-9\\.]{1,10})', exchange_rates, re.DOTALL).group(1)
+						except:
+							self.logger.warning("Couldn't get the dollar exchange rate. Dumping the XML: %s" % exchange_rates)
+						# Then try to convert.
+						try:
+							dollar_rate      = float(dollar_rate)
+							price = float(price) / dollar_rate
+							self.logger.warning('Found a product in dollar at (%s). Converted to BTC. Math was: $ %s / exchange rate %s = %s' % (response.url, dollar_price.group(1), dollar_rate, price))
+						except:
+							self.logger.warning("Failed to convert. Dumping values dollar rate %s, price %s and raw price %s. Using Pier-Yver's price." % (dollar_rate, price, price_raw))
+							price = self.get_text(span)						
+					# Worst case scenario, use a price that works somewhat - Pier-Yver's old price.
+					else:
+						self.logger.warning("Couldn't determine currency. Inserted: %s" % self.get_text(span))
+						price = self.get_text(span)
+					# Add it to the database export pipeline.
+					ads_item['price'] = price
+				elif label_txt == 'ships to':
+					ads_item['ships_to'] = self.get_text(span)
+				elif label_txt == 'ships from':
+					ads_item['ships_from'] = self.get_text(span)
+				elif label_txt == 'escrow':
+					ads_item['escrow'] = self.get_text(span)
 				else:
-					self.logger.warning("Couldn't determine currency. Inserted: %s" % self.get_text(span))
-					price = self.get_text(span)
-				# Add it to the database export pipeline.
-				ads_item['price'] = price
-			elif label_txt == 'ships to':
-				ads_item['ships_to'] = self.get_text(span)
-			elif label_txt == 'ships from':
-				ads_item['ships_from'] = self.get_text(span)
-			elif label_txt == 'escrow':
-				ads_item['escrow'] = self.get_text(span)
-			else:
-				self.logger.warning('Found an ads detail (%s) that is unknown to this spider on URL: %s. Consider hadnling it.' % (label_txt, response.url))
-		ads_item['description'] = self.get_text(response.css("#offerDescription"))
-		ads_item['offer_id'] = self.get_url_param(response.url, 'offer')
-		
-		try:
-			ads_item['category'] = self.get_active_category(response)
-		except Exception, e:
-			self.logger.warning('Cannot determine ads category : %s' % e)
+					self.logger.warning('Found an ads detail (%s) that is unknown to this spider on URL: %s. Consider hadnling it.' % (label_txt, response.url))
+			ads_item['description'] = self.get_text(response.css("#offerDescription"))
+			ads_item['offer_id'] = self.get_url_param(response.url, 'offer')
+			
+			try:
+				ads_item['category'] = self.get_active_category(response)
+			except Exception, e:
+				self.logger.warning('Cannot determine ads category : %s' % e)
 
-		try:
-			ads_item['shipping_options'] = json.dumps(self.get_shipping_options(response))
-		except Exception, e:
-			self.logger.warning('Cannot determine shipping options : %s' % e)
+			try:
+				ads_item['shipping_options'] = json.dumps(self.get_shipping_options(response))
+			except Exception, e:
+				self.logger.warning('Cannot determine shipping options : %s' % e)
 
-		ads_item['fullurl'] = response.url
-		parsed_url = urlparse(response.url)
-		ads_item['relativeurl'] = "%s?%s" % (parsed_url.path, (parsed_url.query))
+			ads_item['fullurl'] = response.url
+			parsed_url = urlparse(response.url)
+			ads_item['relativeurl'] = "%s?%s" % (parsed_url.path, (parsed_url.query))
 
-		yield ads_item
+			yield ads_item
+		elif listing_not_found == 'Listing not found':
+			self.logger.warning('Listing not found at %s' % response.url)
+		else: 
+			self.logger.warning('Unknown listing status %s' % response.url)
 
 		## ===================== IMAGES =====================
 		images_url = response.css('img.productImage::attr(src)').extract();
@@ -416,6 +424,9 @@ class DreamMarketSpider(MarketSpider):
 
 	def is_session_expired(self, response):
 		return True if 'Your session has expired' in response.body else False
+
+	def unknown_error(self, response):
+		return True if self.get_text(response.xpath('.//title/text()').extract_first()) == 'An Error has occured' else False
 
 	def create_request_from_ddos_protection(self, response):
 		challenge = ''.join(response.css('.iline').xpath('./label[contains(text(), "Challenge")]/../text()').extract()).strip()
