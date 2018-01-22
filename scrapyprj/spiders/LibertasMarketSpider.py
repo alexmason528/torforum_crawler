@@ -355,7 +355,7 @@ class LibertasMarketSpider(MarketSpider):
 		return False
 
 	def isloginpage(self, response):
-		loginform = response.css('form input[name="challenge_code"]').extract_first()
+		loginform = response.css('form input[name="username"]').extract_first()
 		if loginform:
 			return True
 		
