@@ -35,6 +35,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 				'index' 		: self.parse_index,
 				'ads_list' 		: self.parse_ads_list,
 				'ads' 			: self.parse_ads,
+				'ads_images'	: self.parse_ads_images,
 				'ads_ratings'	: self.parse_ads_ratings,
 				'user' 			: self.parse_user,
 				'user_ratings'	: self.parse_user_ratings
@@ -61,7 +62,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			req = self.create_request_from_login_page(kwargs['response'])
 			req.meta['req_once_logged'] = kwargs['req_once_logged']
 			req.dont_filter=True
-		elif reqtype in ['ads_list', 'ads', 'ads_ratings', 'user', 'image', 'user_ratings']:
+		elif reqtype in ['ads_list', 'ads', 'ads_ratings', 'user', 'image', 'user_ratings', 'ads_images']:
 			req = Request(self.make_url(kwargs['url']))
 			req.meta['shared'] = True
 
@@ -156,11 +157,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 		image_urls = response.css('section#main .product figure a::attr(href)').extract()
 		if len(image_urls) > 0:
-			img_item = items.AdsImage(image_urls = [])
-			for img_url in image_urls:
-				img_item['image_urls'].append(self.make_request('image', url=img_url))
-			img_item['ads_id'] = ads_id
-			yield img_item
+			yield self.make_request('ads_images', url = response.url + '?q=1') # hack to make urls unique
 
 		# Sublistings
 		for sublisting_url in response.css("div.listing_options a::attr(href)").extract():
@@ -175,6 +172,19 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		# We don't get ratings from the products page anymore, only from vendor pages
 		#if ratings_url:
 		#		yield self.make_request('ads_ratings', url=ratings_url, priority=5, ads_id=ads_id)
+
+	def parse_ads_images(self, response):
+		# Somehow CGMC doesn't like when ads images and ads are scapred from the same page and keeps
+		# throwing foreign key exceptions (trying to save images before the ad is saved)
+		# Hack : Make a new request only for images, not clean, but it works :\ 
+		ads_id = self.get_ad_id(response.url)
+		image_urls = response.css('section#main .product figure a::attr(href)').extract()
+		if len(image_urls) > 0:
+			img_item = items.AdsImage(image_urls = [])
+			for img_url in image_urls:
+				img_item['image_urls'].append(self.make_request('image', url=img_url))
+			img_item['ads_id'] = ads_id
+			yield img_item
 
 	def parse_ads_ratings(self, response):
 		for rating_element in response.css("ul.list-ratings li"):
