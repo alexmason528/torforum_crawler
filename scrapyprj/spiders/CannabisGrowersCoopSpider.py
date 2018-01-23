@@ -161,7 +161,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 		# Sublistings
 		for sublisting_url in response.css("div.listing_options a::attr(href)").extract():
-			yield self.make_request('ads', url=sublisting_url)
+			yield self.make_request('ads', url=sublisting_url, ads_id=self.get_ad_id(sublisting_url))
 
 		vendor_url = response.css('section#main .product .col-7.rows-10 .row.rows-20 .row a::attr(href)').extract_first()
 
