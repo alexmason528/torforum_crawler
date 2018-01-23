@@ -62,6 +62,10 @@ class LibertasMarketSpider(MarketSpider):
 			req = self.create_request_from_login_page(kwargs['response'])
 			req.meta['req_once_logged'] = kwargs['req_once_logged']
 			req.dont_filter=True
+		elif reqtype == 'dochallenge':
+			req = self.create_request_from_challenge_page(kwargs['response'])
+			req.meta['req_once_logged'] = kwargs['req_once_logged']
+			req.dont_filter=True
 		elif reqtype in ['ads_list', 'ads', 'ads_ratings', 'user', 'image', 'user_ratings']:
 			req = Request(self.make_url(kwargs['url']))
 			req.meta['shared'] = True
@@ -105,6 +109,20 @@ class LibertasMarketSpider(MarketSpider):
 					req_once_logged = response.meta['req_once_logged']
 
 				yield self.make_request('dologin', req_once_logged=req_once_logged, response=response, priority=10)
+			elif self.ischallengepage(response):
+				self.logger.debug('Encountered a challenge page.')
+				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
+					req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
+					self.wait_for_input("Too many login failed", req_once_logged)
+					self.logintrial = 0
+					return
+				self.logger.info("Trying to solve challenge.")
+				self.logintrial += 1
+
+				req_once_logged = response.request
+				if ('req_once_logged' in response.meta):
+					req_once_logged = response.meta['req_once_logged']
+				yield self.make_request('dochallenge', req_once_logged=req_once_logged, response=response, priority=10)
 			else:
 				self.logger.warning('Something went wrong. See the exception and investigate %s. Dumping html: %s' % (response.url, response.body))
 				raise Exception("Not implemented yet, figure what to do here !")
@@ -311,6 +329,24 @@ class LibertasMarketSpider(MarketSpider):
 
 		return req
 
+	def create_request_from_challenge_page(self, response):
+		token = response.css('input[name="token"]::attr(value)').extract_first()
+		
+		data = {
+			'challenge_code' : '', # Filled by captcha middleware
+		}
+
+		req = FormRequest.from_response(response, formdata=data, formcss='#central form')
+
+		captcha_src = response.css('#challenge_code_img::attr(src)').extract_first()
+
+		req.meta['captcha'] = {        # CaptchaMiddleware will take care of that.
+			'request' : self.make_request('captcha_img', url=captcha_src),
+			'name' : 'challenge_code'
+		}
+
+		return req
+
 	def loggedin(self, response):
 		logout_link = response.css('#header nav a[title="Logout"]')
 		if logout_link:
@@ -319,6 +355,13 @@ class LibertasMarketSpider(MarketSpider):
 		return False
 
 	def isloginpage(self, response):
+		loginform = response.css('form input[name="username"]').extract_first()
+		if loginform:
+			return True
+		
+		return False
+
+	def ischallengepage(self, response):
 		loginform = response.css('form input[name="challenge_code"]').extract_first()
 		if loginform:
 			return True
