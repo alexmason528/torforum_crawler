@@ -15,6 +15,7 @@ import functools
 from scrapy import Spider
 import shutil
 from datetime import datetime
+import ZipUtility
 
 # This class save/load scrapy Responses.
 # There is not native tools to serialize responses, so we do quite a lot of manual work.
@@ -57,7 +58,7 @@ class ReplayStorage(object):
 				basename = os.path.basename(os.path.normpath(dirname))
 				output_filename = os.path.join(backup_dir, '%s_%s' % (basename, now_datestr))
 				self.logger.info("Backing up replay folder %s to zip archive : %s" % (dirname, output_filename))
-				shutil.make_archive(output_filename, 'zip', dirname)
+				ZipUtility.make_archive(output_filename, 'zip', dirname)
 
 
 	def save(self, response, spider=None):
