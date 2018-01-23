@@ -85,6 +85,7 @@ insert ignore into `seller_feedback_propkey` (`name`, `prettyname`) values
 	('quality', 'Quality'),
 	('payment_type', 'Payment type'),
 	('item_name', 'Item name'),
-	('submitter_level', 'Submitter reputation level');
+	('submitter_level', 'Submitter reputation level'),
+	('price', 'Price');
 
 COMMIT;

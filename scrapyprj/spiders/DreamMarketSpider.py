@@ -370,6 +370,7 @@ class DreamMarketSpider(MarketSpider):
 				rating['rating'] = len(rating_cells[1].css('img[alt="gold"]'))
 				rating['comment'] = self.get_text(rating_cells[2])
 				rating['submitted_by'] = self.get_text(rating_cells[3])
+				rating['price'] = self.get_text(rating_cells[4])
 
 				yield rating
 			

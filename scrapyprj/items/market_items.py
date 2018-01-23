@@ -94,5 +94,6 @@ class UserRating(scrapy.Item):
 	payment_type = scrapy.Field()
 	item_name = scrapy.Field()
 	submitter_level = scrapy.Field()
+	price = scrapy.Field()
 
 
