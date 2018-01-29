@@ -662,6 +662,73 @@ CREATE TABLE `user_propval` (
   CONSTRAINT `user_propval_scrape` FOREIGN KEY (`scrape`) REFERENCES `scrape` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_propval_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED;
+
+DROP VIEW IF EXISTS `ads_view`;
+
+create view `ads_view` (`id`, `external_id`, `pid`, `market`, `title`, `seller`, `relativeurl`, `fullurl`, `last_update`, `modified_on`, `scrape`)
+as 
+select  a.`id`, 
+		a.`external_id`,
+        concat(m.`spider`, '_', a.`external_id`),
+        a.`market`,
+        a.`title`,
+        a.`seller`,
+        a.`relativeurl`,
+        a.`fullurl`,
+        a.`last_update`,
+        a.`modified_on`,
+        a.`scrape`
+from `ads` a 
+join `market` m on a.`market` = m.`id`;
+
+DROP VIEW IF EXISTS `ads_feedback_view`;
+
+create view `ads_feedback_view` (`id`, `pid`, `market`, `ads`, `modified_on`, `scrape`, `hash`, `count`)
+as
+select	f.`id`,
+		concat(m.`spider`, '_', a.`external_id`),
+        f.`market`,
+        f.`ads`,
+        f.`modified_on`,
+        f.`scrape`,
+        f.`hash`,
+        f.`count`
+from `ads_feedback` f
+join `ads` a on f.`ads` = a.`id`
+join `market` m on f.`market` = m.`id`;
+
+DROP VIEW IF EXISTS `user_view`;
+
+create view `user_view` (`id`, `sid`, `market`, `username`, `relativeurl`, `fullurl`, `scrape`, `modified_on`)
+as
+select 	u.`id`,
+		concat(m.`spider`, '_', u.`username`),
+        u.`market`,
+        u.`username`,
+		u.`relativeurl`,
+        u.`fullurl`,
+        u.`scrape`,
+        u.`modified_on`
+from `user` u
+join `market` m on u.`market`= m.`id`;
+
+DROP VIEW IF EXISTS `seller_feedback_view`;
+
+create view `seller_feedback_view` (`id`, `sid`, `market`, `seller`, `modified_on`, `scrape`, `hash`, `count`)
+as
+select	f.`id`,
+		concat(m.`spider`, '_', u.`username`),
+        f.`market`,
+        f.`seller`,
+        f.`modified_on`,
+        f.`scrape`,
+        f.`hash`,
+        f.`count`
+from `seller_feedback` f
+join `user` u on f.`seller` = u.`id`
+join `market` m on f.`market` = m.`id`;
+
+
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
