@@ -21,7 +21,7 @@ class WallstreetMarket(MarketSpider):
 		'IMAGES_STORE' : './files/img/wallstreet_market',
 		'RANDOMIZE_DOWNLOAD_DELAY' : True,
 		'RESCHEDULE_RULES' : {},
-		'MAX_LOGIN_RETRY' : 10
+		'MAX_LOGIN_RETRY' : 15
 	}
 
 
@@ -135,7 +135,7 @@ class WallstreetMarket(MarketSpider):
 
 				yield self.make_request(reqtype='dologin', req_once_logged=req_once_logged, response=response)
 			elif self.is_ddos_challenge(response):
-				self.logger.warning('Encountered a DDOS protection page')
+				self.logger.warning('Encountered a DDOS protection page while not logged in.')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
 					req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
 					self.logintrial = 0
@@ -152,6 +152,24 @@ class WallstreetMarket(MarketSpider):
 			else:
 				self.logger.info("Not logged, going to login page.")
 				yield self.make_request(reqtype='loginpage', req_once_logged=response.request)
+		# Below is an attempt at bypassing DDoS protection encountered while logged in.
+		elif self.loggedin(response) == True and self.is_ddos_challenge(response) == True:
+			self.logger.warning('Encountered DDOS protection while logged in.')
+
+		 	if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
+		 		req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
+		 		self.logintrial = 0
+		 		self.wait_for_input("Can't bypass DDOS Protection",req_once_logged)
+		 		return
+		 	self.logger.info("Trying to overcome DDOS protection")
+		 	self.logintrial += 1
+
+		 	req_once_logged = response.request
+		 	if ('req_once_logged' in response.meta):
+		 		req_once_logged = response.meta['req_once_logged']
+
+		 	yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response)
+
 		else: 
 			self.logintrial = 0
 
@@ -586,7 +604,7 @@ class WallstreetMarket(MarketSpider):
 				# If block to catch dates which are in the future.
 				# For now, we just subtract a year.
 				if timestr > datetime.utcnow():
-					self.logger.warning("Date is unrealistic. Subtracting a year from %s leaving %s" % (timestr, timestr - relativedelta(years=1)))
+					self.logger.warning("Unrealistic date. Subtracting a year.")
 					timestr = timestr - relativedelta(years=1)
 				return timestr
 		except Exception as e:
