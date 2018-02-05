@@ -230,6 +230,8 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 		user['last_active'] = self.parse_timestr(self.get_text(response.css('section#main .vendor-box .corner li:first-child>div:first-child')))
 		user['subscribers'] = self.get_text(response.css('section#main .vendor-box .corner li:last-child>div:first-child'))
+		user['relativeurl'] = urlparse(response.url).path
+		user['fullurl']     = response.url
 
 		tabs_buttons_list = response.css('.special-tabs input[name="vendor-section"]')
 		tabs_list = response.css('.special-tabs .right .contents .formatted')
