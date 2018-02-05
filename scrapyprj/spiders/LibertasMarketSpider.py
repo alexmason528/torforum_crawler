@@ -146,6 +146,12 @@ class LibertasMarketSpider(MarketSpider):
 		ad_links = response.css('section.main_items article a.lesser.button.wide.colored::attr(href)').extract()
 		for link in ad_links:
 			yield self.make_request('ads', url=link, ads_id=self.get_url_id(link))
+		next_page_exists = response.xpath('.//ul[@class="pagi"]/li[3]/a/text()').extract_first() == 'Next page'
+		if next_page_exists == True:
+			self.logger.info("Debug info: Going to next page in the ads-list.")
+			next_page = response.xpath('.//ul[@class="pagi"]/li[3]/a/@href').extract_first()
+			yield self.make_request('ads_list', url=next_page)
+
 
 	def parse_ads(self, response):
 				
