@@ -244,10 +244,15 @@ class DreamMarketSpider(MarketSpider):
 			except Exception, e:
 				self.logger.warning('Cannot determine ads category : %s' % e)
 
-			try:
-				ads_item['shipping_options'] = json.dumps(self.get_shipping_options(response))
-			except Exception, e:
-				self.logger.warning('Cannot determine shipping options : %s' % e)
+			# Check if there is a shipping options field.
+			# if so, it should be the first div with class newFeature.
+			# If it's called cryptocurrency, then there's no shipping information.
+			shipping_info_available = response.xpath(".//div[@class = 'newFeature'][1]/text()").extract_first() != "Cryptocurrency"
+			if shipping_info_available == True:
+				try:
+					ads_item['shipping_options'] = json.dumps(self.get_shipping_options(response))
+				except Exception, e:
+					self.logger.warning('Cannot determine shipping options : %s' % e)
 
 			ads_item['fullurl'] = response.url
 			parsed_url = urlparse(response.url)
@@ -552,11 +557,11 @@ class DreamMarketSpider(MarketSpider):
 
 	def get_shipping_options(self, response):
 		options_list = []
-		options = response.css('.shippingTable tr')
+		options = response.xpath('.//table[@class="shippingTable hoverable"][1]/tbody/tr')
 		for option in options:
 			option_dict = {
-				'price' : self.get_text(option.css('td:first-child')),
-				'name' : self.get_text(option.css('td:nth-child(2)'))
+				'price' : option.xpath('td[@class = "coinsNoWrap"]/label/text()').extract_first(),
+				'name' : option.xpath('td[@class = "text"]/label/text()').extract_first()
 				}
 			options_list.append(option_dict)
 		return options_list
