@@ -31,7 +31,9 @@ insert ignore into `ads_propkey` (`name`, `prettyname`) values
 	('already_sold', 'Qty Already Sold'),
 	('country', 'Country'),
 	('replace_time', 'Replace Time'),
-	('auto_accept', 'Auto Accept');
+	('auto_accept', 'Auto Accept'),
+	('price_ltc', 'Price (litecoin)'),
+	('accepted_currencies', 'Accepted Currencies');
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
 	('successful_transactions', 'Successful Transactions'),
@@ -64,7 +66,10 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('title', 'Title'),
 	('exp', 'Exp'),
 	('news', 'News Feed'),
-	('successful_transactions_as_buyer', 'Successful Transaction As Buyer');
+	('successful_transactions_as_buyer', 'Successful Transaction As Buyer'),
+	('shipping_information', 'Shipping Information'),
+	('forum_posts', 'Forum Posts'),
+	('feedback_received', 'Feedback Received');
 
 insert ignore into `ads_feedback_propkey` (`name`, `prettyname`) values 
 	('submitted_on', 'Submitted on'),

@@ -147,21 +147,32 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		ads_item['title'] = self.get_text(response.css('section#main .product h2'))
 		ads_item['vendor_username'] = self.get_text(response.css('section#main .product .col-7.rows-10 .row.rows-20 .row a'))
 		ads_item['description'] = self.get_text(response.css('section#main .row.cols-20 .top-tabs .formatted'))
-		ads_item['price'] = self.get_text(response.css('section#main .product .price .small'))
+		price = self.get_text(response.css('section#main .product .price .small'))
+		if 'LTC' in price:
+			ads_item['price_ltc'] = price
+		else:
+			ads_item['price'] = price
+		
 		ads_item['ships_from'] = self.get_text(response.css('section#main .row.cols-20 .top-tabs .col-6.label.big:last-child'))
 		ads_item['fullurl'] = response.url
 		parsed_url = urlparse(response.url)
 		ads_item['relativeurl'] = parsed_url.path
 		ads_item['shipping_options'] = json.dumps(self.get_shipping_options(response))
-		yield ads_item
 
 		image_urls = response.css('section#main .product figure a::attr(href)').extract()
 		if len(image_urls) > 0:
 			yield self.make_request('ads_images', url = response.url + '?q=1') # hack to make urls unique
 
 		# Sublistings
-		for sublisting_url in response.css("div.listing_options a::attr(href)").extract():
-			yield self.make_request('ads', url=sublisting_url, ads_id=self.get_ad_id(sublisting_url))
+		product_options = response.css("div.listing_options a::attr(href)").extract()
+		if len(product_options) > 0:
+			ads_item['multilisting'] = True
+			for sublisting_url in product_options:
+				yield self.make_request('ads', url=sublisting_url, ads_id=self.get_ad_id(sublisting_url))
+		else:
+			ads_item['multilisting'] = False
+
+		yield ads_item
 
 		vendor_url = response.css('section#main .product .col-7.rows-10 .row.rows-20 .row a::attr(href)').extract_first()
 
@@ -227,8 +238,10 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			match = re.search('\[(.*)\]\((\d+) ratings\)', ratings_text)
 			if match:
 				user['average_rating'] = match.group(1)
+				user['feedback_received'] = match.group(2)
 
 		user['last_active'] = self.parse_timestr(self.get_text(response.css('section#main .vendor-box .corner li:first-child>div:first-child')))
+		user['forum_posts'] = self.get_text(response.css('section#main .vendor-box .corner li:nth-child(2)>div:first-child'))
 		user['subscribers'] = self.get_text(response.css('section#main .vendor-box .corner li:last-child>div:first-child'))
 		user['relativeurl'] = urlparse(response.url).path
 		user['fullurl']     = response.url
@@ -245,7 +258,11 @@ class CannabisGrowersCoopSpider(MarketSpider):
 				elif 'profile' in section or 'about' in section:
 					user['profile'] = self.get_text(tab)
 				elif 'ship' in section:
-					user['ship_from'] = self.get_text(tab)
+					user['shipping_information'] = self.get_text(tab)
+				elif 'news' in section:
+					user['news'] = self.get_text(tab)
+				else:
+					self.logger.warning('Found an unknown section on profile page : %s (%s)' % (section, response.url))
 				i += 1
 
 		yield user

@@ -29,6 +29,8 @@ class Ads(scrapy.Item) :
 	country = scrapy.Field()
 	replace_time = scrapy.Field()
 	auto_accept = scrapy.Field()
+	price_ltc = scrapy.Field()
+	accepted_currencies = scrapy.Field()
 
 class AdsImage(scrapy.Item):
 	ads_id = scrapy.Field()
@@ -70,6 +72,9 @@ class User(scrapy.Item) :
 	exp = scrapy.Field()
 	successful_transactions_as_buyer = scrapy.Field()
 	news = scrapy.Field()
+	shipping_information = scrapy.Field()
+	forum_posts = scrapy.Field()
+	feedback_received = scrapy.Field()
 
 class ProductRating(scrapy.Item):
 	submitted_on = scrapy.Field()
