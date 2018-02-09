@@ -150,8 +150,25 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		price = self.get_text(response.css('section#main .product .price .small'))
 		if 'LTC' in price:
 			ads_item['price_ltc'] = price
-		else:
+		elif 'BTC' in price:
 			ads_item['price'] = price
+		elif 'minimum' in price:
+			self.logger.info('No price in cryptocurrency available at %s. Trying to exchange into BTC using exchange rate.' % (response.url))
+			# Get the exchange rate.
+			exchange_rate = response.xpath('.//div[@class="exchange-rate"]/text()').extract_first()
+			exchange_rate = re.search('\$([0-9\\.,]*)', exchange_rate).group(1)
+			exchange_rate = exchange_rate.replace(',','')
+			exchange_rate = float(exchange_rate)
+			# Get the price.
+			price = response.css('section#main .product .price .big').extract_first()
+			price = re.search('\$([0-9\\.]*)', price).group(1)
+			price = float(price)
+			# Calculate price in BTC.
+			price = price/exchange_rate
+			price = str(price) + " BTC"
+			ads_item['price'] = price
+		else:
+			self.logger.warning('Unhandled price input.' % (response.url))
 		
 		ads_item['ships_from'] = self.get_text(response.css('section#main .row.cols-20 .top-tabs .col-6.label.big:last-child'))
 		ads_item['fullurl'] = response.url
