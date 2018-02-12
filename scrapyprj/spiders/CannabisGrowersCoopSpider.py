@@ -83,6 +83,12 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 		if 'priority' in kwargs:
 			req.priority = kwargs['priority']
+		
+		if 'accepted_currencies' in kwargs:
+			req.meta['accepted_currencies'] = kwargs['accepted_currencies']
+		
+		if 'sublisting_quantity' in kwargs:
+			req.meta['sublisting_quantity'] = kwargs['sublisting_quantity']
 
 		return req
 
@@ -132,9 +138,32 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 
 	def parse_ads_list(self, response):
-		ads_url = response.css("div.listing a.image::attr(href)").extract()
-		for url in ads_url:
-			yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url))
+
+		ads_info = response.css("div.listing")
+		for ad_info in ads_info:
+			accepts_btc = ad_info.css("div.cryptocurrencies i.icon-bitcoin").extract_first()
+			accepts_ltc = ad_info.css("div.cryptocurrencies i.icon-litecoin").extract_first()
+			accepted_currencies = ""
+			if accepts_btc and accepts_ltc:
+				accepted_currencies = "btc,ltc"
+			elif accepts_btc and not accepts_ltc:
+				accepted_currencies = "btc"
+			elif accepts_ltc and not accepts_btc:
+				accepted_currencies = "ltc"
+			
+			options = ad_info.css("div.options a")
+			if len(options) > 0: # We found the different sublistings with quantities
+				for option in options:
+					url = option.css("::attr(href)").extract_first()
+					qty = self.get_text(option)
+					yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url), sublisting_quantity = qty, accepted_currencies = accepted_currencies)
+			else: # No sublisting, single item
+				url = ad_info.css("a.image::attr(href)").extract_first()
+				yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url), accepted_currencies = accepted_currencies)
+				
+		#ads_url = response.css("div.listing a.image::attr(href)").extract()
+		#for url in ads_url:
+		#	yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url))
 
 		next_page_url = response.css(".listing-cols a.arrow-right::attr(href)").extract_first()
 		if next_page_url:
@@ -147,6 +176,11 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		ads_item['title'] = self.get_text(response.css('section#main .product h2'))
 		ads_item['vendor_username'] = self.get_text(response.css('section#main .product .col-7.rows-10 .row.rows-20 .row a'))
 		ads_item['description'] = self.get_text(response.css('section#main .row.cols-20 .top-tabs .formatted'))
+		if 'accepted_currencies' in response.meta:
+			ads_item['accepted_currencies'] = response.meta['accepted_currencies']
+		if 'sublisting_quantity' in response.meta:
+			ads_item['price_options'] = response.meta['sublisting_quantity']
+		
 		price = self.get_text(response.css('section#main .product .price .small'))
 		if 'LTC' in price:
 			ads_item['price_ltc'] = price
