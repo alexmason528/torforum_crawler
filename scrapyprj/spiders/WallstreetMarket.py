@@ -319,6 +319,9 @@ class WallstreetMarket(MarketSpider):
 		# ===================   Info block 2. List of key/value with key in bold.
 		if layout == 'with_headings':
 			p = response.xpath('.//h4[contains(text(), "Information")]/..').extract_first()
+			if p is None: # BUG P IS NONE
+				self.logger.warning("Invalid layout, could not find h4 element with text 'Information' on url " + response.url)
+				p = ""
 			p = re.sub('<h4>[^<]+</h4>','', p)
 		elif layout == 'without_headings':
 			p = info_block.xpath('./p[2]').extract_first()
@@ -539,8 +542,12 @@ class WallstreetMarket(MarketSpider):
 	# We fill the form and return a request that will overcome the DDOS protection
 	def create_request_from_ddos_protection(self, response):
 		captcha_src = response.css('form img.captcha_image::attr(src)').extract_first().strip()
-		
-		req = FormRequest.from_response(response)
+		formname = None
+		# Must specify formname on certain pages or else the default form picked by Scrapy is the wrong one
+		if len(response.css('.content').xpath('.//form[contains(@action, "logout")]')) > 0:
+			if response.css('form[name=form]').extract_first():
+				formname = 'form' 
+		req = FormRequest.from_response(response, formname = formname)
 		req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
 			'request' : self.make_request('captcha', url=captcha_src),
 			'name' : 'form[captcha]',
