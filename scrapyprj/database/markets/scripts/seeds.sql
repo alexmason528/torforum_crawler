@@ -33,6 +33,8 @@ insert ignore into `ads_propkey` (`name`, `prettyname`) values
 	('replace_time', 'Replace Time'),
 	('auto_accept', 'Auto Accept'),
 	('price_ltc', 'Price (litecoin)'),
+    ('price_bch', 'Price (bitcoin cash)'),
+    ('price_xmr', 'Price (monero)'),
 	('accepted_currencies', 'Accepted Currencies');
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
