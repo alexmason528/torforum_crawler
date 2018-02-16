@@ -236,6 +236,17 @@ class DreamMarketSpider(MarketSpider):
 					ads_item['escrow'] = self.get_text(span)
 				else:
 					self.logger.warning('Found an ads detail (%s) that is unknown to this spider on URL: %s. Consider hadnling it.' % (label_txt, response.url))
+				# Get accepted currencies.
+				accepted_currencies = list()
+				if response.xpath(".//label[@for='bitcoinCurrencyOption']") is not None:
+					accepted_currencies.append("btc")
+				if response.xpath(".//label[@for='bitcoinCashCurrencyOption']") is not None:
+					accepted_currencies.append("bch")
+				if response.xpath(".//label[@for='moneroCurrencyOption']") is not None:
+					accepted_currencies.append("xmr")
+				ads_item['accepted_currencies'] = ".".join(accepted_currencies)
+
+					
 			ads_item['description'] = self.get_text(response.css("#offerDescription"))
 			ads_item['offer_id'] = self.get_url_param(response.url, 'offer')
 			
