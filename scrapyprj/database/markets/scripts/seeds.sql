@@ -69,7 +69,9 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('successful_transactions_as_buyer', 'Successful Transaction As Buyer'),
 	('shipping_information', 'Shipping Information'),
 	('forum_posts', 'Forum Posts'),
-	('feedback_received', 'Feedback Received');
+	('feedback_received', 'Feedback Received'),
+	('refund_policy', 'Refund Policy'),
+	('reship_policy', 'Reshipping Policy');
 
 insert ignore into `ads_feedback_propkey` (`name`, `prettyname`) values 
 	('submitted_on', 'Submitted on'),

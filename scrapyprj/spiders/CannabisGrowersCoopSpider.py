@@ -301,21 +301,25 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		tabs_list = response.css('.special-tabs .right .contents .formatted')
 		if tabs_buttons_list and tabs_list and len(tabs_buttons_list) == len(tabs_list):
 			i = 0
+			profile = list()
 			for tab_button in tabs_buttons_list:
 				tab = tabs_list[i]
 				section = self.get_text(tab_button.css('::attr(id)').extract_first())
 				if 'terms' in section:
 					user['terms_and_conditions'] = self.get_text(tab)
-				elif 'profile' in section or 'about' in section:
-					user['profile'] = self.get_text(tab)
 				elif 'ship' in section:
 					user['shipping_information'] = self.get_text(tab)
 				elif 'news' in section:
 					user['news'] = self.get_text(tab)
+				elif 'refund' in section:
+					user['refund_policy'] = self.get_text(tab)
+				elif 'reship' in section:
+					user['reship_policy'] = self.get_text(tab)
 				else:
-					self.logger.warning('Found an unknown section on profile page : %s (%s)' % (section, response.url))
+					profile.append(self.get_text(tab))
+					#self.logger.warning('Found an unknown section on profile page : %s (%s)' % (section, response.url))
 				i += 1
-
+			user['profile'] = "".join(profile)
 		yield user
 
 		reviews_url = response.css('section#main .vendor-box .rating.stars a::attr(href)').extract_first()

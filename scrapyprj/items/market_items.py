@@ -75,6 +75,8 @@ class User(scrapy.Item) :
 	shipping_information = scrapy.Field()
 	forum_posts = scrapy.Field()
 	feedback_received = scrapy.Field()
+	refund_policy = scrapy.Field()
+	reship_policy = scrapy.Field()
 
 class ProductRating(scrapy.Item):
 	submitted_on = scrapy.Field()
