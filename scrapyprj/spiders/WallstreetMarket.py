@@ -148,7 +148,7 @@ class WallstreetMarket(MarketSpider):
 				if ('req_once_logged' in response.meta):
 					req_once_logged = response.meta['req_once_logged']
 
-				yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response)
+				yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response, priority=10)
 			else:
 				self.logger.info("Not logged, going to login page.")
 				yield self.make_request(reqtype='loginpage', req_once_logged=response.request)
@@ -168,7 +168,7 @@ class WallstreetMarket(MarketSpider):
 		 	if ('req_once_logged' in response.meta):
 		 		req_once_logged = response.meta['req_once_logged']
 
-		 	yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response)
+		 	yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response, priority=10)
 
 		else: 
 			self.logintrial = 0
