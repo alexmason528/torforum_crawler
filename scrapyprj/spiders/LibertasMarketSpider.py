@@ -183,7 +183,9 @@ class LibertasMarketSpider(MarketSpider):
 					header = self.get_text(table_headers[i]).lower()
 					text = self.get_text(table_columns[i])
 					if header == 'price:':
-						ad['price'] = text
+						price = text
+						ad['price_usd'] = re.search('\\$[0-9\\.]*', price).group()
+						ad['price_xmr'] = re.search('\\[(.*?XMR)', price).group(1)
 					elif header == 'sales:':
 						ad['already_sold'] = text
 					elif header == 'stock count:':
