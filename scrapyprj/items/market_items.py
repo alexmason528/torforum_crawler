@@ -29,6 +29,7 @@ class Ads(scrapy.Item) :
 	country = scrapy.Field()
 	replace_time = scrapy.Field()
 	auto_accept = scrapy.Field()
+	price_usd = scrapy.Field()
 	price_ltc = scrapy.Field()
 	price_bch = scrapy.Field()
 	price_xmr = scrapy.Field()
