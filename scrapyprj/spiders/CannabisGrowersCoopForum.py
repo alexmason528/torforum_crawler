@@ -40,8 +40,29 @@ class CannabisGrowersCoopForum(ForumSpiderV2):
         self.logintrial = 0
     
     def parse_response(self, response):
-        if self.is_login_page(response):
+        parser = None
+        if self.is_logged(response):
+            # we're logged in!
+            if self.is_thread_listing(response):
+                parser = self.parse_thread_listing
+            elif self.is_thread(response):
+                parser = self.parse_thread
+            pass
+        elif self.is_login_page(response):
             yield self.do_login(response)
+        else:
+            self.logger.warning('We are not logged in and we are not on the login page')
+        
+        if parser is not None:
+            for x in parser(response):
+                yield x
+
+    def is_logged(self, response):
+		logout_link = response.css('header nav div:last-child > a:last-child')
+		if logout_link and logout_link.css("::text").extract_first() == "Log Out":
+			return True
+
+		return False
 
     def is_login_page(self, response):
         return response.css('form#login-form').extract_first() is not None
@@ -65,3 +86,63 @@ class CannabisGrowersCoopForum(ForumSpiderV2):
         }
 
         return req
+
+    def is_thread_listing(self, response):
+        return response.css('ul.row.big-list.zebra').extract_first() is not None
+
+    def parse_thread_listing(self, response):
+        topics = response.css('ul.row.big-list.zebra > li')
+        for topic in topics:
+            threaditem = items.Thread()
+            threaditem['title'] =  self.get_text(topic.css("div.main > div > a"))
+
+            href = topic.css("div.main > div > a::attr(href)").extract_first()
+            threaditem['relativeurl'] = href
+            threaditem['fullurl']   = self.make_url(href)
+            threadid = self.get_thread_id(href)
+            threaditem['threadid'] = threadid
+            threaditem['author_username'] = topic.css("div.main > div > span a::text").extract_first()
+            
+            replies = self.get_text(topic.css("div.main > div > span strong:last-child"))
+            if re.match(r'^\d+$', replies) is None:
+                replies = 0
+            threaditem['replies'] = replies
+                        
+            yield threaditem
+    
+    def is_thread(self, response):
+        return response.css('ul.row.list-posts').extract_first() is not None
+
+    def parse_thread(self, response):
+        posts = response.css('ul.row.list-posts > li')
+        for post in posts:
+            messageitem = items.Message()
+
+            messageitem['author_username'] = self.get_text(post.css('.post-header a.poster'))
+            messageitem['postid'] = self.get_post_id(post.css('span:first-child::attr(id)').extract_first())
+            messageitem['threadid'] = self.get_thread_id(response.url)
+            messageitem['posted_on'] = dateutil.parser.parse(self.get_text(post.css('.footer .cols-10 .col-4:first-child strong')))
+
+            msg = post.css("div.content")
+            messageitem['contenttext'] = self.get_text(msg)
+            messageitem['contenthtml'] = self.get_text(msg.extract_first())
+
+            yield messageitem
+
+    def get_thread_id(self, uri):
+        match = re.search(r'/discussion/(\d+)/', uri)
+        if match:
+            return match.group(1)
+        match = re.search(r'/post/(\d+)/', uri)
+        if match:
+            return match.group(1)
+        return None
+    
+    def get_post_id(self, uri):
+        match = re.search(r'post-(\d+)', uri)
+        if match:
+            return match.group(1)
+        match = re.search(r'comment-(\d+)', uri)
+        if match:
+            return match.group(1)
+        return None

@@ -15,7 +15,9 @@ import os, time, sys
 from dateutil import parser
 from scrapy import signals
 from Queue import Queue
+from urlparse import urlparse, parse_qsl
 import itertools as it
+import re
 
 from twisted.internet import reactor
 from scrapy.dupefilters import RFPDupeFilter
@@ -29,6 +31,8 @@ class ForumSpiderV2(ForumSpider):
     
     def __init__(self, *args, **kwargs):
         super(ForumSpiderV2, self).__init__(*args, **kwargs)
+
+        self.alt_hostnames = []
 
     def start_requests(self):
         yield self.make_request(url = 'index', dont_filter=True)
@@ -48,10 +52,16 @@ class ForumSpiderV2(ForumSpider):
         
         hrefs = response.css('a::attr(href)').extract()
         for uri in hrefs:
-            full_url = self.make_url(uri)
-            if self.should_follow(uri):
+            full_url = self.check_relative_url(uri, response)
+            if self.should_follow(full_url):
                 yield self.make_request(url = uri)
         
+    def check_relative_url(self, uri, response):
+        if uri.startswith('?'): # relative path to current path
+            current_path = urlparse(response.url)
+            uri = current_path.path + uri
+        
+        return self.make_url(uri)
 
     def make_request(self, **kwargs):
         if 'url' in kwargs:
@@ -67,13 +77,23 @@ class ForumSpiderV2(ForumSpider):
 
         return req
 
-    def should_follow(self, uri):
+    def should_follow(self, url):
+        parsed_url = urlparse(url)
+        endpoint = self.spider_settings['endpoint']
+        if parsed_url.hostname not in endpoint:
+            if parsed_url.hostname not in self.alt_hostnames:
+                self.logger.warning('Not following url with different hostname, possibly an alt hostname : %s' % (url))
+                self.alt_hostnames.append(parsed_url.hostname)
+            return False
+
         exclude = self.spider_settings['exclude']
         if 'prefix' in exclude:
             for prefix in exclude['prefix']:
-                if uri.startswith(prefix):
+                if parsed_url.path.startswith(prefix):
                     return False
         if 'regex' in exclude:
             for regex in exclude['regex']:
-                pass
+                if re.search(regex, url) is not None:
+                    return False
+        self.logger.info('Following %s' % (url))
         return True

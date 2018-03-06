@@ -20,10 +20,18 @@ settings = {
 	# Exclude lists for URIs that we shouldn't visit
 	'exclude' : {
 		'prefix' : { # Prefix exclude like '/account/' everything like '/account/logout' or '/account/settings' will be excluded
-			'?login'
+			'/login',
+			'/blogs/',
+			'/account/',
+			'/forum/create',
+			'/forum/vote',
+			'/forum/report_comment/',
+			'/forum/subscribe/',
+			'/forum/toggle_subscription/'
 		},
 		'regex' : { # Regex prefixes, ran against the url part that comes after '.onion/'
-			
+			'/discussion/\d+/comment/reply/',
+			'/discussion/\d+/comment/quote/'
 		}
 	}
 }

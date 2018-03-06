@@ -6,7 +6,8 @@ insert ignore into `forum` (`name`, `spider`) values
 	('Darknet Heroes League', 'dhl_forum'),
 	('Apple Market Forum', 'applemarket_forum'),
 	('House Of Lions', 'houseoflions_forum'),
-	('Aero Forum', 'aero_forum');
+	('Aero Forum', 'aero_forum'),
+	('Cannabis Growers & Merchants Coop Forum', 'cgmc_forum');
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
 	('joined_on', 'Joined on'),
