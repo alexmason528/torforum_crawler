@@ -95,5 +95,5 @@ class ForumSpiderV2(ForumSpider):
             for regex in exclude['regex']:
                 if re.search(regex, url) is not None:
                     return False
-        self.logger.info('Following %s' % (url))
+        #self.logger.info('Following %s' % (url))
         return True
