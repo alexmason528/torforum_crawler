@@ -6,7 +6,7 @@
 settings = {
 	'timezone' : 'UTC',								# Timezone used on the website. 
 	#'endpoint' : 'http://uffti3lhacanefgy.onion', # Using a mirror. URL below is main.
-	'endpoint' : 'http://kzda2greas4thbbp.onion',	# Endpoint of the site. Hostname only
+	'endpoint' : 'http://wn2vtsetsdggve45.onion',	# Endpoint of the site. Hostname only
 	'prefix' : '',					# http://myhost.onion/prefix1/prefixe2/profix3/page.php
 	'resources' : {									# List of availables resources. Url can be created like   self.make_url('MyResource1')  = http://blahblahblah.onion/prefix1/prefix2/section1/page2.php
 		'index' : "/"
@@ -25,12 +25,20 @@ settings = {
 			'username' : 'ocelotcylinders',
 			'password' : 'pass0000'
 		},
-		'stirringtoddlers': {		
-			'username' : 'stirringtoddlers',
+		# 'stirringtoddlers': {		
+		# 	'username' : 'stirringtoddlers',
+		# 	'password' : 'pass0000'
+		# },
+		'betstay': {		
+			'username' : 'betstay',
 			'password' : 'pass0000'
 		},
-		'baguetterabbitsfoot': {		
-			'username' : 'baguetterabbitsfoot',
+		#'baguetterabbitsfoot': {		
+		#	'username' : 'baguetterabbitsfoot',
+		#	'password' : 'pass0000'
+		#},
+		'doofusbumped': {		
+			'username' : 'doofusbumped',
 			'password' : 'pass0000'
 		},
 		'shoddyalmond': {		
@@ -41,12 +49,16 @@ settings = {
 			'username' : 'methaneoutlying',
 			'password' : 'pqowieuryt'
 		},
-		'mimicrycomposed': {		
-			'username' : 'mimicrycomposed',
-			'password' : 'pass0000'
-		},
+		#'mimicrycomposed': {		
+		#	'username' : 'mimicrycomposed',
+		#	'password' : 'pass0000'
+		#},
 		'gratifiedmixcloud': {		
 			'username' : 'gratifiedmixcloud',
+			'password' : 'pass0000'
+		},
+		'violetsooty': {		
+			'username' : 'violetsooty',
 			'password' : 'pass0000'
 		},
 		'carillonaffine': {		
@@ -69,14 +81,22 @@ settings = {
 			'username' : 'wholesalebah',
 			'password' : 'pass0000'
 		},
-		'annumgadwall': {		
-			'username' : 'annumgadwall',
+		#'annumgadwall': {		
+		#	'username' : 'annumgadwall',
+		#	'password' : 'pass0000'
+		#},
+		'amiablewarmblood': {		
+			'username' : 'amiablewarmblood',
 			'password' : 'pass0000'
 		},
-		'italybowline': {		
-			'username' : 'italybowline',
+		#'italybowline': {		
+		#	'username' : 'italybowline',
+		#	'password' : 'pass0000'
+		#},
+		'drearypainted': {		
+			'username' : 'drearypainted',
 			'password' : 'pass0000'
-		},
+		},		
 		'measureretrieve': {		
 			'username' : 'measureretrieve',
 			'password' : 'pass0000'
@@ -89,12 +109,20 @@ settings = {
 			'username' : 'appearcrossed',
 			'password' : 'pass0000'
 		},
-		'archivestwinkling': {		
-			'username' : 'archivestwinkling',
+		#'archivestwinkling': {		
+		#	'username' : 'archivestwinkling',
+		#	'password' : 'pass0000'
+		#},
+		'resultsarenotin': {		
+			'username' : 'resultsarenotin',
 			'password' : 'pass0000'
 		},
-		'analyticcavity': {		
-			'username' : 'analyticcavity',
+		#'analyticcavity': {		
+		#	'username' : 'analyticcavity',
+		#	'password' : 'pass0000'
+		#},
+		'callwhip': {		
+			'username' : 'callwhip',
 			'password' : 'pass0000'
 		},
 		'huhrocket': {		
