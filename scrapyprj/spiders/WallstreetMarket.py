@@ -73,6 +73,9 @@ class WallstreetMarket(MarketSpider):
 		elif reqtype=='ddos_protection':
 			req = self.create_request_from_ddos_protection(kwargs['response'])
 			req.dont_filter=True
+		elif reqtype=='security_check':
+			req = self.create_request_from_security_check(kwargs['response'])
+			req.dont_filter=True
 		elif reqtype == 'category':
 			req = FormRequest.from_response(kwargs['response'], formcss=kwargs['formcss'], clickdata=kwargs['clickdata'])
 
@@ -134,6 +137,21 @@ class WallstreetMarket(MarketSpider):
 					return 
 
 				yield self.make_request(reqtype='dologin', req_once_logged=req_once_logged, response=response)
+			elif self.is_security_check(response):
+				self.logger.warning('Encountered a Security Check (ddos protection) page.')
+				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
+					req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
+					self.logintrial = 0
+					self.wait_for_input("Can't bypass DDOS Protection",req_once_logged)
+					return
+				self.logger.info("Trying to overcome DDOS protection")
+				self.logintrial += 1
+
+				req_once_logged = response.request
+				if ('req_once_logged' in response.meta):
+					req_once_logged = response.meta['req_once_logged']
+
+				yield self.make_request('security_check', req_once_logged=req_once_logged, response=response, priority=10)
 			elif self.is_ddos_challenge(response):
 				self.logger.warning('Encountered a DDOS protection page while not logged in.')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
@@ -151,7 +169,7 @@ class WallstreetMarket(MarketSpider):
 				yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response, priority=10)
 			else:
 				self.logger.info("Not logged, going to login page.")
-				yield self.make_request(reqtype='loginpage', req_once_logged=response.request)
+				yield self.make_request(reqtype='loginpage', req_once_logged=response.request, priority=10)
 		# Below is an attempt at bypassing DDoS protection encountered while logged in.
 		elif self.loggedin(response) == True and self.is_ddos_challenge(response) == True:
 			self.logger.warning('Encountered DDOS protection while logged in.')
@@ -535,6 +553,9 @@ class WallstreetMarket(MarketSpider):
 	def is_ddos_challenge(self, response):
 		return True if len(response.css('form input[name="form[captcha]"]')) > 0 and not self.isloginpage(response) else False
 
+	def is_security_check(self, response):
+		return len(response.css('form input#captcha_input')) > 0
+
 	def loggedin(self, response):
 		return True if len(response.css('.content').xpath('.//form[contains(@action, "logout")]')) > 0 else False
 
@@ -552,9 +573,19 @@ class WallstreetMarket(MarketSpider):
 			'request' : self.make_request('captcha', url=captcha_src),
 			'name' : 'form[captcha]',
 			'preprocess' : 'WallstreetMarketAddBackground'
-			}
+		}
 		return req
-
+		
+	def create_request_from_security_check(self, response):
+		captcha_src = response.css('form div.wms_captcha_field img::attr(src)').extract_first()
+		
+		req = FormRequest.from_response(response)
+		req.meta['captcha'] = {
+			'request' : self.make_request('captcha', url=captcha_src),
+			'name' : 'captcha',
+			'preprocess': 'WallstreetMarketAddBackground'
+		}
+		return req
 
 	# Receive the login page response and return a request with a filled form.
 	def craft_login_request_from_form(self, response):
