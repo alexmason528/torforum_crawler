@@ -5,7 +5,7 @@
 
 settings = {
 	'timezone' : 'UTC',								# Timezone used on the website. 
-	'endpoint' : 'http://greenroomtewvwvn.onion/',	# Endpoint of the site. Hostname only
+	'endpoint' : 'http://forum.cgmcoopwhempo6a5.onion/',	# Endpoint of the site. Hostname only
 	'prefix' : '',					# http://myhost.onion/prefix1/prefixe2/profix3/page.php
 	'resources' : {									# List of availables resources. Url can be created like   self.make_url('MyResource1')  = http://blahblahblah.onion/prefix1/prefix2/section1/page2.php
 		'index' : "/"
