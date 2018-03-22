@@ -53,7 +53,7 @@ class ForumSpiderV2(ForumSpider):
         hrefs = response.css('a::attr(href)').extract()
         for uri in hrefs:
             full_url = self.check_relative_url(uri, response)
-            if self.should_follow(full_url):
+            if self.should_follow(uri, full_url):
                 yield self.make_request(url = uri)
         
     def check_relative_url(self, uri, response):
@@ -77,23 +77,27 @@ class ForumSpiderV2(ForumSpider):
 
         return req
 
-    def should_follow(self, url):
-        parsed_url = urlparse(url)
+    def should_follow(self, relative_url, full_url):
+        parsed_url = urlparse(full_url)
         endpoint = self.spider_settings['endpoint']
         if parsed_url.hostname not in endpoint:
             if parsed_url.hostname not in self.alt_hostnames:
-                self.logger.warning('Not following url with different hostname, possibly an alt hostname : %s' % (url))
+                self.logger.warning('Not following url with different hostname, possibly an alt hostname : %s' % (full_url))
                 self.alt_hostnames.append(parsed_url.hostname)
             return False
 
         exclude = self.spider_settings['exclude']
         if 'prefix' in exclude:
             for prefix in exclude['prefix']:
+                if relative_url.startswith(prefix):
+                    return False
                 if parsed_url.path.startswith(prefix):
                     return False
         if 'regex' in exclude:
             for regex in exclude['regex']:
-                if re.search(regex, url) is not None:
+                if re.search(regex, relative_url) is not None:
+                    return False
+                if re.search(regex, parsed_url.path) is not None:
                     return False
         #self.logger.info('Following %s' % (url))
         return True
