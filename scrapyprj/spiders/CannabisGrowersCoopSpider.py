@@ -26,8 +26,8 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		
 		self.logintrial = 0
 
-		self.set_max_concurrent_request(1)      # Scrapy config
-		self.set_download_delay(12)             # Scrapy config
+		self.set_max_concurrent_request(2)      # Scrapy config
+		self.set_download_delay(12)              # Scrapy config
 		self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 		self.statsinterval = 60;				# Custom Queue system
 
@@ -150,7 +150,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 				accepted_currencies = "btc"
 			elif accepts_ltc and not accepts_btc:
 				accepted_currencies = "ltc"
-			
+
 			options = ad_info.css("div.options a")
 			if len(options) > 0: # We found the different sublistings with quantities
 				for option in options:
@@ -178,6 +178,9 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		ads_item['description'] = self.get_text(response.css('section#main .row.cols-20 .top-tabs .formatted'))
 		if 'accepted_currencies' in response.meta:
 			ads_item['accepted_currencies'] = response.meta['accepted_currencies']
+			accepted_currencies = response.meta['accepted_currencies']
+		else: 
+			accepted_currencies = ""
 		if 'sublisting_quantity' in response.meta:
 			ads_item['price_options'] = response.meta['sublisting_quantity']
 		
@@ -219,7 +222,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		if len(product_options) > 0:
 			ads_item['multilisting'] = True
 			for sublisting_url in product_options:
-				yield self.make_request('ads', url=sublisting_url, ads_id=self.get_ad_id(sublisting_url))
+				yield self.make_request('ads', url=sublisting_url, ads_id=self.get_ad_id(sublisting_url), accepted_currencies = accepted_currencies)
 		else:
 			ads_item['multilisting'] = False
 
