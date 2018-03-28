@@ -20,7 +20,10 @@ class LibertasMarketSpider(MarketSpider):
 
 	custom_settings = {
 		'IMAGES_STORE' : './files/img/cgmp',
-		'RANDOMIZE_DOWNLOAD_DELAY' : True
+		'RANDOMIZE_DOWNLOAD_DELAY' : True,
+		'HTTPERROR_ALLOW_ALL' : True,
+		'RETRY_ENABLED' : True,
+		'RETRY_TIMES' : 3
 	}
 
 	def __init__(self, *args, **kwargs):
@@ -92,7 +95,10 @@ class LibertasMarketSpider(MarketSpider):
 		return req
 
 	def parse(self, response):
-		if not self.loggedin(response):	
+
+		if response.status in range(400, 600):
+			self.logger.warning("Got response %s at URL %s" % (response.status, response.url))
+		elif not self.loggedin(response):	
 
 			if self.isloginpage(response):
 				self.logger.debug('Encountered a login page.')
