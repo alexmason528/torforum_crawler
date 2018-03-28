@@ -16,7 +16,9 @@ class DreamMarketSpider(MarketSpider):
 
 	custom_settings = {
 		'IMAGES_STORE' : './files/img/dreammarket',
-		'RANDOMIZE_DOWNLOAD_DELAY' : True
+		'RANDOMIZE_DOWNLOAD_DELAY' : True,
+		'HTTPERROR_ALLOW_ALL' : True,
+		'RETRY_ENABLED' : True
 	}
 
 	def __init__(self, *args, **kwargs):
@@ -25,7 +27,7 @@ class DreamMarketSpider(MarketSpider):
 		self.logintrial = 0
 
 		self.set_max_concurrent_request(1)      # Scrapy config
-		self.set_download_delay(12)             # Scrapy config
+		self.set_download_delay(5)              # Scrapy config
 		self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 		self.statsinterval = 60;				# Custom Queue system
 
@@ -86,7 +88,9 @@ class DreamMarketSpider(MarketSpider):
 
 
 	def parse(self, response):
-		if not self.loggedin(response):	
+		if response.status in range(400, 600):
+			self.logger.warning("Got response %s at URL %s" % (response.status, response.url))
+		elif not self.loggedin(response):	
 
 			if self.isloginpage(response):
 				self.logger.debug('Encountered a login page.')
@@ -140,7 +144,9 @@ class DreamMarketSpider(MarketSpider):
 
 			# We restore the missed request when protection kicked in
 			if response.meta['reqtype'] == 'dologin':
-				self.logger.info("Login Success!")
+				self.logger.warning("Login Success! Going to %s" % response.meta['req_once_logged'])
+				if response.meta['req_once_logged'] is None:
+					self.logger.warning("We are trying to yield a None. This should not happen.")
 				yield response.meta['req_once_logged']
 			
 			# Normal parsing
