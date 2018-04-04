@@ -3,6 +3,11 @@
 
 # Copy this file for each spider.
 
+# Invites:
+# http://joincgmc55oplang.onion/sep7v2osf5/
+# http://joincgmc55oplang.onion/0x6bwi2dkx/
+# http://joincgmc55oplang.onion/ix03xrjk0x/
+
 settings = {
 	'timezone' : 'UTC',								# Timezone used on the website. 
 	'endpoint' : 'http://forum.cgmcoopwhempo6a5.onion/',	# Endpoint of the site. Hostname only
@@ -11,9 +16,9 @@ settings = {
 		'index' : "/"
 		},
 	
-	'logins' : {				# Login information. They will be selected in a round robin fashioned when multiple spider is launched at once.
-		'vivarossa1': {			# The selected login information is avalaible through  self.login
-			'username' : 'vivarossa1',
+	'logins' : {		# Login information. They will be selected in a round robin fashioned when multiple spider is launched at once.
+		'malleybono': { # The selected login information is avalaible through  self.login
+			'username' : 'malleybono',
 			'password' : 'pass0000'
 		}
 	},
@@ -31,7 +36,8 @@ settings = {
 		},
 		'regex' : { # Regex prefixes, ran against the url part that comes after '.onion/'
 			'/discussion/\d+/comment/reply/',
-			'/discussion/\d+/comment/quote/'
+			'/discussion/\d+/comment/quote/',
+			'/id_desc/'
 		}
 	}
 }
