@@ -31,7 +31,8 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('membergroup', 'Member group'),
 	('postgroup', 'Post group'),
 	('reputation_power', 'Reputation power'),
-	('rep_bars', 'Reputation'),
+	('rep_bars', 'Reputation Bars'),
+	('reputation', 'Reputation'),
 	('stars', 'Stars'),
 	('karma', 'Karma'),
 	('post_per_day', 'Post per days'),
@@ -41,4 +42,8 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('gender', 'Gender'),
 	('custom_title', 'Custom title'),
 	('personal_text', 'Personal text'),
-	('msn', 'MSN Messenger');
+	('msn', 'MSN Messenger'),
+	('followers', 'Followers'),
+    ('pgp_key', 'PGP key'),
+    ('average_rating', 'Average rating'),
+    ('rating_count', 'Ratings');

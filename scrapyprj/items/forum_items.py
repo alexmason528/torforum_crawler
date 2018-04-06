@@ -46,8 +46,9 @@ class User(scrapy.Item):
 
 	membergroup = scrapy.Field()
 	postgroup = scrapy.Field()
-	reputation_power = scrapy.Field()
-	rep_bars = scrapy.Field()
+	reputation_power = scrapy.Field() # Use when it is calles reputation power.
+	rep_bars = scrapy.Field() # Use when it is called reputation bars or described as such.
+	reputation = scrapy.Field() # Use when reputation called reputation and a numeric score.
 	stars = scrapy.Field()
 
 	karma = scrapy.Field()
@@ -60,3 +61,8 @@ class User(scrapy.Item):
 	custom_title = scrapy.Field()
 
 	msn = scrapy.Field()
+	followers = scrapy.Field()
+	pgp_key = scrapy.Field()
+	average_rating = scrapy.Field()
+	rating_count = scrapy.Field()
+
