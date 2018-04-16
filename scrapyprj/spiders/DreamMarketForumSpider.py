@@ -31,8 +31,8 @@ class DreamMarketForumSpider(ForumSpider):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
-        self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(0)             # Scrapy config
+        self.set_max_concurrent_request(2)      # Scrapy config
+        self.set_download_delay(5)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 
         self.logintrial = 0
@@ -117,36 +117,39 @@ class DreamMarketForumSpider(ForumSpider):
     
     def parse_thread_listing(self, response):
         for line in response.css("#brdmain tbody tr"):
-            threaditem = items.Thread()
-            title =  self.get_text(line.css("td:first-child a"))
+            post_is_moved = line.xpath('.//span[@class="movedtext"]')
+            if len(post_is_moved) == 0:
+                threaditem = items.Thread()
+                title =  self.get_text(line.css("td:first-child a"))
+                last_post_time = self.parse_timestr(self.get_text(line.css("td:last-child a")))  
+                if last_post_time is None:
+                    self.logger.warning("Bad timeformat on URL %s dumping html: %s" % (response.url, response.body))         
 
-            last_post_time = self.parse_timestr(self.get_text(line.css("td:last-child a")))           
+                threadlinkobj = next(iter(line.css("td:first-child a") or []), None) # First or None if empty
 
-            threadlinkobj = next(iter(line.css("td:first-child a") or []), None) # First or None if empty
+                if threadlinkobj:
+                    threadlinkhref = threadlinkobj.xpath("@href").extract_first() if threadlinkobj else None
+                    threaditem['title'] = self.get_text(threadlinkobj)
+                    threaditem['relativeurl'] = threadlinkhref
+                    threaditem['fullurl']   = self.make_url(threadlinkhref)
+                    
+                    threaditem['threadid'] = self.get_url_param(threaditem['fullurl'], 'id')
 
-            if threadlinkobj:
-                threadlinkhref = threadlinkobj.xpath("@href").extract_first() if threadlinkobj else None
-                threaditem['title'] = self.get_text(threadlinkobj)
-                threaditem['relativeurl'] = threadlinkhref
-                threaditem['fullurl']   = self.make_url(threadlinkhref)
-                
-                threaditem['threadid'] = self.get_url_param(threaditem['fullurl'], 'id')
+                    byuser = self.get_text(line.css("td:first-child span.byuser"))
+                    m = re.match("by (.+)", byuser) # regex
+                    if m:
+                        threaditem['author_username'] = m.group(1)
+                    
+                    threaditem['last_update'] = last_post_time
+                    
+                    threaditem['replies']   = self.get_text(line.css("td:nth-child(2)"))
+                    threaditem['views']     = self.get_text(line.css("td:nth-child(3)"))
+                    
+                    yield threaditem
+                    yield self.make_request('thread', url=threadlinkhref)
 
-                byuser = self.get_text(line.css("td:first-child span.byuser"))
-                m = re.match("by (.+)", byuser) # regex
-                if m:
-                    threaditem['author_username'] = m.group(1)
-                
-                threaditem['last_update'] = last_post_time
-                
-                threaditem['replies']   = self.get_text(line.css("td:nth-child(2)"))
-                threaditem['views']     = self.get_text(line.css("td:nth-child(3)"))
-                
-                yield threaditem
-                yield self.make_request('thread', url=threadlinkhref)
-
-        for link in response.css("#brdmain .pagelink a::attr(href)").extract():
-            yield self.make_request('threadlisting', url=link)
+            for link in response.css("#brdmain .pagelink a::attr(href)").extract():
+                yield self.make_request('threadlisting', url=link)
 
     def parse_thread(self, response):
         threadid =  self.get_url_param(response.url, 'id')
@@ -154,7 +157,10 @@ class DreamMarketForumSpider(ForumSpider):
         for post in posts:
             try:
                 messageitem = items.Message()
-                posttime = self.parse_timestr(self.get_text(post.css("h2 a")))
+                posttime = self.get_text(post.css("h2 a"))
+                posttime = self.parse_timestr(posttime)
+                if posttime is None:
+                    self.logger.warning("Bad timeformat on URL %s." % (response.url)) 
 
                 userprofile_link = post.css(".postleft dt:first-child a::attr(href)").extract_first()
 
@@ -169,7 +175,7 @@ class DreamMarketForumSpider(ForumSpider):
 
                 yield messageitem
 
-                yield self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link )
+                yield self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link)
             except Exception as e:
                 self.logger.warning("Invalid thread page. %s" % e)
 
