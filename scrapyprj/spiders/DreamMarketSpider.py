@@ -25,9 +25,9 @@ class DreamMarketSpider(MarketSpider):
 		super(DreamMarketSpider, self).__init__( *args, **kwargs)
 		
 		self.logintrial = 0
-
-		self.set_max_concurrent_request(1)      # Scrapy config
-		self.set_download_delay(5)              # Scrapy config
+		self.http504max = 0
+		self.set_max_concurrent_request(3)      # Scrapy config
+		self.set_download_delay(10)             # Scrapy config
 		self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 		self.statsinterval = 60;				# Custom Queue system
 
@@ -36,7 +36,8 @@ class DreamMarketSpider(MarketSpider):
 				'ads_list' 		: self.parse_ads_list,
 				'ads' 			: self.parse_ads,
 				'user' 			: self.parse_user,
-				'user_ratings'	: self.parse_user_ratings
+				'user_ratings'	: self.parse_user_ratings,
+				'user_listings' : self.parse_user_listings
 			}
 
 	def start_requests(self):
@@ -66,7 +67,7 @@ class DreamMarketSpider(MarketSpider):
 			req.meta['req_once_logged'] = kwargs['req_once_logged']
 			req.meta['ddos_protection'] = True
 			req.dont_filter=True
-		elif reqtype in ['ads_list', 'ads', 'user', 'image', 'user_ratings']:
+		elif reqtype in ['ads_list', 'ads', 'user', 'image', 'user_ratings', 'user_listings']:
 			req = Request(self.make_url(kwargs['url']))
 			req.meta['shared'] = True
 
@@ -88,10 +89,18 @@ class DreamMarketSpider(MarketSpider):
 
 
 	def parse(self, response):
-		if response.status in range(400, 600):
-			self.logger.warning("Got response %s at URL %s" % (response.status, response.url))
+		if response.status is 200:
+			self.logger.info("HTTP 200 at %s" % response.url)
+		if response.status is 504 and response.request is "http://wn2vtsetsdggve45.onion/":
+			self.logger.warning("504 on login. Going to retry.")
+			if self.http504max > 5:
+				self.wait_for_input("Too many login failed", req_once_logged)				
+			else:
+				self.make_request('index', url=url)
+		elif response.status in range(400, 600):
+			self.logger.warning("Got response %s at URL %s from request %s" % (response.status, response.url, response.request))
 		elif not self.loggedin(response):	
-
+			self.http504max = 0
 			if self.isloginpage(response):
 				self.logger.debug('Encountered a login page.')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
@@ -99,7 +108,7 @@ class DreamMarketSpider(MarketSpider):
 					self.wait_for_input("Too many login failed", req_once_logged)
 					self.logintrial = 0
 					return
-				self.logger.info("Trying to login.")
+				self.logger.info("Trying to login as %s." % self.login['username'])
 				self.logintrial += 1
 
 				req_once_logged = response.request
@@ -109,7 +118,7 @@ class DreamMarketSpider(MarketSpider):
 				yield self.make_request('dologin', req_once_logged=req_once_logged, response=response, priority=10)
 
 			elif self.is_ddos_protection_form(response):
-				self.logger.warning('Encountered a DDOS protection page')
+				self.logger.warning('Encountered a DDOS protection page as %s' % self.login['username'])
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
 					req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
 					self.logintrial = 0
@@ -125,17 +134,17 @@ class DreamMarketSpider(MarketSpider):
 				yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response, priority=10)
 			elif self.is_ddos_good_answer(response):
 				self.logintrial = 0
-				self.logger.info("Bypassed DDOS protection successfully!")
+				self.logger.info("Bypassed DDOS protection successfully as %s" % self.login['username'])
 				yield response.meta['req_once_logged']
 
 			elif self.is_logged_elsewhere(response) or self.is_session_expired(response):
-				self.logger.warning('Need to relog')
+				self.logger.warning('Need to relog as %s' % self.login['username'])
 				yield self.make_request('index', priority=10, donotparse=True)
 
 				response.request.dont_filter = True
 				yield response.request
 			elif self.unknown_error(response):
-				self.logger.warning('Encountered an error which Dream Market does not describe.')
+				self.logger.warning('Encountered an error which Dream Market does not describe. Dumping html: %s' % response.body)
 			else:
 				self.logger.warning('Something went wrong. See the exception and investigate %s. Dumping html: %s' % (response.url, response.body))
 				raise Exception("Not implemented yet, figure what to do here !")
@@ -381,6 +390,27 @@ class DreamMarketSpider(MarketSpider):
 
 		for url in response.css("div.shop div.oTitle a::attr(href)").extract():
 			yield self.make_request('ads', url=url, ads_id=self.get_url_param(url, 'offer')) 	# We rely on dupe filter te remove duplicate.
+
+		user_listings_list = response.xpath(".//li/a[@class='pager ']/@href").extract()
+		if user_listings_list is not None:
+			for user_listings in user_listings_list:
+				url = "contactMember" + user_listings
+				yield self.make_request('user_listings', url=url)
+
+	def parse_user_listings(self, response):
+		# Yield new user listings.
+		user_listings_list = response.xpath(".//li/a[@class='pager ']/@href").extract()
+		if user_listings_list is not None:
+			for user_listings in user_listings_list:
+				url = "contactMember" + user_listings
+				yield self.make_request('user_listings', url=url)
+		else: 
+			self.logger.warning("No link to additional listings. This is likely a bug. See %s" % response.url)
+		# Yield items.
+		item_listings = response.xpath(".//div[@class='around']/div/div/a/@href").extract()
+		if item_listings is not None:
+			for item_listing in item_listings:
+				yield self.make_request('ads', url=item_listing, ads_id=self.get_url_param(item_listing, 'offer'))
 
 	def parse_user_ratings(self, response):
 		for rating_row in response.css("table.ratingTable tr"):
