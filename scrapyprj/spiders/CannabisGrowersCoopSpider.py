@@ -27,7 +27,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		self.logintrial = 0
 
 		self.set_max_concurrent_request(2)      # Scrapy config
-		self.set_download_delay(12)              # Scrapy config
+		self.set_download_delay(20)             # Scrapy config
 		self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 		self.statsinterval = 60;				# Custom Queue system
 
@@ -36,7 +36,6 @@ class CannabisGrowersCoopSpider(MarketSpider):
 				'ads_list' 		: self.parse_ads_list,
 				'ads' 			: self.parse_ads,
 				'ads_images'	: self.parse_ads_images,
-				'ads_ratings'	: self.parse_ads_ratings,
 				'user' 			: self.parse_user,
 				'user_ratings'	: self.parse_user_ratings
 			}
@@ -62,7 +61,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			req = self.create_request_from_login_page(kwargs['response'])
 			req.meta['req_once_logged'] = kwargs['req_once_logged']
 			req.dont_filter=True
-		elif reqtype in ['ads_list', 'ads', 'ads_ratings', 'user', 'image', 'user_ratings', 'ads_images']:
+		elif reqtype in ['ads_list', 'ads', 'user', 'image', 'user_ratings', 'ads_images']:
 			req = Request(self.make_url(kwargs['url']))
 			req.meta['shared'] = True
 
@@ -72,10 +71,6 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		if reqtype == 'user_ratings':
 			req.meta['user_rating_for'] = kwargs['username']
 			req.meta['username'] = kwargs['username']
-
-		if reqtype == 'ads_ratings':
-			req.meta['ads_rating_for'] = kwargs['ads_id']
-			req.meta['ads_id'] = kwargs['ads_id']
 
 		req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
 		req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
@@ -93,6 +88,10 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		return req
 
 	def parse(self, response):
+		self.logger.info("HTTP %s at %s" % (response.status, response.url))
+		if response.status in range(400, 600):
+			self.logger.warning("Got response %s at URL %s" % (response.status, response.url))
+
 		if not self.loggedin(response):	
 
 			if self.isloginpage(response):
@@ -102,7 +101,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 					self.wait_for_input("Too many login failed", req_once_logged)
 					self.logintrial = 0
 					return
-				self.logger.info("Trying to login.")
+				self.logger.info("Trying to login as %s." % self.login['username'])
 				self.logintrial += 1
 
 				req_once_logged = response.request
@@ -118,7 +117,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 			# We restore the missed request when protection kicked in
 			if response.meta['reqtype'] == 'dologin':
-				self.logger.info("Login Success!")
+				self.logger.info("Login Success as %s!" % self.login['username'])
 				yield response.meta['req_once_logged']
 			
 			# Normal parsing
@@ -134,7 +133,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		if 'donotparse' in response.meta and response.meta['donotparse']:
 			self.logger.debug('Do not parse index')
 		else:
-			yield self.make_request('ads_list', url='ads_list')
+			yield self.make_request('ads_list', url='ads_list', priority = 15)
 
 
 	def parse_ads_list(self, response):
@@ -156,18 +155,14 @@ class CannabisGrowersCoopSpider(MarketSpider):
 				for option in options:
 					url = option.css("::attr(href)").extract_first()
 					qty = self.get_text(option)
-					yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url), sublisting_quantity = qty, accepted_currencies = accepted_currencies)
+					yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url), sublisting_quantity = qty, accepted_currencies = accepted_currencies, priority = 10)
 			else: # No sublisting, single item
 				url = ad_info.css("a.image::attr(href)").extract_first()
-				yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url), accepted_currencies = accepted_currencies)
-				
-		#ads_url = response.css("div.listing a.image::attr(href)").extract()
-		#for url in ads_url:
-		#	yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url))
+				yield self.make_request('ads', url=url, ads_id = self.get_ad_id(url), accepted_currencies = accepted_currencies, priority = 10)
 
 		next_page_url = response.css(".listing-cols a.arrow-right::attr(href)").extract_first()
 		if next_page_url:
-			yield self.make_request('ads_list', url=next_page_url)
+			yield self.make_request('ads_list', url=next_page_url, priority = 15)
 
 	def parse_ads(self, response):
 		ads_id = self.get_ad_id(response.url)
@@ -182,7 +177,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		else: 
 			accepted_currencies = ""
 		if 'sublisting_quantity' in response.meta:
-			ads_item['price_options'] = response.meta['sublisting_quantity']
+			ads_item['quantity'] = response.meta['sublisting_quantity']
 		
 		price = self.get_text(response.css('section#main .product .price .small'))
 		if 'LTC' in price:
@@ -218,25 +213,28 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			yield self.make_request('ads_images', url = response.url + '?q=1') # hack to make urls unique
 
 		# Sublistings
-		product_options = response.css("div.listing_options a::attr(href)").extract()
+		product_options = response.xpath(".//div[@class='listing_options']/a")
 		if len(product_options) > 0:
 			ads_item['multilisting'] = True
-			for sublisting_url in product_options:
-				yield self.make_request('ads', url=sublisting_url, ads_id=self.get_ad_id(sublisting_url), accepted_currencies = accepted_currencies)
-		else:
-			ads_item['multilisting'] = False
+			for product_option in product_options:
+				sublisting_url = product_option.xpath('@href').extract_first()
+				ads_id = self.get_ad_id(sublisting_url)
+				sublisting_quantity = self.get_text(product_option.xpath('span[@class="listing_option-label"]/span'))
+				yield self.make_request('ads', 
+					url=sublisting_url, 
+					ads_id=ads_id, 
+					accepted_currencies = accepted_currencies, 
+					sublisting_quantity = sublisting_quantity,
+					priority = 10)
 
 		yield ads_item
 
+		# Yield the vendor's profile page.
 		vendor_url = response.css('section#main .product .col-7.rows-10 .row.rows-20 .row a::attr(href)').extract_first()
-
 		yield self.make_request('user', url = vendor_url, priority=5)
 		
 		ratings_url = response.css('section#main .product .row.big-list a::attr(href)').extract_first()
 
-		# We don't get ratings from the products page anymore, only from vendor pages
-		#if ratings_url:
-		#		yield self.make_request('ads_ratings', url=ratings_url, priority=5, ads_id=ads_id)
 
 	def parse_ads_images(self, response):
 		# Somehow CGMC doesn't like when ads images and ads are scapred from the same page and keeps
@@ -250,17 +248,6 @@ class CannabisGrowersCoopSpider(MarketSpider):
 				img_item['image_urls'].append(self.make_request('image', url=img_url))
 			img_item['ads_id'] = ads_id
 			yield img_item
-
-	def parse_ads_ratings(self, response):
-		for rating_element in response.css("ul.list-ratings li"):
-			rating = items.ProductRating()
-			rating['ads_id'] = response.meta['ads_id']
-			#rating['submitted_on'] = self.get_text(rating_element.css('.left date'))
-			rating['submitted_on'] = self.to_utc(dateutil.parser.parse(self.get_text(rating_element.css('.left date'))))
-			rating['rating'] = len(rating_element.css('.rating.stars i.full'))
-			rating['comment'] = self.get_text(rating_element.css('div.right.formatted'))
-			yield rating
-
 
 	def get_shipping_options(self, response):
 		options_list = []
@@ -324,26 +311,32 @@ class CannabisGrowersCoopSpider(MarketSpider):
 				i += 1
 			user['profile'] = "".join(profile)
 		yield user
-
+		# Yield vendor listings.
+		vendor_listings = response.xpath('.//div[@class="corner"]/a/@href').extract_first()
+		if vendor_listings is not None:
+			self.logger.info('Yielding listings from vendor page.')
+			yield self.make_request('ads_list', url=vendor_listings, priority = 15)
+		else: 
+			self.logger.warning("No additional listings found for vendor. This should happen rarely. See %s" % response.url)
+		# Yield ratings.
 		reviews_url = response.css('section#main .vendor-box .rating.stars a::attr(href)').extract_first()
 		if reviews_url:
 			yield self.make_request('user_ratings', url=reviews_url, username=user['username'], priority=5)
+
 
 	def parse_user_ratings(self, response):
 		for rating_element in response.css("ul.list-ratings li"):
 			product_name_element = rating_element.css('div.left small')
 			product_url = product_name_element.css("a::attr(href)").extract_first()
-			if (product_url):
+			if (product_url): # Found a product URL. Yield it as ad feedback.
 				rating = items.ProductRating()
 				ad_id = self.get_ad_id(product_url)
 				rating['ads_id'] = ad_id
-				yield self.make_request('ads', url=product_url, ads_id = ad_id)
-			else: # No product URL found, still save it with the product name
+			else: # No product URL found, yield it as seller feedback.
 				rating = items.UserRating()
 				rating['username'] = response.meta['username']
 				rating['item_name'] = self.get_text(product_name_element)
 			
-			#rating['submitted_on'] = self.get_text(rating_element.css('.left date'))
 			rating['submitted_on'] = self.to_utc(dateutil.parser.parse(self.get_text(rating_element.css('.left date'))))
 
 			rating['rating'] = len(rating_element.css('.rating.stars i.full'))
