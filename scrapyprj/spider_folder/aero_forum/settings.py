@@ -11,6 +11,14 @@ settings = {
 		'vivarossa1': {
 			'username' : 'vivarossa1',
 			'password' : 'pass0000'
+		},
+		'marlboroman' : {
+			'username' : 'marlboroman',
+			'password' : 'pass0000'
+		},
+		'sliveroffox' : {
+			'username' : 'sliveroffox',
+			'password' : 'pass0000'
 		}
 	}
 }
