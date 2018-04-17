@@ -36,7 +36,9 @@ insert ignore into `ads_propkey` (`name`, `prettyname`) values
 	('price_ltc', 'Price (litecoin)'),
     ('price_bch', 'Price (bitcoin cash)'),
     ('price_xmr', 'Price (monero)'),
-	('accepted_currencies', 'Accepted Currencies');
+	('accepted_currencies', 'Accepted Currencies'),
+    ('shipping_time', 'Shipping Time'),
+    ('quantity', 'Quantity');
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
 	('successful_transactions', 'Successful Transactions'),
@@ -81,7 +83,11 @@ insert ignore into `ads_feedback_propkey` (`name`, `prettyname`) values
 	('rating', 'Rating'),
 	('comment', 'Comment'),
 	('submitted_by','Submitted By'),
-	('delivery_time', 'Delivery Time');
+	('delivery_time', 'Delivery Time'),
+    ('submitter_level', 'Submitter reputation level'),
+   	('price', 'Price'),
+    ('price_usd', '{Price USD'),
+    ('price_xmr', 'Price XMR');
 
 insert ignore into `seller_feedback_propkey` (`name`, `prettyname`) values 
 	('submitted_on', 'Submitted on'),
@@ -96,6 +102,8 @@ insert ignore into `seller_feedback_propkey` (`name`, `prettyname`) values
 	('payment_type', 'Payment type'),
 	('item_name', 'Item name'),
 	('submitter_level', 'Submitter reputation level'),
-	('price', 'Price');
+	('price', 'Price'),
+    ('price_usd', '{Price USD'),
+    ('price_xmr', 'Price XMR');
 
 COMMIT;

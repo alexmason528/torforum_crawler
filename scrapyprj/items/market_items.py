@@ -34,6 +34,8 @@ class Ads(scrapy.Item) :
 	price_bch = scrapy.Field()
 	price_xmr = scrapy.Field()
 	accepted_currencies = scrapy.Field()
+	shipping_time = scrapy.Field()
+	quantity = scrapy.Field()
 
 class AdsImage(scrapy.Item):
 	ads_id = scrapy.Field()
@@ -88,6 +90,9 @@ class ProductRating(scrapy.Item):
 	ads_id = scrapy.Field()
 	submitted_by = scrapy.Field()
 	delivery_time = scrapy.Field()
+	price_usd = scrapy.Field()
+	price_xmr = scrapy.Field()
+	submitter_level = scrapy.Field()
 
 class UserRating(scrapy.Item):
 	submitted_on = scrapy.Field()
