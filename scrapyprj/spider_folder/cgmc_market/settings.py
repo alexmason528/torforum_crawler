@@ -13,9 +13,6 @@
 #
 # Invite codes:
 # http://joincgmc55oplang.onion/zhen5zhocq/
-# http://joincgmc55oplang.onion/5r7dydy39k/
-# http://joincgmc55oplang.onion/b8130e6n7d/
-# http://joincgmc55oplang.onion/jew119vs62/
 
 settings = {
 	'timezone' : 'UTC',								# Timezone used on the website. 
