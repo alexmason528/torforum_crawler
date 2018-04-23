@@ -35,7 +35,7 @@ class OlympusMarketForumSpider(ForumSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(5)              # Scrapy config
+        self.set_download_delay(15)              # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 
         self.logintrial = 0
@@ -77,6 +77,8 @@ class OlympusMarketForumSpider(ForumSpider):
 
         if 'req_once_logged' in kwargs:
             req.meta['req_once_logged'] = kwargs['req_once_logged']        
+        if 'threadid' in kwargs:
+            req.meta['threadid'] = kwargs['threadid']
 
         return req
    
