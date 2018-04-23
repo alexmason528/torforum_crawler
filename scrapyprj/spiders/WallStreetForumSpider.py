@@ -21,7 +21,7 @@ class WallStreetForumSpider(ForumSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(10)             # Scrapy config
+        self.set_download_delay(5)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
 

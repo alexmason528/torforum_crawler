@@ -20,8 +20,8 @@ settings = {
             'username': 'akwardpenguin',
             'password': 'pass0000'
         },
-        'creativepigeon': {
-            'username': 'creativepigeon',
+        'happyhippo': {
+            'username': 'happyhippo',
             'password': 'pass0000'
         },
         'sadkolibri': {
@@ -33,25 +33,25 @@ settings = {
             'password': 'pass0000'
         },
         'wolfof': {
-            'username' : 'wolfof'
+            'username' : 'wolfof',
             'password' : 'pass0000'
         },
         'Brandon1992': {
-            'username' : 'Brandon1992'
+            'username' : 'Brandon1992',
             'password' : 'pass0000'
         },
         'noobiecarder': {
-            'username' : 'noobiecarder'
+            'username' : 'noobiecarder',
             'password' : 'pass0000'
         },
         'shitposterextraordinaire': {
-            'username' : 'shitposterextraordinaire'
+            'username' : 'shitposterextraordinaire',
             'password' : 'pass0000'
         },
         'banebanebane': {
-            'username' : 'banebanebane'
+            'username' : 'banebanebane',
             'password' : 'pass0000'
-        }               
+        },
     },
     # Exclude lists for URIs that we shouldn't visit
     'exclude': {
