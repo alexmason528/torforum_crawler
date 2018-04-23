@@ -23,19 +23,18 @@ class OlympusMarketForumSpider(ForumSpider):
     custom_settings = {
         'MAX_LOGIN_RETRY' : 10,
         'RESCHEDULE_RULES' : {
-            'The post table and topic table seem to be out of sync' : 60,
+            'The post table and topic table seem to be out of sync' : 60
+        },
         'HTTPERROR_ALLOW_ALL' : True,
         'RETRY_ENABLED' : True,
-        'RETRY_TIMES' : 5        
-
-        }
+        'RETRY_TIMES' : 5       
     }
 
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
-        self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(15)              # Scrapy config
+        self.set_max_concurrent_request(2)      # Scrapy config
+        self.set_download_delay(20)              # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 
         self.logintrial = 0
@@ -68,6 +67,8 @@ class OlympusMarketForumSpider(ForumSpider):
 
             if 'relativeurl' in kwargs:
                 req.meta['relativeurl'] = kwargs['relativeurl']
+            if 'threadid' in kwargs:
+                req.meta['threadid'] = kwargs['threadid']
 
         else:
             raise Exception('Unsuported request type ' + reqtype)
@@ -77,8 +78,6 @@ class OlympusMarketForumSpider(ForumSpider):
 
         if 'req_once_logged' in kwargs:
             req.meta['req_once_logged'] = kwargs['req_once_logged']        
-        if 'threadid' in kwargs:
-            req.meta['threadid'] = kwargs['threadid']
 
         return req
    
@@ -87,7 +86,6 @@ class OlympusMarketForumSpider(ForumSpider):
             self.logger.warning("%s response %s at URL %s" % (self.login['username'], response.status, response.url))
         else:
             self.logger.info("[Logged in = %s]: %s %s at %s URL: %s" % (self.islogged(response), self.login['username'], response.status, response.request.method, response.url))
-
         if not self.islogged(response):
             req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request 
             
@@ -96,7 +94,7 @@ class OlympusMarketForumSpider(ForumSpider):
                 self.logintrial = 0
                 return
 
-            self.logger.info("Trying to login.")
+            self.logger.info("Trying to login as %s." % self.login['username'])
             self.logintrial += 1
             
             yield self.make_request(reqtype='dologin',response=response, req_once_logged=req_once_logged);  # We try to login and save the 
@@ -127,7 +125,7 @@ class OlympusMarketForumSpider(ForumSpider):
             threaditem['author_username']       = self.get_text(line.css("a.username"))
             threaditem['replies']               = self.get_text(line.css("div.stats .major dd"))
             threaditem['views']                 = self.get_text(line.css("div.stats .minor dd"))
-            threaditem['last_update']           = self.parse_timestr(self.get_text(line.css("div.lastPost a.dateTime abbr")))
+            threaditem['last_update']           = self.parse_timestr(self.get_text(line.css("div.lastPost a.dateTime abbr")), response)
             threaditem['relativeurl']           = threadlink
             threaditem['fullurl']               = self.make_url(threadlink)
             threaditem['threadid']              = threadid
@@ -153,7 +151,7 @@ class OlympusMarketForumSpider(ForumSpider):
                 messageitem['author_username']      = self.get_text(post.css("div.messageDetails a.username.author"))
                 messageitem['postid']               = re.match("post-(\d+)", fullid).group(1)
                 messageitem['threadid']             = threadid
-                messageitem['posted_on']            = self.parse_timestr(self.get_text(post.css("div.messageDetails span.DateTime")))
+                messageitem['posted_on']            = self.parse_timestr(self.get_text(post.xpath(".//a[@class='datePermalink']")), response)
                 messageitem['contenttext']          = self.get_text(content)
                 messageitem['contenthtml']          = self.get_text(content.extract_first())
 
@@ -164,7 +162,7 @@ class OlympusMarketForumSpider(ForumSpider):
                 self.logger.warning("Invalid thread page. %s" % e)
 
         for link in response.css(".PageNav nav a::attr(href)").extract():
-            yield self.make_request('thread', url=link)
+            yield self.make_request('thread', url=link, threadid = response.meta['threadid'])
 
     def parse_userprofile(self, response):
         user = items.User()
@@ -182,7 +180,7 @@ class OlympusMarketForumSpider(ForumSpider):
             ddtext = self.get_text(dt.xpath('following-sibling::dd[1]'))
 
             if key == 'joined:':
-                user['joined_on'] = self.parse_timestr(ddtext)
+                user['joined_on'] = self.parse_timestr(ddtext, response)
             elif key == 'messages:':
                 user['message_count'] = ddtext
             elif key == 'likes received:':
@@ -195,10 +193,18 @@ class OlympusMarketForumSpider(ForumSpider):
                 user['location'] = ddtext
             elif key == 'last activity:':
                 user['last_activity'] = ddtext
-            elif key in ['avatar', 'email', 'pm']:
+            elif key == 'email':
+                user['email'] = ddtext
+            elif key == 'trophy points:':
+                user['trophy_points'] = ddtext
+            elif key == 'birthday:':
+                user['birthday'] = ddtext
+            elif key == 'occupation:':
+                user['occupation'] = ddtext
+            elif key in ['avatar', 'pm']:
                 pass
             else:
-                self.logger.warning('New information found on use profile page : %s' % key)
+                self.logger.warning('New information found on use profile page: "%s"' % key)
 
         yield user
 
@@ -212,7 +218,7 @@ class OlympusMarketForumSpider(ForumSpider):
 
         return req
 
-    def parse_timestr(self, timestr):
+    def parse_timestr(self, timestr, response):
         post_time = None
 
         try:
@@ -223,6 +229,7 @@ class OlympusMarketForumSpider(ForumSpider):
         except:
             if timestr:
                 self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
+                self.logger.warning("At %s with HTML %s" % (response.url, response.body))
 
         return post_time
 
