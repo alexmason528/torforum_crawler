@@ -32,8 +32,8 @@ settings = {
 			'username': 'nevertrustaguitar',
 			'password': 'pass0000'
 		},
-		'coffecupsforjesus': {
-			'username': 'coffecupsforjesus',
+		'coffeecupsforjesus': {
+			'username': 'coffeecupsforjesus',
 			'password': 'pass0000'
 		},
 		'jesussaves': {
