@@ -34,7 +34,7 @@ class OlympusMarketForumSpider(ForumSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(2)      # Scrapy config
-        self.set_download_delay(20)              # Scrapy config
+        self.set_download_delay(15)              # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 
         self.logintrial = 0
@@ -69,6 +69,9 @@ class OlympusMarketForumSpider(ForumSpider):
                 req.meta['relativeurl'] = kwargs['relativeurl']
             if 'threadid' in kwargs:
                 req.meta['threadid'] = kwargs['threadid']
+            if 'username' in kwargs:
+                req.meta['username'] = kwargs['username']
+
 
         else:
             raise Exception('Unsuported request type ' + reqtype)
@@ -157,56 +160,78 @@ class OlympusMarketForumSpider(ForumSpider):
 
                 yield messageitem
 
-                yield self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link)
+                yield self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link, username=messageitem['author_username'])
             except Exception as e:
                 self.logger.warning("Invalid thread page. %s" % e)
 
         for link in response.css(".PageNav nav a::attr(href)").extract():
             yield self.make_request('thread', url=link, threadid = response.meta['threadid'])
 
+
+    def is_private_userprofile(self, response):
+        error_msg = response.xpath('.//div[@class="errorOverlay"]/div/label/text()').extract_first()
+        if error_msg is not None and "This member limits who may view their full profile" in error_msg:
+            return True
+        else:
+            return False
+
+    def is_unavailable_userprofile(self, response):
+        error_msg = response.xpath('.//div[@class="errorOverlay"]/div/label/text()').extract_first()
+        if error_msg is not None and "This user's profile is not available" in error_msg:
+            return True
+        else:
+            return False
+
     def parse_userprofile(self, response):
         user = items.User()
 
-        user['relativeurl']         = response.meta['relativeurl']
-        user['fullurl']             = response.url
-        user['username']            = self.get_text(response.css("h1.username"))
-        user['title']               = self.get_text(response.css("span.userTitle"))
-        user['signature']           = self.get_text(response.css("div.signature"))
+        if self.is_private_userprofile(response) is True or self.is_unavailable_userprofile(response) is True:
+            self.logger.warning("Encountered a limited/private/banned profile at %s. Basic info filled using meta-keys." % response.url)
+            user['relativeurl']         = response.meta['relativeurl']
+            user['fullurl']             = response.url
+            user['username']            = response.meta['username']
+            yield user
+        else:
+            user['relativeurl']         = response.meta['relativeurl']
+            user['fullurl']             = response.url
+            user['username']            = self.get_text(response.css("h1.username"))
+            user['title']               = self.get_text(response.css("span.userTitle"))
+            user['signature']           = self.get_text(response.css("div.signature"))
 
-        dts = response.css("#content .mast dl dt")
-        
-        for dt in dts:
-            key = self.get_text(dt).lower()
-            ddtext = self.get_text(dt.xpath('following-sibling::dd[1]'))
+            dts = response.css("#content .mast dl dt")
+            
+            for dt in dts:
+                key = self.get_text(dt).lower()
+                ddtext = self.get_text(dt.xpath('following-sibling::dd[1]'))
 
-            if key == 'joined:':
-                user['joined_on'] = self.parse_timestr(ddtext, response)
-            elif key == 'messages:':
-                user['message_count'] = ddtext
-            elif key == 'likes received:':
-                user['likes_received'] = ddtext
-            elif key == 'home page:':
-                user['website'] = ddtext
-            elif key == 'gender:':
-                user['gender'] = ddtext
-            elif key == 'location:':
-                user['location'] = ddtext
-            elif key == 'last activity:':
-                user['last_activity'] = ddtext
-            elif key == 'email':
-                user['email'] = ddtext
-            elif key == 'trophy points:':
-                user['trophy_points'] = ddtext
-            elif key == 'birthday:':
-                user['birthday'] = ddtext
-            elif key == 'occupation:':
-                user['occupation'] = ddtext
-            elif key in ['avatar', 'pm']:
-                pass
-            else:
-                self.logger.warning('New information found on use profile page: "%s"' % key)
+                if key == 'joined:':
+                    user['joined_on'] = self.parse_timestr(ddtext, response)
+                elif key == 'messages:':
+                    user['message_count'] = ddtext
+                elif key == 'likes received:':
+                    user['likes_received'] = ddtext
+                elif key == 'home page:':
+                    user['website'] = ddtext
+                elif key == 'gender:':
+                    user['gender'] = ddtext
+                elif key == 'location:':
+                    user['location'] = ddtext
+                elif key == 'last activity:':
+                    user['last_activity'] = ddtext
+                elif key == 'email':
+                    user['email'] = ddtext
+                elif key == 'trophy points:':
+                    user['trophy_points'] = ddtext
+                elif key == 'birthday:':
+                    user['birthday'] = ddtext
+                elif key == 'occupation:':
+                    user['occupation'] = ddtext
+                elif key in ['avatar', 'pm']:
+                    pass
+                else:
+                    self.logger.warning('New information found on use profile page: "%s"' % key)
 
-        yield user
+            yield user
 
     def send_login_request(self, response):
         data = {
