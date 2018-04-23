@@ -5,6 +5,7 @@ import scrapyprj.items.forum_items as items
 from datetime import timedelta
 import dateutil
 import time
+from scrapy.shell import inspect_response
 
 
 class WallStreetForumSpider(ForumSpider):
@@ -17,15 +18,14 @@ class WallStreetForumSpider(ForumSpider):
         'DELAY_SECONDS': 5,
         'HTTPERROR_ALLOW_ALL' : True,
         'RETRY_ENABLED' : True,
-        'RETRY_TIMES' : 5
-        
+        'RETRY_TIMES' : 5        
     }
 
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(5)             # Scrapy config
+        self.set_download_delay(45)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
 
@@ -75,6 +75,8 @@ class WallStreetForumSpider(ForumSpider):
             self.logger.info("[Logged in = %s]: %s %s at %s URL: %s" % (self.is_logged_in(response), self.login['username'], response.status, response.request.method, response.url))
 
         if self.is_logged_in(response):
+            if self.is_banned(response) is True:
+                self.logger.warning("%s has been banned from %s. Please abort the crawl and make a new login. Then crawl with lighter settings. URL is not parsed." % (self.login['username'], response.url))
             # self.logger.info("Logged in.")
             self.logintrial = 0
             it = self.parse_handlers[response.meta['reqtype']].__call__(response)
@@ -109,6 +111,14 @@ class WallStreetForumSpider(ForumSpider):
         """
         logged_in = response.xpath("//ul/li[@id='navlogout']/a/text()").extract_first()
         return (logged_in is not None)
+
+    def is_banned(self, response):
+        banned = response.xpath(".//div[@class='main-content main-message']").extract_first()
+        if banned is not None:
+            if banned == "You are banned from this forum.":
+                return True
+        else:
+            return False
 
     def make_login_request_from_form(self, response):
         form_data = {
@@ -198,7 +208,7 @@ class WallStreetForumSpider(ForumSpider):
             yield self.make_request("thread", url=next_page)
 
     def parse_userprofile(self, response):
-        time.sleep(self.settings["DELAY_SECONDS"])
+        #time.sleep(self.settings["DELAY_SECONDS"])
         user = items.User()
         user['relativeurl'] = response.meta['relativeurl']
         user['fullurl'] = response.url
@@ -217,6 +227,7 @@ class WallStreetForumSpider(ForumSpider):
                     pass
                 else:
                     self.logger.warning('New information found on user profile page : %s' % class_name)
+
 
         spans = response.xpath("//div[contains(@class,'profile')]//ul[@class='data-list']/li/span")
         for span in spans:
