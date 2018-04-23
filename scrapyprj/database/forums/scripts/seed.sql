@@ -7,7 +7,10 @@ insert ignore into `forum` (`name`, `spider`) values
 	('Apple Market Forum', 'applemarket_forum'),
 	('House Of Lions', 'houseoflions_forum'),
 	('Aero Forum', 'aero_forum'),
-	('Cannabis Growers & Merchants Coop Forum', 'cgmc_forum');
+	('Cannabis Growers & Merchants Coop Forum', 'cgmc_forum'),
+    ('Wall Street Forum', 'wallstreet_forum'),
+    ('Onionland', 'onionland_forum'),
+    ('Olympus Market Forum', 'olympusmarket_forum');
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
 	('joined_on', 'Joined on'),
@@ -46,4 +49,9 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('followers', 'Followers'),
     ('pgp_key', 'PGP key'),
     ('average_rating', 'Average rating'),
-    ('rating_count', 'Ratings');
+    ('rating_count', 'Ratings'),
+    ('email', 'Email'),
+    ('trophy_points', 'Trophy points'),
+    ('birthday', 'Birthday'),
+    ('occupation', 'Occupation'),
+    ('aol', 'AOL Messenger');

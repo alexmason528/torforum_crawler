@@ -18,51 +18,59 @@ class Message(scrapy.Item):
 	contenthtml = scrapy.Field()
 
 class User(scrapy.Item):
+	# Base identifiers.
 	username = scrapy.Field()
 	relativeurl =  scrapy.Field()
 	fullurl =  scrapy.Field()
+	username_id = scrapy.Field()
 	
-	title = scrapy.Field()
+	# Presentation.
+	age = scrapy.Field()
+	avatar = scrapy.Field()
+	banner = scrapy.Field()	
+	birthday = scrapy.Field()
+	custom_title = scrapy.Field()
+	group = scrapy.Field()
+	gender = scrapy.Field()
 	location = scrapy.Field()
-	website = scrapy.Field()
+	membergroup = scrapy.Field()
+	occupation = scrapy.Field()
+	personal_text = scrapy.Field()
+	postgroup = scrapy.Field()
+	realname = scrapy.Field()
 	signature = scrapy.Field()
+	title = scrapy.Field()	
+	website = scrapy.Field()
+
+	# Behavior.
 	post_count = scrapy.Field()
 	last_post = scrapy.Field()
 	joined_on = scrapy.Field()
+	last_activity = scrapy.Field()
+	last_active = scrapy.Field() # Deprecated, do not use.
+	post_per_day = scrapy.Field()
 
+	# Communication options.
 	icq = scrapy.Field()
-	realname = scrapy.Field()
 	microsoft_account = scrapy.Field()
 	jabber = scrapy.Field()
 	yahoo_messenger = scrapy.Field()
+	email = scrapy.Field()
+	msn = scrapy.Field()
+	pgp_key = scrapy.Field()
+	aol = scrapy.Field()
 
-
+	# Reputation and acknowledgement.
+	average_rating = scrapy.Field()
+	followers = scrapy.Field()
+	karma = scrapy.Field()
 	likes_received = scrapy.Field()
-	last_activity = scrapy.Field()
-	avatar = scrapy.Field()
 	message_count = scrapy.Field()
-	username_id = scrapy.Field()
-	banner = scrapy.Field()	
-
-	membergroup = scrapy.Field()
-	postgroup = scrapy.Field()
+	rating_count = scrapy.Field()
 	reputation_power = scrapy.Field() # Use when it is calles reputation power.
 	rep_bars = scrapy.Field() # Use when it is called reputation bars or described as such.
 	reputation = scrapy.Field() # Use when reputation called reputation and a numeric score.
 	stars = scrapy.Field()
+	trophy_points = scrapy.Field()
 
-	karma = scrapy.Field()
-	age = scrapy.Field()
-	group = scrapy.Field()
-	last_active = scrapy.Field()
-	post_per_day = scrapy.Field()
-	gender = scrapy.Field()
-	personal_text = scrapy.Field()
-	custom_title = scrapy.Field()
-
-	msn = scrapy.Field()
-	followers = scrapy.Field()
-	pgp_key = scrapy.Field()
-	average_rating = scrapy.Field()
-	rating_count = scrapy.Field()
 
