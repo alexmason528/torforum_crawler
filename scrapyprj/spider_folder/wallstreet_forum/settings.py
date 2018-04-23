@@ -20,8 +20,8 @@ settings = {
             'username': 'akwardpenguin',
             'password': 'pass0000'
         },
-        'happyhippo': {
-            'username': 'happyhippo',
+        'bigpete': {
+            'username': 'bigpete',
             'password': 'pass0000'
         },
         'sadkolibri': {
@@ -48,8 +48,8 @@ settings = {
             'username' : 'shitposterextraordinaire',
             'password' : 'pass0000'
         },
-        'banebanebane': {
-            'username' : 'banebanebane',
+        'athenA': {
+            'username' : 'athenA',
             'password' : 'pass0000'
         },
     },
