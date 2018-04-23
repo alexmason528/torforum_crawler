@@ -14,7 +14,11 @@ class WallStreetForumSpider(ForumSpider):
         'MAX_LOGIN_RETRY': 10,
         'IMAGES_STORE': './files/img/wallstreet_forum',
         'RANDOMIZE_DOWNLOAD_DELAY': True,
-        'DELAY_SECONDS': 5
+        'DELAY_SECONDS': 5,
+        'HTTPERROR_ALLOW_ALL' : True,
+        'RETRY_ENABLED' : True,
+        'RETRY_TIMES' : 5
+        
     }
 
     def __init__(self, *args, **kwargs):
@@ -65,7 +69,11 @@ class WallStreetForumSpider(ForumSpider):
         return req
 
     def parse(self, response):
-        self.logger.info(response.url)
+        if response.status in range(400, 600):
+            self.logger.warning("%s response %s at URL %s" % (self.login['username'], response.status, response.url))
+        else:
+            self.logger.info("[Logged in = %s]: %s %s at %s URL: %s" % (self.is_logged_in(response), self.login['username'], response.status, response.request.method, response.url))
+
         if self.is_logged_in(response):
             # self.logger.info("Logged in.")
             self.logintrial = 0
