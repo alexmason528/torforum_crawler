@@ -19,6 +19,18 @@ settings = {
 		'angrypenguin': {
 			'username' : 'angrypenguin',
 			'password' : 'pass0000'
+		},
+		'poseidonsfeet': {
+			'username': 'poseidonsfeet',
+			'password': 'pass0000'
+		},
+		'atomscurl': {
+			'username': 'atomscurl',
+			'password': 'pass0000'
+		},
+		'bowlburp': {
+			'username': 'bowlburp',
+			'password': 'pass0000'
 		}
 	}
 }
