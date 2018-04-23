@@ -31,6 +31,22 @@ settings = {
 		'nevertrustaguitar': {
 			'username': 'nevertrustaguitar',
 			'password': 'pass0000'
+		},
+		'coffecupsforjesus': {
+			'username': 'coffecupsforjesus',
+			'password': 'pass0000'
+		},
+		'jesussaves': {
+			'username': 'jesussaves',
+			'password': 'pass0000'
+		},
+		'prince18': {
+			'username': 'prince18',
+			'password': 'pass0000'
+		},
+		'donaldtrump': {
+			'username': 'donaldtrump',
+			'password': 'pass0000'
 		}
 	}
 }
