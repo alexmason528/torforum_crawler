@@ -52,6 +52,9 @@ settings = {
             'action=logout',
             'action=emailuser',
             'action=resendactivation',
+            '&action=nextoldest',
+            'mode=threaded',
+            'mode=linear'
         }
     }
 }

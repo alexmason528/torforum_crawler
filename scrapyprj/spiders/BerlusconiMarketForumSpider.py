@@ -22,8 +22,8 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
     def __init__(self, *args, **kwargs):
         super(BerlusconiMarketForumSpider, self).__init__(*args, **kwargs)
 
-        self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(5)              # Scrapy config
+        self.set_max_concurrent_request(2)      # Scrapy config
+        self.set_download_delay(10)              # Scrapy config
         self.set_max_queue_transfer_chunk(16)   # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
@@ -122,7 +122,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
 
     # ######### PARSING FUNCTIONS ##########
     def parse_user(self, response):
-        self.logger.info("Yielding profile from %s" % response.url)
+        #self.logger.info("Yielding profile from %s" % response.url)
         user = items.User()
         user['relativeurl'] = urlparse(response.url).path + "?" + urlparse(response.url).query
         user['fullurl'] = response.url
@@ -140,15 +140,13 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         try:
             user['membergroup'] = re.search(r"\((.*)\)Registration Date", text_html, re.M | re.I | re.S).group(1).strip()
         except Exception as e:
-            print e
-            self.logger.warning("membergroup error %s" % response.url)
+            self.logger.warning("membergroup error %s with value %s" % (response.url, e))
 
         birthday_str = ""
         try:
             birthday_str = re.search("Date of Birth:(.*)Local Time", text_html, re.M | re.I | re.S).group(1).strip()
         except Exception as e:
-            print e
-            self.logger.warning("birthday error %s" % response.url)
+            self.logger.warning("birthday error %s value %s" % (response.url, e))
 
         if birthday_str == "Not Specified":
             birthday_str = ""
@@ -171,7 +169,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                 try:
                     user["post_per_day"] = re.search(r"\((.*)posts per day", value, re.M | re.I | re.S).group(1).strip()
                 except Exception as e:
-                    print e
+                    self.logger.warning("Couldn't get posts peer day. Please verify at %s" % response.url)
 
             elif key == "Joined:":
                 user['joined_on'] = value
@@ -198,12 +196,12 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         yield user
 
     def parse_message(self, response):
-        self.logger.info("Yielding messages from %s" % response.url)
+        #self.logger.info("Yielding messages from %s" % response.url)
         threadid = ""
         try:
             threadid = self.get_url_param(response.url, 'tid')
         except Exception as e:
-            print e
+            self.logger.warning("Couldn't get threadid at %s with error %s" %(response.url, e))
             return
 
         posts = response.css("#posts div.post")
@@ -231,7 +229,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                 self.logger.warning("Invalid thread page. %s" % e)
 
     def parse_threadlisting(self, response):
-        self.logger.info("Yielding threads from %s" % response.url)
+        #self.logger.info("Yielding threads from %s" % response.url)
         for line in response.css("div.wrapper table tr.inline_row"):
             threaditem = items.Thread()
 
@@ -247,14 +245,12 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
             try:
                 threaditem['last_update'] = self.parse_timestr(re.search("(.*)last ", last_post_time, re.M|re.I|re.S).group(1).strip())
             except Exception as e:
-                print e
-                self.logger.warning("last_update %s" % response.url)
+                self.logger.warning("last_update %s error %s" % (response.url, e))
 
             try:
                 threaditem['author_username'] = re.search("post:(.*)", last_post_time, re.M | re.I | re.S).group(1).strip()
             except Exception as e:
-                print e
-                self.logger.warning("author_username %s" % response.url)
+                self.logger.warning("author_username %s error value %s" % (response.url, e))
 
             threaditem['threadid'] = self.get_url_param(threaditem['fullurl'], 'tid')
 
@@ -302,7 +298,6 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
             timestr = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
             last_post_time = self.to_utc(dateutil.parser.parse(timestr))
         except Exception as e:
-            print e
             if timestr:
                 self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
         return last_post_time
