@@ -25,8 +25,8 @@ class WallStreetForumSpider(ForumSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(45)             # Scrapy config
-        self.set_max_queue_transfer_chunk(1)    # Custom Queue system
+        self.set_download_delay(20)             # Scrapy config
+        self.set_max_queue_transfer_chunk(16)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
 
         self.logintrial = 0
@@ -73,10 +73,10 @@ class WallStreetForumSpider(ForumSpider):
             self.logger.warning("%s response %s at URL %s" % (self.login['username'], response.status, response.url))
         else:
             self.logger.info("[Logged in = %s]: %s %s at %s URL: %s" % (self.is_logged_in(response), self.login['username'], response.status, response.request.method, response.url))
+        if self.is_banned(response) is True:
+            self.logger.warning("%s has been banned from %s. Please abort the crawl and make a new login. Then crawl with lighter settings. URL is not parsed." % (self.login['username'], response.url))
 
-        if self.is_logged_in(response):
-            if self.is_banned(response) is True:
-                self.logger.warning("%s has been banned from %s. Please abort the crawl and make a new login. Then crawl with lighter settings. URL is not parsed." % (self.login['username'], response.url))
+        if self.is_logged_in(response) and response.status == 200:
             # self.logger.info("Logged in.")
             self.logintrial = 0
             it = self.parse_handlers[response.meta['reqtype']].__call__(response)
