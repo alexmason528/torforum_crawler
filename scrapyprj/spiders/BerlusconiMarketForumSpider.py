@@ -129,7 +129,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
 
         user_info_td = response.xpath("//fieldset[not(@id)]/table//td[1]")
 
-        user['username'] = self.get_text(user_info_td.xpath(".//span[@class='largetext']//strong"))
+        user['username'] = self.get_text(user_info_td.xpath(".//span[@class='largetext']/strong"))
 
         if user["username"] == "":
             return
