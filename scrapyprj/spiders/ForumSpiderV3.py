@@ -107,5 +107,7 @@ class ForumSpiderV3(ForumSpider):
                     return False
                 if re.search(regex, parsed_url.path) is not None:
                     return False
-        #self.logger.info('Following %s' % (url))
+                if re.search(regex, parsed_url.query) is not None:
+                    return False
+        #self.logger.info('Following %s' % (relative_url))
         return True
