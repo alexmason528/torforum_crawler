@@ -87,7 +87,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
             # Notify on succesful login and set parsing flag.
             else:
                 if self.is_index(response) is True:
-                    self.logger.info("Index.php was returned")
+                    #self.logger.info("Index.php was returned")
                     return
                 elif self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting

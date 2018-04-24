@@ -33,7 +33,6 @@ settings = {
     },
     'exclude': {
         'prefix': {
-            '/pgp.txt',
             '/printthread.php',
             '/javascript',
             '/private.php',
@@ -54,7 +53,12 @@ settings = {
             'action=resendactivation',
             '&action=nextoldest',
             'mode=threaded',
-            'mode=linear'
+            'mode=linear',
+            '&sortby=',
+            '&action=nextnewest',
+            '#pid', 
+            'tid=[0-9]{1,10000}&pid=', # There is no reason to go to links which refer to posts in a thread we already spider.
+            '&action=lastpost'
         }
     }
 }
