@@ -151,7 +151,7 @@ class OlympusMarketForumSpider(ForumSpider):
                 content                             = post.css("blockquote.messageText")
                 userprofile_link                    = post.css("div.messageDetails a.username.author::attr(href)").extract_first()
 
-                messageitem['author_username']      = self.get_text(post.css("div.messageDetails a.username.author"))
+                messageitem['author_username']      = post.xpath('.//div[@class="uix_userTextInner"]/a/text()').extract_first()
                 messageitem['postid']               = re.match("post-(\d+)", fullid).group(1)
                 messageitem['threadid']             = threadid
                 messageitem['posted_on']            = self.parse_timestr(self.get_text(post.xpath(".//a[@class='datePermalink']")), response)
