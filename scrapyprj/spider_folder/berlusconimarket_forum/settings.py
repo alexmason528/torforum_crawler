@@ -18,6 +18,18 @@ settings = {
             'password': 'pass0000',
             'email': 'IacAvkVKPnKJ@tmg.lsd'
         },
+        'gambini': {
+            'username': 'gambini',
+            'password': 'pass0000'
+        },
+        'slippery': {
+            'username': 'slippery',
+            'password': 'pass0000'
+        },
+        'pawnpin': {
+            'username': 'pawnpin',
+            'password': 'pass0000'
+        }
     },
     'exclude': {
         'prefix': {

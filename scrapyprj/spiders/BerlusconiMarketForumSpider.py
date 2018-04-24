@@ -23,8 +23,8 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         super(BerlusconiMarketForumSpider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(5)             # Scrapy config
-        self.set_max_queue_transfer_chunk(1)    # Custom Queue system
+        self.set_download_delay(5)              # Scrapy config
+        self.set_max_queue_transfer_chunk(16)   # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
@@ -60,7 +60,6 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         return req
 
     def parse_response(self, response):
-        print response.url
         parser = None
         # Handle login status.
         if self.islogged(response) is False:
@@ -267,10 +266,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
 
     def islogged(self, response):
         if len(response.xpath('//a[@class="logout"]')) > 0:
-            print "------------------> Login Successfully"
             return True
-
-        print "------------------> Not login"
         return False
 
     def is_login_page(self, response):
