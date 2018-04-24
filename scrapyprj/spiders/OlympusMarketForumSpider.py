@@ -35,7 +35,7 @@ class OlympusMarketForumSpider(ForumSpider):
 
         self.set_max_concurrent_request(2)      # Scrapy config
         self.set_download_delay(15)              # Scrapy config
-        self.set_max_queue_transfer_chunk(1)    # Custom Queue system
+        self.set_max_queue_transfer_chunk(16)    # Custom Queue system
 
         self.logintrial = 0
         self.parse_handlers = {
@@ -125,7 +125,7 @@ class OlympusMarketForumSpider(ForumSpider):
             threadid                            = self.read_threadid_from_url(threadlink)
 
             threaditem['title']                 =  self.get_text(line.css("div.main h3.title a"))
-            threaditem['author_username']       = self.get_text(line.css("a.username"))
+            threaditem['author_username']       = line.xpath('@data-author').extract_first()
             threaditem['replies']               = self.get_text(line.css("div.stats .major dd"))
             threaditem['views']                 = self.get_text(line.css("div.stats .minor dd"))
             threaditem['last_update']           = self.parse_timestr(self.get_text(line.css("div.lastPost a.dateTime abbr")), response)
