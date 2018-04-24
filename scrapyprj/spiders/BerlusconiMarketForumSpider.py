@@ -23,7 +23,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         super(BerlusconiMarketForumSpider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(2)      # Scrapy config
-        self.set_download_delay(10)              # Scrapy config
+        self.set_download_delay(5)              # Scrapy config
         self.set_max_queue_transfer_chunk(16)   # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
@@ -213,6 +213,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                 # userprofile_link = post.css("div.author_information span.largetext a::attr(href)").extract_first()
 
                 messageitem['author_username'] = self.get_text(post.xpath(".//div[@class='author_information']//span[@class='largetext']/a"))
+
                 messageitem['postid'] = post.xpath("@id").extract_first(" ").replace("post_", "").strip()
 
                 messageitem['threadid'] = threadid
