@@ -179,7 +179,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                 try:
                     user["post_per_day"] = re.search(r"\((.*)posts per day", value, re.M | re.I | re.S).group(1).strip()
                 except Exception as e:
-                    self.logger.warning("Couldn't get posts peer day. Please verify at %s" % response.url)
+                    self.logger.warning("Couldn't get posts per day. Please verify at %s" % response.url)
 
             elif key == "Joined:":
                 user['joined_on'] = value
