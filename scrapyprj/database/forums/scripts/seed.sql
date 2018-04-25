@@ -58,4 +58,6 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
     ('trophy_points', 'Trophy points'),
     ('birthday', 'Birthday'),
     ('occupation', 'Occupation'),
-    ('aol', 'AOL Messenger');
+    ('aol', 'AOL Messenger'),
+    ('user_sales', 'Sales'),
+    ('user_buys', 'Buys');
