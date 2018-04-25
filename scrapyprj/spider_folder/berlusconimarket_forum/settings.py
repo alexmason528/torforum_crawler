@@ -5,7 +5,8 @@ settings = {
     'resources': {
         'homepage': '/index.php',
         'index': '/',
-        'dologin': '/member.php'
+        'dologin': '/member.php',
+        'loginpage': '/member.php?action=login'
         },
     'logins': {
         'poseidonsfeet': {

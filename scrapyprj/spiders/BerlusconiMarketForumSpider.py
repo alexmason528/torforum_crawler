@@ -23,7 +23,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         super(BerlusconiMarketForumSpider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(2)      # Scrapy config
-        self.set_download_delay(20)             # Scrapy config
+        self.set_download_delay(10)             # Scrapy config
         self.set_max_queue_transfer_chunk(5)   # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
@@ -46,6 +46,11 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
             req = self.craft_login_request_from_form(kwargs['response'])
             req.meta['shared'] = False
             req.priority       = 10
+        elif reqtype is 'loginpage':
+            req = Request(self.make_url('loginpage'), dont_filter=True)
+            req.meta['shared'] = False
+            req.priority       = 15
+            req.dont_filter    = True
         elif reqtype is 'regular':
             req = Request(kwargs['url'], headers=self.user_agent)
             req.meta['shared'] = True
@@ -69,20 +74,24 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         parser = None
         # Handle login status.
         if self.islogged(response) is False:
-            #self.logger.warning("%s" % response.body)
             self.loggedin = False
             req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
-            # Allow the spider to fail if it can't log on.
-            if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-                self.wait_for_input("Too many login failed", req_once_logged)
-                self.logintrial = 0
-                return
-
-            self.logger.info("Trying to login as %s." % self.login['username'])
-            self.logintrial += 1
-            yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
+            if self.is_login_page(response) is False:
+                self.logger.info("%s, not logged in. Going to login page" % (self.login['username']))
+                yield self.make_request(reqtype='loginpage', response=response, req_once_logged=req_once_logged)
+            elif self.is_login_page(response) is True:
+                self.logger.info("Trying to login as %s." % self.login['username'])
+                self.logintrial += 1
+                # Allow the spider to fail if it can't log on.
+                if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
+                    self.wait_for_input("Too many login failed", req_once_logged)
+                    self.logintrial = 0
+                    return
+                yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
+            else:
+                self.logger.warning("This error should not appear.")
         # Handle parsing.
-        else:
+        elif self.islogged(response) is True:
             # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin' and self.loggedin is False:
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
@@ -90,8 +99,6 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                     self.logger.warning("We are trying to yield a None. This should not happen.")
                 self.loggedin = True
                 yield response.meta['req_once_logged']
-
-
             # Notify on succesful login and set parsing flag.
             else:
                 if self.is_threadlisting(response) is True:
@@ -107,7 +114,8 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                         yield x
                 else:
                     self.logger.warning("Unknown page type at %s" % response.url)
-
+        else:
+            self.logger.warning("Error inside logged-in block. Should not happen.")
 
     def is_message(self, response):
         if "showthread.php?" in response.url:
@@ -261,7 +269,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         return False
 
     def is_login_page(self, response):
-        pass
+        return response.url.endswith("/member.php?action=login")
 
     def craft_login_request_from_form(self, response):
         response_url = response.url
