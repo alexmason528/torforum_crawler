@@ -246,6 +246,8 @@ class ZionMarketForumSpider(ForumSpider):
         except Exception as ex:
             self.logger.warning("Invalid thread page. %s" % ex)
 
+
+
     def parse_timestr(self, timestr):
         parsed_time = None
         try:
@@ -281,7 +283,6 @@ class ZionMarketForumSpider(ForumSpider):
             return True
         else:
             return False
-        #return settings_links and len(settings_links) > 0
 
     def has_login_form(self, response):
         return True if len(response.css('form input[name="username"]')) > 0 else False
