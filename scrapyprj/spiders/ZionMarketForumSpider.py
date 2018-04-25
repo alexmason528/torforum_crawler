@@ -9,9 +9,9 @@ class ZionMarketForumSpider(ForumSpider):
 
     custom_settings = {
         'MAX_LOGIN_RETRY' : 10,
-        'RESCHEDULE_RULES' : {
-            'The post table and topic table seem to be out of sync' : 60
-        }
+        'HTTPERROR_ALLOW_ALL' : True,
+        'RETRY_ENABLED' : True,
+        'RETRY_TIMES' : 5
     }
 
     def __init__(self, *args, **kwargs):
@@ -54,7 +54,7 @@ class ZionMarketForumSpider(ForumSpider):
             req.dont_filter = True
         elif reqtype in ['threadlisting', 'thread']:
             req = Request(kwargs['url'])
-            req.dont_filter    = True
+            req.dont_filter    = False
             req.meta['shared'] = True
 
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
