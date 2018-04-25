@@ -72,6 +72,5 @@ class User(scrapy.Item):
 	reputation = scrapy.Field() # Use when reputation called reputation and a numeric score.
 	stars = scrapy.Field()
 	trophy_points = scrapy.Field()
-	user_sales = scrapy.Field() # Use when there is a number of transactions assigned for a seller.
-	user_buys  = scrapy.Field() # Use when there is a number of transactions assigned for a buyer.
+
 
