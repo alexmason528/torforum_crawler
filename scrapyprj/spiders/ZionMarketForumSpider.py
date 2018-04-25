@@ -19,12 +19,12 @@ class ZionMarketForumSpider(ForumSpider):
 
         self.logintrial = 0
         self.set_max_concurrent_request(3)      # Scrapy config
-        self.set_download_delay(10)             # Scrapy config
-        self.set_max_queue_transfer_chunk(1)    # Custom Queue system
+        self.set_download_delay(20)             # Scrapy config
+        self.set_max_queue_transfer_chunk(16)    # Custom Queue system
 
         self.parse_handlers = {
             'index'         : self.parse_index,
-            'threadlisting'    : self.parse_thread_listing,
+            'threadlisting' : self.parse_thread_listing,
             'thread'        : self.parse_thread
         }
 
@@ -54,7 +54,8 @@ class ZionMarketForumSpider(ForumSpider):
             req.dont_filter = True
         elif reqtype in ['threadlisting', 'thread']:
             req = Request(kwargs['url'])
-            req.dont_filter = True
+            req.dont_filter    = True
+            req.meta['shared'] = True
 
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
         req.meta['proxy'] = self.proxy  # meta[proxy] is handled by scrapy.
@@ -65,13 +66,19 @@ class ZionMarketForumSpider(ForumSpider):
         if 'req_once_logged' in kwargs:
             req.meta['req_once_logged'] = kwargs['req_once_logged']
 
+        if 'shared' in kwargs:
+            req.meta['shared'] = kwargs['shared']
+        elif 'shared' not in kwargs:
+            req.meta['shared'] = False
+
+
         return req
 
     def parse(self, response):
         if response.status in range(400, 600):
             self.logger.warning("%s response %s at URL %s" % (self.login['username'], response.status, response.url))
         else:
-            self.logger.info("[Logged in = %s]: %s %s at %s URL: %s" % (self.loggedin(response), self.login['username'], response.status, response.request.method, response.url))
+            self.logger.info("[Logged in = %s | Shared = %s]: %s %s at %s URL: %s" % (self.loggedin(response), response.meta['shared'], self.login['username'], response.status, response.request.method, response.url))
 
         if self.require_redirect(response):
             redirect = self.get_redirect_link(response)
@@ -86,7 +93,7 @@ class ZionMarketForumSpider(ForumSpider):
         if 'redirect_from' in response.request.meta:
             response.request = response.request.meta['redirect_from']
 
-        if not self.loggedin(response):
+        if self.loggedin(response) is False:
             if self.is_ddos_protection_form(response):
                 self.logger.warning('Encountered a DDOS protection page as %s' % self.login['username'])
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
@@ -113,7 +120,7 @@ class ZionMarketForumSpider(ForumSpider):
                     self.logintrial = 0
                     return
 
-                self.logger.info("Trying to logTrying to login as %s." % self.login['username'])
+                self.logger.info("Trying to login as %s." % self.login['username'])
                 self.logintrial += 1
 
                 if 'req_once_logged' in response.meta:
@@ -146,7 +153,7 @@ class ZionMarketForumSpider(ForumSpider):
 
     def parse_index(self, response):
         for category_link in response.css('.table.forum > tbody > tr > td:nth-child(2) > a::attr(href)').extract():
-            yield self.make_request(reqtype='threadlisting', url=category_link)
+            yield self.make_request(reqtype='threadlisting', url=category_link, shared = True)
 
     def parse_thread_listing(self, response):
         for line in response.css('.table.forum > tbody > tr'):
@@ -179,12 +186,12 @@ class ZionMarketForumSpider(ForumSpider):
                 threaditem['replies'] = cells[2].css('::text')
 
                 yield threaditem
-                yield self.make_request('thread', url=thread_link)
+                yield self.make_request('thread', url=thread_link, shared = True)
             except Exception as ex:
                 self.logger.warning("Error in retrieving theads. %s" % ex)
 
         for link in response.css("a.paginate[rel='next']::attr(href)").extract():
-            yield self.make_request('threadlisting', url=link)
+            yield self.make_request('threadlisting', url=link, shared = True)
 
     def parse_thread(self, response):
         threadid = self.get_id_from_url(response.url)
@@ -270,7 +277,11 @@ class ZionMarketForumSpider(ForumSpider):
 
     def loggedin(self, response):
         settings_links = response.css('ul.nav.navbar-nav li a[href="/settings"]')
-        return settings_links and len(settings_links) > 0
+        if len(settings_links) > 0:
+            return True
+        else:
+            return False
+        #return settings_links and len(settings_links) > 0
 
     def has_login_form(self, response):
         return True if len(response.css('form input[name="username"]')) > 0 else False
