@@ -1,5 +1,5 @@
 settings = {
-    'timezone': 'UTC',
+    'timezone': 'GMT',
     'endpoint': 'http://lokwbo54utdfvr4r.onion/',
     'prefix': '',
     'resources': {
@@ -29,6 +29,10 @@ settings = {
         'pawnpin': {
             'username': 'pawnpin',
             'password': 'pass0000'
+        },
+        'threadshower': {
+            'username' : 'threadshower',
+            'password' : 'pass0000'
         }
     },
     'exclude': {

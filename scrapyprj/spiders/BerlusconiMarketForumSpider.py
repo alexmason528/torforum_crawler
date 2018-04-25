@@ -24,7 +24,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
 
         self.set_max_concurrent_request(2)      # Scrapy config
         self.set_download_delay(20)             # Scrapy config
-        self.set_max_queue_transfer_chunk(32)   # Custom Queue system
+        self.set_max_queue_transfer_chunk(5)   # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
@@ -45,6 +45,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         if reqtype is 'dologin':
             req = self.craft_login_request_from_form(kwargs['response'])
             req.meta['shared'] = False
+            req.priority       = 10
         elif reqtype is 'regular':
             req = Request(kwargs['url'], headers=self.user_agent)
             req.meta['shared'] = True
@@ -93,11 +94,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
 
             # Notify on succesful login and set parsing flag.
             else:
-                if self.is_index(response) is True:
-                    #self.logger.info("Index.php was returned")
-                    #return
-                    parser = None
-                elif self.is_threadlisting(response) is True:
+                if self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
                 elif self.is_message(response) is True:
                     parser = self.parse_message
@@ -111,10 +108,6 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                 else:
                     self.logger.warning("Unknown page type at %s" % response.url)
 
-    # ######### PARSING FLAGS ##############
-    def is_index(self, response):
-        if "index.php" in response.url:
-            return True
 
     def is_message(self, response):
         if "showthread.php?" in response.url:
@@ -263,7 +256,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         pass
 
     def islogged(self, response):
-        if len(response.xpath('//a[@class="logout"]')) > 0 or response.url.endswith("member.php"):
+        if len(response.xpath('//a[@class="logout"]')) > 0:
             return True
         return False
 
