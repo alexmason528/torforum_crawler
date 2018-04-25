@@ -23,16 +23,17 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         super(BerlusconiMarketForumSpider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(2)      # Scrapy config
-        self.set_download_delay(5)              # Scrapy config
-        self.set_max_queue_transfer_chunk(16)   # Custom Queue system
+        self.set_download_delay(20)             # Scrapy config
+        self.set_max_queue_transfer_chunk(32)   # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
         self.report_status = True               # Report 200's.
         self.loggedin = False                   # Login flag.
+        self.user_agent = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
 
     def start_requests(self):
-        yield self.make_request(url="index", dont_filter=True)
+        yield self.make_request(url="index", dont_filter=True, req_once_logged=self.make_url('homepage'), shared=False)
 
     def make_request(self, reqtype='regular', **kwargs):
         if 'url' in kwargs:
@@ -43,8 +44,10 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
 
         if reqtype is 'dologin':
             req = self.craft_login_request_from_form(kwargs['response'])
+            req.meta['shared'] = False
         elif reqtype is 'regular':
-            req = Request(kwargs['url'])
+            req = Request(kwargs['url'], headers=self.user_agent)
+            req.meta['shared'] = True
 
         # Some meta-keys that are shipped with the request.
         if 'relativeurl' in kwargs:
@@ -53,7 +56,9 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
             req.dont_filter = kwargs['dont_filter']
         if 'req_once_logged' in kwargs:
             req.meta['req_once_logged'] = kwargs['req_once_logged']
-
+        if 'shared' in kwargs:
+            req.meta['shared'] = kwargs['shared']
+        
         req.meta['proxy'] = self.proxy
         req.meta['slot'] = self.proxy
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
@@ -63,6 +68,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         parser = None
         # Handle login status.
         if self.islogged(response) is False:
+            #self.logger.warning("%s" % response.body)
             self.loggedin = False
             req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
             # Allow the spider to fail if it can't log on.
@@ -77,18 +83,20 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         # Handle parsing.
         else:
             # We restore the missed request when protection kicked in
-            if response.meta['reqtype'] == 'dologin':
+            if response.meta['reqtype'] == 'dologin' and self.loggedin is False:
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
-                yield response.meta['req_once_logged']
                 self.loggedin = True
+                yield response.meta['req_once_logged']
+
 
             # Notify on succesful login and set parsing flag.
             else:
                 if self.is_index(response) is True:
                     #self.logger.info("Index.php was returned")
-                    return
+                    #return
+                    parser = None
                 elif self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
                 elif self.is_message(response) is True:
@@ -132,7 +140,8 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         user['username'] = self.get_text(user_info_td.xpath(".//span[@class='largetext']/strong"))
 
         if user["username"] == "":
-            return
+            self.logger.warning("Could not get username. %s %s" %(response.url, response.body))
+            #return
 
         user["rating_count"] = len(user_info_td.xpath(".//span[@class='smalltext']/img"))
 
@@ -209,18 +218,10 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
             try:
                 messageitem = items.Message()
                 posttime = self.get_text(post.css("div.post_head span.post_date")).split("(")[0]
-
-                # userprofile_link = post.css("div.author_information span.largetext a::attr(href)").extract_first()
-
                 messageitem['author_username'] = self.get_text(post.xpath(".//div[@class='author_information']//span[@class='largetext']/a"))
-
                 messageitem['postid'] = post.xpath("@id").extract_first(" ").replace("post_", "").strip()
-
                 messageitem['threadid'] = threadid
-                # messageitem['subforum'] = self.get_text(response.css('ul.crumbs:nth-child(2) > li:nth-child(2) > a:nth-child(2)'))
-                # self.logger.info("subforum is %s" % messageitem['subforum'])
                 messageitem['posted_on'] = self.parse_timestr(posttime)
-
                 msg = post.css("div.post_body")
                 messageitem['contenttext'] = self.get_text(msg)
                 messageitem['contenthtml'] = self.get_text(msg.extract_first())
@@ -262,7 +263,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         pass
 
     def islogged(self, response):
-        if len(response.xpath('//a[@class="logout"]')) > 0:
+        if len(response.xpath('//a[@class="logout"]')) > 0 or response.url.endswith("member.php"):
             return True
         return False
 
@@ -283,7 +284,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
           ('submit', 'Login'),
         ]
 
-        req = FormRequest(url=self.make_url('dologin'), dont_filter=True, formdata=formdata)
+        req = FormRequest(url=self.make_url('dologin'), dont_filter=True, formdata=formdata, headers=self.user_agent)
         return req
 
     # ########## MISCELLANEOUS ###################
