@@ -11,12 +11,10 @@ insert ignore into `forum` (`name`, `spider`) values
     ('Wall Street Forum', 'wallstreet_forum'),
     ('Onionland', 'onionland_forum'),
     ('Olympus Market Forum', 'olympusmarket_forum'),
-<<<<<<< HEAD
     ('Berlusconi Market Forum', 'berlusconimarket_forum'),
     ('Italian Deep Web Forum', 'italiandeepweb_forum');
-=======
-    ('Berlusconi Market Forum', 'berlusconimarket_forum');
->>>>>>> Berlusconi_Market_Forum
+    ('Berlusconi Market Forum', 'berlusconimarket_forum'),
+    ('French Dark Place Forum', 'frenchdarkplace_forum');
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
 	('joined_on', 'Joined on'),
