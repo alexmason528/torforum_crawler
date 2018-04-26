@@ -40,6 +40,7 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
         self.alt_hostnames = []                 # Not in use.
         self.report_status = True               # Report 200's.
         self.loggedin = False                   # Login flag. 
+        self.user_agent = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
 
     def start_requests(self):
         yield self.make_request(url = 'index', dont_filter=True)
@@ -53,9 +54,9 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
         if reqtype is 'dologin':
             req = self.craft_login_request_from_form(kwargs['response']) 
         elif reqtype is 'loginpage':
-            req = Request(self.make_url('loginpage'), dont_filter=True)
+            req = Request(self.make_url('loginpage'), dont_filter=True, headers=self.user_agent)
         elif reqtype is 'regular':
-            req = Request(kwargs['url'])
+            req = Request(kwargs['url'], headers=self.user_agent)
             req.meta['shared'] = True # Ensures that requests are shared among spiders.
 
         # Some meta-keys that are shipped with the request.
@@ -235,7 +236,7 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
             'req_password' : self.login['password'],
         }
 
-        req = FormRequest.from_response(response, formdata=data, dont_filter=True)
+        req = FormRequest.from_response(response, formdata=data, dont_filter=True, headers=self.user_agent)
 
         return req
 

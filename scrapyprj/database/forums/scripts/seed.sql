@@ -12,7 +12,7 @@ insert ignore into `forum` (`name`, `spider`) values
     ('Onionland', 'onionland_forum'),
     ('Olympus Market Forum', 'olympusmarket_forum'),
     ('Berlusconi Market Forum', 'berlusconimarket_forum'),
-    ('Italian Deep Web Forum', 'italiandeepweb_forum');
+    ('Italian Deep Web Forum', 'italiandeepweb_forum'),
     ('Berlusconi Market Forum', 'berlusconimarket_forum'),
     ('French Dark Place Forum', 'frenchdarkplace_forum');
 
