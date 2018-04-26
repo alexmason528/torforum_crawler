@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
+from dateutil import parser
 import re
+from urlparse import urlparse
 from scrapy.http import FormRequest, Request
 from scrapyprj.spiders.ForumSpider import ForumSpider
 import scrapyprj.items.forum_items as items
@@ -25,7 +27,8 @@ class ZionMarketForumSpider(ForumSpider):
         self.parse_handlers = {
             'index'         : self.parse_index,
             'threadlisting' : self.parse_thread_listing,
-            'thread'        : self.parse_thread
+            'thread'        : self.parse_thread,
+            'userprofile'   : self.parse_userprofile
         }
 
     def start_requests(self):
@@ -52,13 +55,13 @@ class ZionMarketForumSpider(ForumSpider):
         elif reqtype == 'dologin':
             req = self.create_request_from_login_page(kwargs['response'])
             req.dont_filter = True
-        elif reqtype in ['threadlisting', 'thread']:
+        elif reqtype in ['threadlisting', 'thread', 'userprofile']:
             req = Request(kwargs['url'])
-            req.dont_filter    = False
+            req.dont_filter = False
             req.meta['shared'] = True
 
-        req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
-        req.meta['proxy'] = self.proxy  # meta[proxy] is handled by scrapy.
+        req.meta['reqtype'] = reqtype # We tell the type so that we can redo it if login is required
+        req.meta['proxy'] = self.proxy # meta[proxy] is handled by scrapy.
 
         if 'priority' in kwargs:
             req.priority = kwargs['priority']
@@ -76,13 +79,17 @@ class ZionMarketForumSpider(ForumSpider):
 
     def parse(self, response):
         if response.status in range(400, 600):
-            self.logger.warning("%s response %s at URL %s" % (self.login['username'], response.status, response.url))
+            self.logger.warning("%s response %s at URL %s" %
+                                (self.login['username'], response.status, response.url))
         else:
-            self.logger.info("[Logged in = %s | Shared = %s]: %s %s at %s URL: %s" % (self.loggedin(response), response.meta['shared'], self.login['username'], response.status, response.request.method, response.url))
+            self.logger.info("[Logged in = %s | Shared = %s]: %s %s at %s URL: %s" % (
+                self.loggedin(response), response.meta['shared'], self.login['username'],
+                response.status, response.request.method, response.url))
 
         if self.require_redirect(response):
             redirect = self.get_redirect_link(response)
-            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else None
+            req_once_logged = response.meta['req_once_logged'] \
+                            if 'req_once_logged' in response.meta else None
             self.logger.debug('Redirect to ' + redirect)
 
             yield self.make_request(response.meta['reqtype'], req_once_logged=req_once_logged,
@@ -95,9 +102,11 @@ class ZionMarketForumSpider(ForumSpider):
 
         if self.loggedin(response) is False:
             if self.is_ddos_protection_form(response):
-                self.logger.warning('Encountered a DDOS protection page as %s' % self.login['username'])
+                self.logger.warning('Encountered a DDOS protection page as %s' %
+                                    self.login['username'])
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-                    req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else None
+                    req_once_logged = response.meta['req_once_logged'] \
+                                    if 'req_once_logged' in response.meta else None
                     self.logintrial = 0
                     self.wait_for_input("Can't bypass DDOS Protection", req_once_logged)
                     return
@@ -115,7 +124,8 @@ class ZionMarketForumSpider(ForumSpider):
             elif self.has_login_form(response):
                 self.logger.debug('Encountered a login page.')
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-                    req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else None
+                    req_once_logged = response.meta['req_once_logged'] \
+                                    if 'req_once_logged' in response.meta else None
                     self.wait_for_input("Too many login failed", req_once_logged)
                     self.logintrial = 0
                     return
@@ -126,11 +136,12 @@ class ZionMarketForumSpider(ForumSpider):
                 if 'req_once_logged' in response.meta:
                     req_once_logged = response.meta['req_once_logged']
 
-                yield self.make_request('dologin', req_once_logged=req_once_logged, response=response, priority=10)
+                yield self.make_request('dologin', req_once_logged=req_once_logged,
+                                        response=response, priority=10)
 
             else:
-                self.logger.warning('Something went wrong. See the exception and investigate %s. Dumping html: %s'
-                                    % (response.url, response.body))
+                self.logger.warning('Something went wrong. See the exception and investigate %s.' \
+                                    ' Dumping html: %s' % (response.url, response.body))
                 raise Exception("Not implemented yet, figure what to do here !")
 
         else:
@@ -152,8 +163,9 @@ class ZionMarketForumSpider(ForumSpider):
                             yield handler
 
     def parse_index(self, response):
-        for category_link in response.css('.table.forum > tbody > tr > td:nth-child(2) > a::attr(href)').extract():
-            yield self.make_request(reqtype='threadlisting', url=category_link, shared = True)
+        category_links = response.css('.table.forum > tbody > tr > td:nth-child(2) > a::attr(href)')
+        for category_link in category_links.extract():
+            yield self.make_request(reqtype='threadlisting', url=category_link, shared=True)
 
     def parse_thread_listing(self, response):
         for line in response.css('.table.forum > tbody > tr'):
@@ -172,26 +184,33 @@ class ZionMarketForumSpider(ForumSpider):
                 threaditem['fullurl'] = self.make_url(thread_link)
                 threaditem['threadid'] = self.get_id_from_url(thread_link)
 
-                author = cells[1].css('h4 div small a::text').extract_first()
-                if not author:
+                author = cells[1].css('h4 div small a')
+                if author:
+                    threaditem['author_username'] = author.css('::text').extract_first().strip()
+                    vendor_link = author.css('::attr(href)').extract_first().strip()
+
+                    yield self.make_request('userprofile', url=vendor_link, shared=True)
+                else:
                     byuser = cells[1].css('h4 div small::text').extract_first()
-                    m = re.search(" ago by (.+)", byuser) # regex
-                    if m:
-                        author = m.group(1).strip()
-                threaditem['author_username'] = author
+                    matches = re.search(" ago by (.+)", byuser) # regex
+                    if matches:
+                        threaditem['author_username'] = matches.group(1).strip()
 
                 # Cannot get last update time exactly, that's because the update time
                 # doesn't follow time format, it's something like "XX days ago".
-                threaditem['last_update'] = self.parse_timestr(cells[3].css('small::text').extract()[-1])
+                moment_time_value = cells[3].css('small::text').extract()[-1]
+                threaditem['last_update'] = self.parse_timestr(moment_time_value)
                 threaditem['replies'] = cells[2].css('::text')
 
                 yield threaditem
-                yield self.make_request('thread', url=thread_link, shared = True)
+
+                yield self.make_request('thread', url=thread_link, shared=True)
+
             except Exception as ex:
                 self.logger.warning("Error in retrieving theads. %s" % ex)
 
         for link in response.css("a.paginate[rel='next']::attr(href)").extract():
-            yield self.make_request('threadlisting', url=link, shared = True)
+            yield self.make_request('threadlisting', url=link, shared=True)
 
     def parse_thread(self, response):
         threadid = self.get_id_from_url(response.url)
@@ -202,15 +221,16 @@ class ZionMarketForumSpider(ForumSpider):
 
             messageitem = items.Message()
             post_info = ''.join(post.css('small.lightGrey *::text').extract())
-            m = re.search(r'(\d+) (.+) ago by ([^ ]+)', post_info)
-            if m:
-                messageitem['posted_on'] = self.parse_timestr(m.group(0))
-                messageitem['author_username'] = m.group(3).strip()
+            matches = re.search(r'(\d+) (.+) ago by ([^ ]+)', post_info)
+            if matches:
+                messageitem['posted_on'] = self.parse_timestr(matches.group(0))
+                messageitem['author_username'] = matches.group(3).strip()
             else:
-                self.logger.warning("Cannot determine created date and author on URL %s." % (response.url))
+                self.logger.warning("Cannot determine created date and author on URL %s." \
+                                    % (response.url))
 
             messageitem['threadid'] = threadid
-            messageitem['postid'] = 1    # Set postid to 1 for first post
+            messageitem['postid'] = "msg" + threadid
 
             msg = post.css('.alert.alert-info')
             messageitem['contenttext'] = self.get_text(msg)
@@ -219,19 +239,21 @@ class ZionMarketForumSpider(ForumSpider):
             yield messageitem
 
             # Parse comments
+            reply_index = 1
             for comment in post.css('div.comment p'):
                 messageitem = items.Message()
 
-                vote_link = comment.css('span.lightGrey a::attr(href)').extract_first()
-                messageitem['postid'] = vote_link.split('/')[-1].split('#')[0]
                 messageitem['threadid'] = threadid
+                messageitem['postid'] = "reply_%s-%d" % (threadid, reply_index)
+                reply_index += 1
 
                 post_info = comment.css('small::text').extract_first()
-                m = re.search(r'(\d+) point([s]*) (.+)', post_info)
-                if m:
-                    messageitem['posted_on'] = self.parse_timestr(m.group(3))
+                matches = re.search(r'(\d+) point([s]*) (.+)', post_info)
+                if matches:
+                    messageitem['posted_on'] = self.parse_timestr(matches.group(3))
                 else:
-                    self.logger.warning("Cannot determine created date and author on URL %s." % (response.url))
+                    self.logger.warning("Cannot determine created date and author on URL %s." \
+                                        % (response.url))
 
                 author_name = comment.css('a.vendorname::text').extract_first()
                 if not author_name:
@@ -243,26 +265,71 @@ class ZionMarketForumSpider(ForumSpider):
 
                 yield messageitem
 
+                commented_by_link = comment.css('a.vendorname::attr(href)').extract_first()
+                if commented_by_link:
+                    yield self.make_request('userprofile', url=commented_by_link, shared=True)
+
         except Exception as ex:
             self.logger.warning("Invalid thread page. %s" % ex)
 
+    def parse_userprofile(self, response):
+        try:
+            user = items.User()
+            user['relativeurl'] = urlparse(response.url).path
+            user['fullurl'] = response.url
 
+            star_rating = response.css('div.container div.row h3 span.alert::text').extract_first()
+            matches = re.search(r'(\w+): (\d+)', star_rating)
+            if matches:
+                membership = matches.group(1)
+                user['membergroup'] = membership
+                user['rating_count'] = int(matches.group(2))
+
+            userinfo = response.css('div.container div.row span.right span.right')
+            user['location'] = userinfo.css('b::text').extract_first()
+            member_since = userinfo.css('small::text').extract_first()
+            user['joined_on'] = parser.parse(member_since[13:]) # Skip 'Member since '
+            user['last_activity'] = userinfo.css('span.greenText::text').extract_first()
+
+            user['pgp_key'] = response.css('div#content4 textarea::text').extract_first()
+
+            # ratings = response.css('div.container div.alert.alert-warning')
+            # if ratings:
+            #     for rating in ratings.css('table tbody tr td span.blackT'):
+            #         rating_name = rating.css('small::text')
+            #         rating_value = rating.css('b::text')
+
+            #         if rating_name == 'Positive':
+            #             user['positive_feedback'] = rating_value
+            #         elif rating_name == 'Neutral':
+            #             user['neutral_feedback'] = rating_value
+            #         elif rating_name == 'Negative':
+            #             user['negative_feedback'] = rating_value
+
+            if membership == 'Vendor':
+                user['user_sales'] = len(response.css('div.container div.prodwide'))
+
+            yield user
+
+        except Exception as ex:
+            self.logger.warning("Error in retrieving user. %s" % ex)
 
     def parse_timestr(self, timestr):
         parsed_time = None
         try:
-            m = re.search('(.+) (.+) ago', timestr.lower())
-            delta = -1 * int(m.group(1))
-            unit = m.group(2)
+            matches = re.search('(.+) (.+) ago', timestr.lower())
+            delta = -1 * int(matches.group(1))
+            unit = matches.group(2)
             if unit == 'minute' or unit == 'minutes':
                 parsed_time = datetime.utcnow() + timedelta(minutes=delta)
             elif unit == 'hour' or unit == 'hours':
                 parsed_time = datetime.utcnow() + timedelta(hours=delta)
             elif unit == 'day' or unit == 'days':
                 parsed_time = datetime.utcnow() + timedelta(days=delta)
-        except:
+        except Exception:
             if timestr:
-                self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
+                self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % \
+                                    timestr)
 
         return parsed_time
 
@@ -272,8 +339,8 @@ class ZionMarketForumSpider(ForumSpider):
     def get_redirect_link(self, response):
         if self.require_redirect(response):
             redirect = response.headers['Refresh']
-            m = re.search('url=(.*)', redirect).groups()
-            return m[0] if len(m) > 0 else None
+            matches = re.search('url=(.*)', redirect).groups()
+            return matches[0] if len(matches) > 0 else None
 
         return None
 
@@ -316,5 +383,5 @@ class ZionMarketForumSpider(ForumSpider):
         try:
             _id = url.split('/')[-1]
             return _id if _id.isdigit() else None
-        except:
+        except Exception:
             self.logger.warning("Could not determine id from this url : '%s'" % url)
