@@ -160,9 +160,9 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
 
             # self.logger.info("Yielding profile for %s" % useritem['username'])
 
-            usertitle = post.css(".postleft dd.usertitle")
-            if len(usertitle) > 0:
-                useritem['custom_title'] = self.get_text(usertitle)
+            member_group = post.css(".postleft dd.usertitle")
+            if len(member_group) > 0:
+                useritem['membergroup'] = self.get_text(member_group)
 
             website = post.css(".postleft dd.usercontacts span.website a::attr(href)")
             if len(website) > 0:
@@ -179,13 +179,13 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
                         key = match.group(1)
                         value = match.group(2)
 
-                        if key == 'From' or key == 'Lieu':
+                        if 'From' in key or 'Lieu' in key:
                             useritem['location'] = value
-                        elif key == 'Posts' or key == 'Messages':
+                        elif 'Posts' in key or 'Messages' in key:
                             useritem['post_count'] = value
-                        elif key == 'Registered' or key == 'Inscription':
-                            # useritem['joined_on'] = self.parse_timestr(value)
-                            pass
+                        elif 'Registered' in key or 'Inscription' in key:
+                            useritem['joined_on'] = self.parse_timestr(value)
+                            #pass
                         else:
                             self.logger.warning('New information found : %s' % key)
 
