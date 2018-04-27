@@ -162,8 +162,7 @@ class SilkRoadSpider(ForumSpiderV3):
                     user['last_activity'] = self.parse_timestr(ddtext)
                 # There are additional items
                 elif key == 'rank:':
-                    pass
-                    # user['rank'] = ddtext  
+                    user['rank'] = ddtext  
                 elif key == 'groups:':
                     user['membergroup'] = ddtext
                 elif key == 'most active forum:':
