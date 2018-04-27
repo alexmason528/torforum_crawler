@@ -41,7 +41,14 @@ settings = {
             r'search\.php',
             r'ucp\.php',
             'mailto:',
-            'mode=quote'
+            'mode=quote',
+            'mode=reply',
+            'posting\.php',
+            '/report',
+            'index\.php/index\.php',
+            'first_char=',
+            'watch=',
+            'view=print'
         }
     }
 }

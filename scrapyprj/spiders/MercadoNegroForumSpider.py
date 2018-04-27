@@ -75,7 +75,7 @@ class MercadoNegroForumSpider(ForumSpiderV3):
                 yield self.make_request(
                     reqtype='loginpage',
                     response=response,
-                    req_once_logged=req_once_logged)
+                    req_once_logged=req_once_logged, priority = 10)
             else:
                 req_once_logged = response.meta['req_once_logged'] \
                     if 'req_once_logged' in response.meta else response.request
@@ -145,7 +145,7 @@ class MercadoNegroForumSpider(ForumSpiderV3):
 
     # ######### PARSING FLAGS ##############
     def is_message(self, response):
-        return "viewtopic.php?f=" in response.url
+        return "viewtopic.php?" in response.url
 
     def is_user(self, response):
         return 'memberlist.php?mode=viewprofile&u=' in response.url
