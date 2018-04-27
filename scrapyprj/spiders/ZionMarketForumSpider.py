@@ -20,8 +20,8 @@ class ZionMarketForumSpider(ForumSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.logintrial = 0
-        self.set_max_concurrent_request(3)      # Scrapy config
-        self.set_download_delay(20)             # Scrapy config
+        self.set_max_concurrent_request(2)      # Scrapy config
+        self.set_download_delay(15)             # Scrapy config
         self.set_max_queue_transfer_chunk(16)    # Custom Queue system
 
         self.parse_handlers = {
@@ -187,9 +187,6 @@ class ZionMarketForumSpider(ForumSpider):
                 author = cells[1].css('h4 div small a')
                 if author:
                     threaditem['author_username'] = author.css('::text').extract_first().strip()
-                    vendor_link = author.css('::attr(href)').extract_first().strip()
-
-                    yield self.make_request('userprofile', url=vendor_link, shared=True)
                 else:
                     byuser = cells[1].css('h4 div small::text').extract_first()
                     matches = re.search(" ago by (.+)", byuser) # regex
@@ -238,6 +235,23 @@ class ZionMarketForumSpider(ForumSpider):
 
             yield messageitem
 
+            vendor_link = post.css('a.vendorname::attr(href)').extract_first()
+            if vendor_link:
+                yield self.make_request('userprofile', url=vendor_link, shared=True)
+            else:
+                star_rating = post.css('small.lightGrey span.alert::text').extract_first()
+                matches = re.search(r'(\w+): (\d+)', star_rating)
+                if matches:
+                    membergroup = matches.group(1)
+                    rating_count = int(matches.group(2))
+
+                    user = items.User()
+                    user['username'] = messageitem['author_username']
+                    user['membergroup'] = membergroup
+                    user['rating_count'] = rating_count
+
+                    yield user
+
             # Parse comments
             reply_index = 1
             for comment in post.css('div.comment p'):
@@ -268,6 +282,20 @@ class ZionMarketForumSpider(ForumSpider):
                 commented_by_link = comment.css('a.vendorname::attr(href)').extract_first()
                 if commented_by_link:
                     yield self.make_request('userprofile', url=commented_by_link, shared=True)
+                else:
+                    commented_by = comment.css('p *::text').extract()[0]
+                    star_rating = comment.css('p > span.alert::text').extract_first()
+                    matches = re.search(r'(\w+): (\d+)', star_rating)
+                    if matches:
+                        membergroup = matches.group(1)
+                        rating_count = int(matches.group(2))
+
+                        user = items.User()
+                        user['username'] = commented_by
+                        user['membergroup'] = membergroup
+                        user['rating_count'] = rating_count
+
+                        yield user
 
         except Exception as ex:
             self.logger.warning("Invalid thread page. %s" % ex)
@@ -277,12 +305,13 @@ class ZionMarketForumSpider(ForumSpider):
             user = items.User()
             user['relativeurl'] = urlparse(response.url).path
             user['fullurl'] = response.url
+            user['username'] = response.css('div.container div.row h3 a::text').extract_first()
 
             star_rating = response.css('div.container div.row h3 span.alert::text').extract_first()
             matches = re.search(r'(\w+): (\d+)', star_rating)
             if matches:
-                membership = matches.group(1)
-                user['membergroup'] = membership
+                membergroup = matches.group(1)
+                user['membergroup'] = membergroup
                 user['rating_count'] = int(matches.group(2))
 
             userinfo = response.css('div.container div.row span.right span.right')
@@ -306,7 +335,7 @@ class ZionMarketForumSpider(ForumSpider):
             #         elif rating_name == 'Negative':
             #             user['negative_feedback'] = rating_value
 
-            if membership == 'Vendor':
+            if membergroup == 'Vendor':
                 user['user_sales'] = len(response.css('div.container div.prodwide'))
 
             yield user
