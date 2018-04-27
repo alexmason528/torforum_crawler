@@ -241,23 +241,23 @@ class ZionMarketForumSpider(ForumSpider):
 
         yield messageitem
 
-        vendor_link = post.css('a.vendorname::attr(href)').extract_first()
-        if vendor_link:
-            yield self.make_request('userprofile', url=vendor_link, shared=True)
-        else:
-            star_rating = post.css('small.lightGrey span.alert::text').extract_first()
-            if star_rating:
-                matches = re.search(r'(\w+): (\d+)', star_rating)
-                if matches:
-                    membergroup = matches.group(1)
-                    rating_count = int(matches.group(2))
+        # vendor_link = post.css('a.vendorname::attr(href)').extract_first()
+        # if vendor_link:
+        #     yield self.make_request('userprofile', url=vendor_link, shared=True)
+        # else:
+        #     star_rating = post.css('small.lightGrey span.alert::text').extract_first()
+        #     if star_rating:
+        #         matches = re.search(r'(\w+): (\d+)', star_rating)
+        #         if matches:
+        #             membergroup = matches.group(1)
+        #             rating_count = int(matches.group(2))
 
-                    user = items.User()
-                    user['username'] = messageitem['author_username']
-                    user['membergroup'] = membergroup
-                    user['rating_count'] = rating_count
+        #             user = items.User()
+        #             user['username'] = messageitem['author_username']
+        #             user['membergroup'] = membergroup
+        #             user['rating_count'] = rating_count
 
-                    yield user
+        #             yield user
 
         # Parse comments
         reply_index = 1
@@ -284,24 +284,24 @@ class ZionMarketForumSpider(ForumSpider):
 
             yield messageitem
 
-            commented_by_link = comment.css('a.vendorname::attr(href)').extract_first()
-            if commented_by_link:
-                yield self.make_request('userprofile', url=commented_by_link, shared=True)
-            else:
-                commented_by = comment.css('p *::text').extract()[0]
-                star_rating = comment.css('p > span.alert::text').extract_first()
-                if star_rating:
-                    matches = re.search(r'(\w+): (\d+)', star_rating)
-                    if matches:
-                        membergroup = matches.group(1)
-                        rating_count = int(matches.group(2))
+            # commented_by_link = comment.css('a.vendorname::attr(href)').extract_first()
+            # if commented_by_link:
+            #     yield self.make_request('userprofile', url=commented_by_link, shared=True)
+            # else:
+            #     commented_by = comment.css('p *::text').extract()[0]
+            #     star_rating = comment.css('p > span.alert::text').extract_first()
+            #     if star_rating:
+            #         matches = re.search(r'(\w+): (\d+)', star_rating)
+            #         if matches:
+            #             membergroup = matches.group(1)
+            #             rating_count = int(matches.group(2))
 
-                        user = items.User()
-                        user['username'] = commented_by
-                        user['membergroup'] = membergroup
-                        user['rating_count'] = rating_count
+            #             user = items.User()
+            #             user['username'] = commented_by
+            #             user['membergroup'] = membergroup
+            #             user['rating_count'] = rating_count
 
-                        yield user
+            #             yield user
 
     def parse_userprofile(self, response):
         try:
