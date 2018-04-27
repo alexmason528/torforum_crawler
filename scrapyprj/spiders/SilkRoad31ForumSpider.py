@@ -42,7 +42,7 @@ class SilkRoadSpider(ForumSpiderV3):
 
         self.set_max_concurrent_request(1)      # Scrapy config
         self.set_download_delay(10)             # Scrapy config
-        self.set_max_queue_transfer_chunk(1)    # Custom Queue system
+        self.set_max_queue_transfer_chunk(16)   # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
@@ -141,69 +141,42 @@ class SilkRoadSpider(ForumSpiderV3):
         if "The requested topic does not exist." in response.body:
             self.logger.warning('There is no information : "%s"' % response.url)
             return
-        user = items.User()
-        user['relativeurl'] = response.url.replace('http://satri4bb5r56y253.onion/.', '')
-        user['fullurl'] = response.url
-        dts = response.css("#viewprofile dl dt")
+        else:
+            user = items.User()
+            user['relativeurl'] = response.url.replace('http://satri4bb5r56y253.onion/.', '')
+            user['fullurl'] = response.url
+            dts = response.css("#viewprofile dl dt")
 
-        for dt in dts:
-            key = self.get_text(dt).lower()
-            ddtext = self.get_text(dt.xpath('following-sibling::dd[1]'))
+            for dt in dts:
+                key = self.get_text(dt).lower()
+                ddtext = self.get_text(dt.xpath('following-sibling::dd[1]'))
 
-            if key == 'username:':
-                user['username'] = ddtext
-            elif key == 'total posts:':
-                user['message_count'] = ddtext.split('|')[0].strip()
-            elif key == 'title':
-                user['title'] = ddtext
-            elif key == 'joined:':
-                user['joined_on'] = self.parse_timestr(ddtext)
-            elif key == 'last active:':
-                user['last_activity'] = self.parse_timestr(ddtext)
-            elif key == 'posts':
-                m = re.match("^(\d+).+", ddtext)
-                if m:
-                    user['post_count'] = m.group(1)
-            elif key == 'signature':
-                user['signature'] = ddtext
-            elif key == 'location':
-                user['location'] = ddtext
-            elif key == 'jabber':
-                user['jabber'] = ddtext
-            elif key == 'icq':
-                user['icq'] = ddtext
-            elif key == 'real name':
-                user['realname'] = ddtext
-            elif key == 'microsoft account':
-                user['microsoft_account'] = ddtext            
-            elif key == 'yahoo! messenger':
-                user['yahoo_messenger'] = ddtext
-            elif key == 'website':
-                user['website'] = ddtext
-            elif key == 'email':
-                user['email'] = ddtext
-            elif key in ['avatar', 'pm']:
-                pass
-            # There are additional items
-            elif key == 'rank:':
-                pass
-                # user['rank'] = ddtext  
-            elif key == 'groups:':
-                pass
-                # user['member_group'] = ddtext
-            elif key == 'most active forum:':
-                pass
-                # user['most active forum'] = ddtext  
-            elif key == 'most active topic:':
-                pass
-                # user['most active topic'] = ddtext
-            elif key == '':
-                pass
+                if key == 'username:':
+                    user['username'] = ddtext
+                elif key == 'total posts:':
+                    user['message_count'] = ddtext.split('|')[0].strip()
+                elif key == 'joined:':
+                    user['joined_on'] = self.parse_timestr(ddtext)
+                elif key == 'last active:':
+                    user['last_activity'] = self.parse_timestr(ddtext)
+                # There are additional items
+                elif key == 'rank:':
+                    pass
+                    # user['rank'] = ddtext  
+                elif key == 'groups:':
+                    user['membergroup'] = ddtext
+                elif key == 'most active forum:':
+                    pass
+                    # user['most active forum'] = ddtext  
+                elif key == 'most active topic:':
+                    pass
+                    # user['most active topic'] = ddtext
+                elif key == '':
+                    pass
+                else:
+                    self.logger.warning('New information found on use profile page : "%s"' % key)
 
-            else:
-                self.logger.warning('New information found on use profile page : "%s"' % key)
-
-        yield user
+            yield user
 
     def parse_message(self, response):
         #self.logger.info("Yielding messages from %s" % response.url)
