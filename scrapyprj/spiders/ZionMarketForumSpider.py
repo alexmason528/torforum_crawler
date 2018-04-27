@@ -20,8 +20,8 @@ class ZionMarketForumSpider(ForumSpider):
         super(self.__class__, self).__init__(*args, **kwargs)
 
         self.logintrial = 0
-        self.set_max_concurrent_request(2)      # Scrapy config
-        self.set_download_delay(15)             # Scrapy config
+        self.set_max_concurrent_request(3)      # Scrapy config
+        self.set_download_delay(10)             # Scrapy config
         self.set_max_queue_transfer_chunk(16)    # Custom Queue system
 
         self.parse_handlers = {
@@ -189,9 +189,10 @@ class ZionMarketForumSpider(ForumSpider):
                     threaditem['author_username'] = author.css('::text').extract_first().strip()
                 else:
                     byuser = cells[1].css('h4 div small::text').extract_first()
-                    matches = re.search(" ago by (.+)", byuser) # regex
-                    if matches:
-                        threaditem['author_username'] = matches.group(1).strip()
+                    if byuser:
+                        matches = re.search(" ago by (.+)", byuser) # regex
+                        if matches:
+                            threaditem['author_username'] = matches.group(1).strip()
 
                 # Cannot get last update time exactly, that's because the update time
                 # doesn't follow time format, it's something like "XX days ago".
@@ -212,34 +213,32 @@ class ZionMarketForumSpider(ForumSpider):
     def parse_thread(self, response):
         threadid = self.get_id_from_url(response.url)
 
-        try:
-            # Parse first post
-            post = response.css('.row .col-lg-8 > div')
+        # Parse first post
+        post = response.css('.row .col-lg-8 > div')
 
-            messageitem = items.Message()
-            post_info = ''.join(post.css('small.lightGrey *::text').extract())
+        messageitem = items.Message()
+        post_info = ''.join(post.css('small.lightGrey *::text').extract())
+        if post_info:
             matches = re.search(r'(\d+) (.+) ago by ([^ ]+)', post_info)
             if matches:
                 messageitem['posted_on'] = self.parse_timestr(matches.group(0))
                 messageitem['author_username'] = matches.group(3).strip()
-            else:
-                self.logger.warning("Cannot determine created date and author on URL %s." \
-                                    % (response.url))
 
-            messageitem['threadid'] = threadid
-            messageitem['postid'] = "msg" + threadid
+        messageitem['threadid'] = threadid
+        messageitem['postid'] = "msg" + threadid
 
-            msg = post.css('.alert.alert-info')
-            messageitem['contenttext'] = self.get_text(msg)
-            messageitem['contenthtml'] = self.get_text(msg.extract_first())
+        msg = post.css('.alert.alert-info')
+        messageitem['contenttext'] = self.get_text(msg)
+        messageitem['contenthtml'] = self.get_text(msg.extract_first())
 
-            yield messageitem
+        yield messageitem
 
-            vendor_link = post.css('a.vendorname::attr(href)').extract_first()
-            if vendor_link:
-                yield self.make_request('userprofile', url=vendor_link, shared=True)
-            else:
-                star_rating = post.css('small.lightGrey span.alert::text').extract_first()
+        vendor_link = post.css('a.vendorname::attr(href)').extract_first()
+        if vendor_link:
+            yield self.make_request('userprofile', url=vendor_link, shared=True)
+        else:
+            star_rating = post.css('small.lightGrey span.alert::text').extract_first()
+            if star_rating:
                 matches = re.search(r'(\w+): (\d+)', star_rating)
                 if matches:
                     membergroup = matches.group(1)
@@ -252,39 +251,38 @@ class ZionMarketForumSpider(ForumSpider):
 
                     yield user
 
-            # Parse comments
-            reply_index = 1
-            for comment in post.css('div.comment p'):
-                messageitem = items.Message()
+        # Parse comments
+        reply_index = 1
+        for comment in post.css('div.comment p'):
+            messageitem = items.Message()
 
-                messageitem['threadid'] = threadid
-                messageitem['postid'] = "reply_%s-%d" % (threadid, reply_index)
-                reply_index += 1
+            messageitem['threadid'] = threadid
+            messageitem['postid'] = "reply_%s-%d" % (threadid, reply_index)
+            reply_index += 1
 
-                post_info = comment.css('small::text').extract_first()
+            post_info = comment.css('small::text').extract_first()
+            if post_info:
                 matches = re.search(r'(\d+) point([s]*) (.+)', post_info)
                 if matches:
                     messageitem['posted_on'] = self.parse_timestr(matches.group(3))
-                else:
-                    self.logger.warning("Cannot determine created date and author on URL %s." \
-                                        % (response.url))
 
-                author_name = comment.css('a.vendorname::text').extract_first()
-                if not author_name:
-                    author_name = comment.css('*::text').extract_first()
-                messageitem['author_username'] = author_name.strip()
+            author_name = comment.css('a.vendorname::text').extract_first()
+            if not author_name:
+                author_name = comment.css('*::text').extract_first()
+            messageitem['author_username'] = author_name.strip()
 
-                messageitem['contenttext'] = ''.join(comment.css('p::text').extract()[1:])
-                messageitem['contenthtml'] = self.get_text(comment.css('p').extract_first())
+            messageitem['contenttext'] = ''.join(comment.css('p::text').extract()[1:])
+            messageitem['contenthtml'] = self.get_text(comment.css('p').extract_first())
 
-                yield messageitem
+            yield messageitem
 
-                commented_by_link = comment.css('a.vendorname::attr(href)').extract_first()
-                if commented_by_link:
-                    yield self.make_request('userprofile', url=commented_by_link, shared=True)
-                else:
-                    commented_by = comment.css('p *::text').extract()[0]
-                    star_rating = comment.css('p > span.alert::text').extract_first()
+            commented_by_link = comment.css('a.vendorname::attr(href)').extract_first()
+            if commented_by_link:
+                yield self.make_request('userprofile', url=commented_by_link, shared=True)
+            else:
+                commented_by = comment.css('p *::text').extract()[0]
+                star_rating = comment.css('p > span.alert::text').extract_first()
+                if star_rating:
                     matches = re.search(r'(\w+): (\d+)', star_rating)
                     if matches:
                         membergroup = matches.group(1)
@@ -297,9 +295,6 @@ class ZionMarketForumSpider(ForumSpider):
 
                         yield user
 
-        except Exception as ex:
-            self.logger.warning("Invalid thread page. %s" % ex)
-
     def parse_userprofile(self, response):
         try:
             user = items.User()
@@ -308,11 +303,12 @@ class ZionMarketForumSpider(ForumSpider):
             user['username'] = response.css('div.container div.row h3 a::text').extract_first()
 
             star_rating = response.css('div.container div.row h3 span.alert::text').extract_first()
-            matches = re.search(r'(\w+): (\d+)', star_rating)
-            if matches:
-                membergroup = matches.group(1)
-                user['membergroup'] = membergroup
-                user['rating_count'] = int(matches.group(2))
+            if star_rating:
+                matches = re.search(r'(\w+): (\d+)', star_rating)
+                if matches:
+                    membergroup = matches.group(1)
+                    user['membergroup'] = membergroup
+                    user['rating_count'] = int(matches.group(2))
 
             userinfo = response.css('div.container div.row span.right span.right')
             user['location'] = userinfo.css('b::text').extract_first()
@@ -335,8 +331,8 @@ class ZionMarketForumSpider(ForumSpider):
             #         elif rating_name == 'Negative':
             #             user['negative_feedback'] = rating_value
 
-            if membergroup == 'Vendor':
-                user['user_sales'] = len(response.css('div.container div.prodwide'))
+            #if membergroup == 'Vendor':
+            #    user['user_sales'] = len(response.css('div.container div.prodwide'))
 
             yield user
 
