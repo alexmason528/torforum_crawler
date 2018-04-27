@@ -14,8 +14,12 @@ insert ignore into `forum` (`name`, `spider`) values
     ('Berlusconi Market Forum', 'berlusconimarket_forum'),
     ('Italian Deep Web Forum', 'italiandeepweb_forum'),
     ('Berlusconi Market Forum', 'berlusconimarket_forum'),
+<<<<<<< HEAD
     ('French Dark Place Forum', 'frenchdarkplace_forum'),
     ('Mercado Negro Forum', 'mercadonegro_forum');
+=======
+    ('Zion Market Forum', 'zionmarket_forum');
+>>>>>>> Zion_Market_Forum_Spider
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
 	('joined_on', 'Joined on'),
@@ -59,4 +63,6 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
     ('trophy_points', 'Trophy points'),
     ('birthday', 'Birthday'),
     ('occupation', 'Occupation'),
-    ('aol', 'AOL Messenger');
+    ('aol', 'AOL Messenger'),
+    ('user_sales', 'Sales'),
+    ('user_buys', 'Buys');

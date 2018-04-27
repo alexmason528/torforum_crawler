@@ -43,12 +43,13 @@ class User(scrapy.Item):
 	website = scrapy.Field()
 
 	# Behavior.
-	post_count = scrapy.Field()
+	post_count = scrapy.Field() # This is the number of what we call threads.
 	last_post = scrapy.Field()
 	joined_on = scrapy.Field()
 	last_activity = scrapy.Field()
 	last_active = scrapy.Field() # Deprecated, do not use.
 	post_per_day = scrapy.Field()
+	message_count = scrapy.Field() # These are what we call messages. They are replies to threads.
 
 	# Communication options.
 	icq = scrapy.Field()
@@ -65,12 +66,12 @@ class User(scrapy.Item):
 	followers = scrapy.Field()
 	karma = scrapy.Field()
 	likes_received = scrapy.Field()
-	message_count = scrapy.Field()
 	rating_count = scrapy.Field()
 	reputation_power = scrapy.Field() # Use when it is calles reputation power.
 	rep_bars = scrapy.Field() # Use when it is called reputation bars or described as such.
 	reputation = scrapy.Field() # Use when reputation called reputation and a numeric score.
 	stars = scrapy.Field()
 	trophy_points = scrapy.Field()
-
+	user_sales = scrapy.Field() # Use when there is a number of transactions assigned for a seller.
+	user_buys  = scrapy.Field() # Use when there is a number of transactions assigned for a buyer.
 
