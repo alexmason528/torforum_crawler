@@ -45,7 +45,12 @@ settings = {
 			'mode=team',
 			'hash=',
 			'first_char=',
-			'view=print'
+			'view=print',
+			'mode=searchuser',
+			'view=unread',
+			'&sid=',
+			'&recent_topics',
+			'/\./\.\./'
 		}
 	}
 }
