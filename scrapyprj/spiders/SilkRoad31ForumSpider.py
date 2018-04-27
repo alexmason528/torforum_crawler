@@ -81,6 +81,7 @@ class SilkRoadSpider(ForumSpiderV3):
     def parse_response(self, response):
         parser = None
         # Handle login status.
+
         if self.islogged(response) is False:
             self.loggedin = False
             if self.is_login_page(response) is False:
@@ -138,8 +139,8 @@ class SilkRoadSpider(ForumSpiderV3):
     ########## PARSING FUNCTIONS ##########
     def parse_user(self, response):
         #self.logger.info("Yielding profile from %s" % response.url)
-        if "The requested topic does not exist." in response.body:
-            self.logger.warning('There is no information : "%s"' % response.url)
+        if response.xpath('.//div[@class="inner"]/p/text()').extract_first() and "The requested user does not exist." in response.xpath('.//div[@class="inner"]/p/text()').extract_first():
+            self.logger.warning('User profile not available. Likely deleted: "%s"' % response.url)
             return
         else:
             user = items.User()
@@ -180,34 +181,44 @@ class SilkRoadSpider(ForumSpiderV3):
 
     def parse_message(self, response):
         #self.logger.info("Yielding messages from %s" % response.url)
-        m = re.search("t=(\d+)", response.url)
-        if m:      
-            threadid = m.group(1).strip()
+        if response.xpath('.//div[@class="inner"]/p/text()').extract_first() and "The requested topic does not exist." in response.xpath('.//div[@class="inner"]/p/text()').extract_first():
+            self.logger.warning('Post not available. Likely deleted: "%s"' % response.url)
+            return
         else:
-            m = re.search("p=(\d+)", response.url)
+            m = re.search("t=(\d+)", response.url)
             if m:      
                 threadid = m.group(1).strip()
-        posts = response.xpath('//div[contains(@class, "post has-profile")]')
-        for post in posts:
-            try:
-                messageitem = items.Message()
-                posttime = post.xpath('.//span[@class="responsive-hide"]/following-sibling::text()').extract_first()
-                messageitem['author_username'] = post.xpath('.//a[contains(@class, "username")]/text()').extract_first()
-                messageitem['postid'] = post.xpath('@id').extract_first()
-                messageitem['threadid'] = threadid
-                if posttime:
-                    messageitem['posted_on'] = self.parse_timestr(posttime)
+            else:
+                # If the page has a p= and no t= in the URL, we need to fetch the threadid inside the post.
+                threadid = response.xpath('.//h2[@class="topic-title"]/a/@href').extract_first()
+                if threadid:
+                    threadid = re.search('t=(\d+)', threadid).group(1)
+                else:
+                    self.logger.warning("Couldn't identify the threadid at URL %s" % response.url)
+                #m = re.search("p=(\d+)", response.url)
+                #if m:      
+                #    threadid = m.group(1).strip()
+            posts = response.xpath('//div[contains(@class, "post has-profile")]')
+            for post in posts:
+                try:
+                    messageitem = items.Message()
+                    posttime = post.xpath('.//span[@class="responsive-hide"]/following-sibling::text()').extract_first()
+                    messageitem['author_username'] = post.xpath('.//a[contains(@class, "username")]/text()').extract_first()
+                    messageitem['postid'] = post.xpath('@id').extract_first()
+                    messageitem['threadid'] = threadid
+                    if posttime:
+                        messageitem['posted_on'] = self.parse_timestr(posttime)
 
-                msg = post.xpath('.//div[@class="content"]')
-                messageitem['contenttext'] = self.get_text(msg)
-                messageitem['contenthtml'] = self.get_text(msg.extract_first())
+                    msg = post.xpath('.//div[@class="content"]')
+                    messageitem['contenttext'] = self.get_text(msg)
+                    messageitem['contenthtml'] = self.get_text(msg.extract_first())
 
-                yield messageitem
-            except Exception as e:
-                self.logger.warning("Invalid thread page. %s" % e)
+                    yield messageitem
+                except Exception as e:
+                    self.logger.warning("Invalid thread page. %s" % e)
 
     def parse_threadlisting(self, response):
-        #self.logger.info("Yielding threads from %s" % response.url)
+        self.logger.info("Yielding threads from %s" % response.url)
 
         for line in response.xpath('//ul[@class="topiclist topics"]/li'):
             threaditem = items.Thread()
@@ -229,10 +240,8 @@ class SilkRoadSpider(ForumSpiderV3):
         if len(response.xpath('.//div/ul[@class="error-list"]')) > 0:
             return True
 
-    def islogged(self, response):
-        contenttext = response.xpath('//a[@class="header-avatar dropdown-trigger"]/span/text()').extract_first()
-        if contenttext == self.login['username']:
-            self.loggedin = True
+    def islogged(self, response):        
+        if "Logout" in response.xpath('.//ul[@class="dropdown-contents"]/li/a/span/text()').extract():
             return True
         return False
 
