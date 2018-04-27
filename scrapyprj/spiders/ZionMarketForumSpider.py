@@ -21,8 +21,10 @@ class ZionMarketForumSpider(ForumSpider):
 
         self.logintrial = 0
         self.set_max_concurrent_request(3)      # Scrapy config
-        self.set_download_delay(10)             # Scrapy config
-        self.set_max_queue_transfer_chunk(16)    # Custom Queue system
+        self.set_download_delay(15)             # Scrapy config
+        self.set_max_queue_transfer_chunk(1)    # Custom Queue system
+        self.user_agent = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
+
 
         self.parse_handlers = {
             'index'         : self.parse_index,
@@ -39,26 +41,28 @@ class ZionMarketForumSpider(ForumSpider):
             kwargs['url'] = self.make_url(kwargs['url'])
 
         if 'redirect_from' in kwargs:
-            req = Request(kwargs['url'])
+            req = Request(kwargs['url'], headers=self.user_agent)
             req.meta['redirect_from'] = kwargs['redirect_from']
             req.dont_filter = True
         elif reqtype == 'index':
-            req = Request(self.make_url('index'))
+            req = Request(self.make_url('index'), headers=self.user_agent)
             req.dont_filter = True
         elif reqtype == 'ddos_protection':
             req = self.create_request_from_ddos_protection(kwargs['response'])
             req.meta['ddos_protection'] = True
             req.dont_filter = True
         elif reqtype == 'captcha':
-            req = Request(kwargs['url'])
+            req = Request(kwargs['url'], headers=self.user_agent)
             req.dont_filter = True
         elif reqtype == 'dologin':
             req = self.create_request_from_login_page(kwargs['response'])
             req.dont_filter = True
         elif reqtype in ['threadlisting', 'thread', 'userprofile']:
-            req = Request(kwargs['url'])
+            req = Request(kwargs['url'], headers=self.user_agent)
             req.dont_filter = False
             req.meta['shared'] = True
+        if reqtype == 'threadlisting':
+            req.priority = 10
 
         req.meta['reqtype'] = reqtype # We tell the type so that we can redo it if login is required
         req.meta['proxy'] = self.proxy # meta[proxy] is handled by scrapy.
@@ -188,24 +192,28 @@ class ZionMarketForumSpider(ForumSpider):
                 if author:
                     threaditem['author_username'] = author.css('::text').extract_first().strip()
                 else:
-                    byuser = cells[1].css('h4 div small::text').extract_first()
+                    #byuser = cells[1].css('h4 div small::text').extract_first(
+                    byuser = cells[1].xpath('.//h4/div/small//text()').extract()
+                    byuser = ''.join(byuser)
                     if byuser:
                         matches = re.search(" ago by (.+)", byuser) # regex
                         if matches:
                             threaditem['author_username'] = matches.group(1).strip()
+                    if "Support" in byuser:
+                        self.logger.warning("Encountered a post by support.")
 
                 # Cannot get last update time exactly, that's because the update time
                 # doesn't follow time format, it's something like "XX days ago".
                 moment_time_value = cells[3].css('small::text').extract()[-1]
                 threaditem['last_update'] = self.parse_timestr(moment_time_value)
-                threaditem['replies'] = cells[2].css('::text')
+                threaditem['replies'] = cells[2].css('::text').extract_first()
 
                 yield threaditem
 
                 yield self.make_request('thread', url=thread_link, shared=True)
 
             except Exception as ex:
-                self.logger.warning("Error in retrieving theads. %s" % ex)
+                self.logger.warning("Error in retrieving theads. %s at URL %s" % (ex, response.url))
 
         for link in response.css("a.paginate[rel='next']::attr(href)").extract():
             yield self.make_request('threadlisting', url=link, shared=True)
@@ -385,7 +393,7 @@ class ZionMarketForumSpider(ForumSpider):
     def create_request_from_ddos_protection(self, response):
         captcha_src = response.css('body center img::attr(src)').extract()[1].strip()
 
-        req = FormRequest.from_response(response, formname='form')
+        req = FormRequest.from_response(response, formname='form', headers=self.user_agent)
         req.meta['captcha'] = {        # CaptchaMiddleware will take care of that.
             'request' : self.make_request('captcha', url=captcha_src),
             'name' : 'captcha',
@@ -400,7 +408,7 @@ class ZionMarketForumSpider(ForumSpider):
             'password' : self.login['password'],
         }
 
-        req = FormRequest.from_response(response, formdata=data, formcss='form[i="login"]')
+        req = FormRequest.from_response(response, formdata=data, formcss='form[i="login"]', headers=self.user_agent)
 
         return req
 
