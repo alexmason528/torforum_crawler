@@ -50,7 +50,8 @@ settings = {
 			'view=unread',
 			'&sid=',
 			'&recent_topics',
-			'/\./\.\./'
+			'/\./\.\./',
+			'file\.php'
 		}
 	}
 }
