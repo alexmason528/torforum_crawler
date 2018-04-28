@@ -88,17 +88,16 @@ class MajesticGardenForumSpider(ForumSpiderV3):
                 yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
         # Handle parsing.
         else:
+            self.loggedin = True
             # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
                 yield response.meta['req_once_logged']
-                self.loggedin = True
             # Parsing handlers.
             # A simple function designates whether a page should be parsed.
             else:
-                self.loggedin = True
                 if self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
                 elif self.is_message(response) is True:
