@@ -52,7 +52,8 @@ settings = {
             'topic=\d+\.msg\d+',
             ';sort=',
             ';prev_next=',
-            '\?r=88314$'
+            '\?r=88314$',
+            ';attach='
         }
     }
 }
