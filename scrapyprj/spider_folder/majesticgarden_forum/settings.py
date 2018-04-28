@@ -1,5 +1,5 @@
 settings = {
-    'timezone': 'GMT+1',
+    'timezone': 'GMT',
     'endpoint': 'http://nzlbyrcvvqtrkxiu.onion/',
     'prefix': '',
     'resources': {
@@ -47,10 +47,12 @@ settings = {
             'index\.php\?action=markasread',
             'index\.php\?action=logout',
             'index\.php\?action=helpadmin',
+            'index\.php\?action=verificationcode', 
             'javascript\:',
             'topic=\d+\.msg\d+',
             ';sort=',
             ';prev_next=',
+            '\?r=88314$'
         }
     }
 }
