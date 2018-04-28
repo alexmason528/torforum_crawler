@@ -164,7 +164,8 @@ class SilkRoadSpider(ForumSpiderV3):
                 elif key == 'rank:':
                     user['rank'] = ddtext  
                 elif key == 'groups:':
-                    user['membergroup'] = ddtext
+                    ddtext1 = '|'.join(dt.xpath('following-sibling::dd[1]/select/option/text()').extract())
+                    user['membergroup'] = ddtext1
                 elif key == 'most active forum:':
                     pass
                     # user['most active forum'] = ddtext  
