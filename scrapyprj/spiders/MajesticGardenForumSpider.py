@@ -46,8 +46,9 @@ class MajesticGardenForumSpider(ForumSpiderV3):
         if reqtype is 'dologin':
             req = self.craft_login_request_from_form(kwargs['response'])
             req.dont_filter = True
+            req.priority    = 10
         elif reqtype is 'loginpage':
-            req = Request(self.make_url('loginpage'), dont_filter=True, headers=self.user_agent)
+            req = Request(self.make_url('loginpage'), dont_filter=True, headers=self.user_agent, priority = 10)
         elif reqtype is 'regular':
             req = Request(kwargs['url'], headers=self.user_agent)
             # req.meta['shared'] = True # Ensures that requests are shared among spiders.
@@ -152,16 +153,16 @@ class MajesticGardenForumSpider(ForumSpiderV3):
                      elif key == "membergroup":
                          useritem['membergroup'] = keytext
                      elif key == 'karma':
-                         useritem['karma'] = keytext.replace('Karma: ')
+                         useritem['karma'] = keytext.replace('Karma: ', '')
                      elif key == 'title':
                          useritem['title'] = keytext
                      elif key == 'stars':
                         useritem['stars'] = keytext
                      elif key == 'postcount':
-                         useritem['post_count'] = keytext.replace('Posts: ')
+                         useritem['post_count'] = keytext.replace('Posts: ', '')
                      elif key == 'custom':
                          awards = li.xpath(".//text()").extract()
-                         useritem['awards'] = '|'.join(awards)
+                         useritem['awards'] = '|'.join(awards).replace('Awards: |', '')
                      elif key is None or key in ['blurb', 'avatar', 'profile', 'new_win', 'quote', 'quote_button']:
                          pass
                      else:
