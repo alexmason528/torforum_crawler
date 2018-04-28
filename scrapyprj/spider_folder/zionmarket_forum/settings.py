@@ -9,6 +9,12 @@
 # One bug and fix is that when yielding users without relative urls. Buyers do not have links, and can 
 # therefore not be yielded with propvals (stars, member group). To do so anyways, we generate non-working URLs 
 # for fullurl and relativeurl which are endpoint+username and username.
+#
+# Note that on first inspection, it might seem we are not collecting all posts, because in total the number of 
+# threads displayed on zion.onion/forum is higher than what we collect. Rasmus manually went to the last available
+# page in the largest subforum, and found that the number of viewable threads did not correspond to the number
+# on /forums. This suggests, that deleted threads are counted by Zion.
+
 
 settings = {
 	'timezone' : 'UTC',
