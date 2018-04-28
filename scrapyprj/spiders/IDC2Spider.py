@@ -20,7 +20,7 @@ from random import randint
 from dateutil.parser import parse
 import dateutil.relativedelta as relativedelta
 
-class DreamMarketForumSpiderV2(ForumSpiderV3):
+class IDC2Spider(ForumSpiderV3):
     name = "idc2_forum"  
     custom_settings = {
         'MAX_LOGIN_RETRY' : 10,
@@ -31,7 +31,7 @@ class DreamMarketForumSpiderV2(ForumSpiderV3):
     }
 
     def __init__(self, *args, **kwargs):
-        super(DreamMarketForumSpiderV2, self).__init__(*args, **kwargs)
+        super(IDC2Spider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
         self.set_download_delay(10)             # Scrapy config
@@ -41,6 +41,8 @@ class DreamMarketForumSpiderV2(ForumSpiderV3):
         self.alt_hostnames = []                 # Not in use.
         self.report_status = True               # Report 200's.
         self.loggedin = False                   # Login flag. 
+        self.user_agent = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
+
 
     def start_requests(self):
         yield self.make_request(url = 'index', dont_filter=True)
@@ -54,9 +56,9 @@ class DreamMarketForumSpiderV2(ForumSpiderV3):
             req = self.craft_login_request_from_form(kwargs['response']) 
             req.dont_filter = True
         elif reqtype is 'loginpage':
-            req = Request(self.make_url('loginpage'), dont_filter=True)
+            req = Request(self.make_url('loginpage'), dont_filter=True, headers=self.user_agent)
         elif reqtype is 'regular':
-            req = Request(kwargs['url'])
+            req = Request(kwargs['url'], headers=self.user_agent)
             req.meta['shared'] = True # Ensures that requests are shared among spiders.
         # Some meta-keys that are shipped with the request.
         if 'relativeurl' in kwargs:
@@ -94,13 +96,13 @@ class DreamMarketForumSpiderV2(ForumSpiderV3):
                 yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
         # Handle parsing.
         else:
+            self.loggedin = True
             # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
                 yield response.meta['req_once_logged']
-                self.loggedin = True
 
             if self.is_threadlisting(response) is True:
                 parser = self.parse_threadlisting
@@ -224,7 +226,7 @@ class DreamMarketForumSpiderV2(ForumSpiderV3):
                 'username' : self.login['username'],
                 'password' : self.login['password']
             }            
-        req = FormRequest.from_response(response, formdata=data)
+        req = FormRequest.from_response(response, formdata=data, headers=self.user_agent)
         req.dont_filter = True
 
         return req
