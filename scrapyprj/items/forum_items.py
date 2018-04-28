@@ -1,6 +1,6 @@
 import scrapy
 class Thread(scrapy.Item) :
-	threadid =  scrapy.Field() # This is the website ID that references the THREAD in which you find the MESSAGE.
+	threadid =  scrapy.Field() # Unique value. This is the website ID that references the THREAD in which you find the MESSAGE.
 	title =  scrapy.Field()
 	author_username =  scrapy.Field()
 	last_update =  scrapy.Field()
@@ -10,8 +10,8 @@ class Thread(scrapy.Item) :
 	views = scrapy.Field()
 
 class Message(scrapy.Item):
-	postid = scrapy.Field() # This is the website ID that references the POST found in the THREAD. You typically find this in HTML.
-	threadid = scrapy.Field() # This is the website ID that references the THREAD in which you find the MESSAGE. 
+	postid = scrapy.Field() # Unique value. This is the website ID that references the POST found in the THREAD. You typically find this in HTML.
+	threadid = scrapy.Field() # Unique value. This is the website ID that references the THREAD in which you find the MESSAGE. 
 	author_username = scrapy.Field()
 	posted_on = scrapy.Field()
 	contenttext = scrapy.Field()
