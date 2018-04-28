@@ -27,7 +27,7 @@ class MajesticGardenForumSpider(ForumSpiderV3):
 
         self.set_max_concurrent_request(1)      # Scrapy config
         self.set_download_delay(10)             # Scrapy config
-        self.set_max_queue_transfer_chunk(1)    # Custom Queue system
+        self.set_max_queue_transfer_chunk(100)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
@@ -94,20 +94,14 @@ class MajesticGardenForumSpider(ForumSpiderV3):
                     self.logger.warning("We are trying to yield a None. This should not happen.")
                 yield response.meta['req_once_logged']
                 self.loggedin = True
-            # Notify on succesful login and set parsing flag.
-            # if 'req_once_logged' in response.meta and self.loggedin is False:
-            #   self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
-            #   yield response.meta['req_once_logged']
-            #   self.loggedin = True
             # Parsing handlers.
             # A simple function designates whether a page should be parsed.
             else:
+                self.loggedin = True
                 if self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
                 elif self.is_message(response) is True:
                     parser = self.parse_message
-                elif self.is_user(response) is True:
-                    parser = self.parse_user
                 # Yield the appropriate parsing function.
                 if parser is not None:
                     for x in parser(response):
@@ -115,14 +109,9 @@ class MajesticGardenForumSpider(ForumSpiderV3):
                 else:
                     if response.url != self.make_url('index'):
                         self.logger.warning("Unknown page type at %s" % response.url)
-
     # ######### PARSING FLAGS ##############
     def is_message(self, response):
         if "index.php?topic=" in response.url:
-            return True
-
-    def is_user(self, response):
-        if 'index.php?action=profile;u=' in response.url:
             return True
 
     def is_threadlisting(self, response):
@@ -130,133 +119,57 @@ class MajesticGardenForumSpider(ForumSpiderV3):
             return True
 
     # ######### PARSING FUNCTIONS ##########
-    def parse_user(self, response):
-        # self.logger.info("Yielding profile from %s" % response.url)
-        user = items.User()
-        user['relativeurl'] = urlparse(response.url).path
-        user['fullurl'] = response.url
-
-        dts = response.css("#viewprofile dl dt")
-
-        for dt in dts:
-            key = self.get_text(dt).lower()
-            ddtext = self.get_text(dt.xpath('following-sibling::dd[1]'))
-
-            if key == 'username':
-                user['username'] = ddtext
-            elif key == 'title':
-                user['title'] = ddtext
-            elif key == 'registered':
-                user['joined_on'] = self.parse_timestr(ddtext)
-            elif key == 'last post':
-                user['last_post'] = self.parse_timestr(ddtext)
-            elif key == 'posts':
-                m = re.match(r"^(\d+).+", ddtext)
-                if m:
-                    user['post_count'] = m.group(1)
-            elif key == 'signature':
-                user['signature'] = ddtext
-            elif key == 'location':
-                user['location'] = ddtext
-            elif key == 'jabber':
-                user['jabber'] = ddtext
-            elif key == 'icq':
-                user['icq'] = ddtext
-            elif key == 'real name':
-                user['realname'] = ddtext
-            elif key == 'microsoft account':
-                user['microsoft_account'] = ddtext
-            elif key == 'yahoo! messenger':
-                user['yahoo_messenger'] = ddtext
-            elif key == 'website':
-                user['website'] = ddtext
-            elif key == 'email':
-                user['email'] = ddtext
-            elif key in ['avatar', 'pm']:
-                pass
-            else:
-                self.logger.warning('New information found on use profile page : "%s"' % key)
-
-            yield user
-
     def parse_message(self, response):
-        print (response.request.headers.get('Referer', None), response.url)
         #self.logger.info("Yielding messages from %s" % response.url)
         threadid = self.get_url_param(response.url, 'topic').split(".")[0]
         posts = response.css("#forumposts div.windowbg") + response.css("#forumposts div.windowbg2")
+
         for post in posts:
-            try:
-                messageitem = items.Message()
-                posttime = self.parse_timestr(re.search("«.*on:(.*?)»", self.get_text(post.css("div.keyinfo div.smalltext")), re.S | re.M).group(1).strip())
+            messageitem = items.Message()
+            posttime = self.parse_timestr(re.search("«.*on:(.*?)»", self.get_text(post.css("div.keyinfo div.smalltext")), re.S | re.M).group(1).strip())
 
-                messageitem['author_username'] = self.get_text(post.css(".poster h4"))
-                messageitem['postid'] = post.css("div.post div.inner::attr(id)").extract_first().replace("msg_", "")
-                messageitem['threadid'] = threadid
-                # messageitem['subforum'] = self.get_text(response.css('ul.crumbs:nth-child(2) > li:nth-child(2) > a:nth-child(2)'))
-                # self.logger.info("subforum is %s" % messageitem['subforum'])
-                messageitem['posted_on'] = posttime
+            messageitem['author_username'] = self.get_text(post.css(".poster h4"))
+            messageitem['postid'] = post.css("div.post div.inner::attr(id)").extract_first().replace("msg_", "")
+            messageitem['threadid'] = threadid
+            messageitem['posted_on'] = posttime
 
-                msg = post.css("div.post")
-                messageitem['contenttext'] = self.get_text(msg)
-                messageitem['contenthtml'] = self.get_text(msg.extract_first())
-                yield messageitem
+            msg = post.css("div.post")
+            messageitem['contenttext'] = self.get_text(msg)
+            messageitem['contenthtml'] = self.get_text(msg.extract_first())
+            yield messageitem
+        useritem = items.User()
+        for post in posts:
+            username = post.xpath(".//h4/a/text()").extract_first()
+            if username is not None: # Verified posters.
+                useritem['username'] = username.strip()
+                useritem["relativeurl"] = post.css(".poster h4 a::attr(href)").extract_first()
+                useritem["fullurl"] = self.make_url(post.css(".poster h4 a::attr(href)").extract_first())
+                for li in post.xpath(".//ul/li"):
+                     key = li.xpath(".//@class").extract_first()
+                     keytext = li.xpath(".//text()").extract_first()
+                     if key == "postgroup":
+                         useritem['postgroup'] = keytext
+                     elif key == "membergroup":
+                         useritem['membergroup'] = keytext
+                     elif key == 'karma':
+                         useritem['karma'] = keytext.replace('Karma: ')
+                     elif key == 'title':
+                         useritem['title'] = keytext
+                     elif key == 'stars':
+                        useritem['stars'] = keytext
+                     elif key == 'postcount':
+                         useritem['post_count'] = keytext.replace('Posts: ')
+                     elif key == 'custom':
+                         awards = li.xpath(".//text()").extract()
+                         useritem['awards'] = '|'.join(awards)
+                     elif key is None or key in ['blurb', 'avatar', 'profile', 'new_win', 'quote', 'quote_button']:
+                         pass
+                     else:
+                         self.logger.warning("Unknown key in user profile '%s' with value '%s'" % (key, keytext))
+                yield useritem  
 
-                useritem = items.User()
-                useritem["username"] = self.get_text(post.css(".poster h4"))
-                try:
-                    useritem["relativeurl"] = post.css(".poster h4 a::attr(href)").extract_first()
-                except Exception as e:
-                    print(str(e))
-                    useritem["relativeurl"] = ""
-                try:
-                    useritem["fullurl"] = self.make_url(post.css(".poster h4 a::attr(href)").extract_first())
-                except Exception as e:
-                    print(str(e))
-                    useritem["fullurl"] = ""
-                try:
-                    useritem["username_id"] = re.search(r"u=(\d+)", useritem["relativeurl"], re.S | re.M).group(1)
-                except Exception as e:
-                    print(str(e))
-                    useritem["username_id"] = ""
-                try:
-                    useritem["membergroup"] = self.get_text(post.css(".poster ul li.membergroup"))
-                except Exception as e:
-                    print(str(e))
-                    useritem["membergroup"] = ""
-                try:
-                    useritem["postgroup"] = self.get_text(post.css(".poster ul li.postgroup"))
-                except Exception as e:
-                    print(str(e))
-                    useritem["postgroup"] = ""
-                try:
-                    useritem["avatar"] = post.css(".poster ul li.avatar a img::attr(src)").extract_first()
-                except Exception as e:
-                    print(str(e))
-                    useritem["avatar"] = ""
-                try:
-                    useritem["post_count"] = self.get_text(post.css(".poster ul li.postcount")).replace("Posts: ", "")
-                except Exception as e:
-                    print(str(e))
-                    useritem["post_count"] = 0
-                try:
-                    useritem["karma"] = self.get_text(post.css(".poster ul li.karma")).replace("Karma: ", "")
-                except Exception as e:
-                    print(str(e))
-                    useritem["karma"] = ""
-                try:
-                    useritem["stars"] = len(post.css(".poster ul li.stars img"))
-                except Exception as e:
-                    print(str(e))
-                    useritem["stars"] = ""
-
-                # print (useritem)
-                yield useritem
-
-            except Exception as e:
-                self.logger.warning("Invalid thread page. %s" % e)
 
     def parse_threadlisting(self, response):
-        print(response.request.headers.get('Referer', None), response.url)
         # self.logger.info("Yielding threads from %s" % response.url)
         for line in response.css("#messageindex table tbody tr"):
             threaditem = items.Thread()
@@ -276,16 +189,8 @@ class MajesticGardenForumSpider(ForumSpiderV3):
                     threaditem['author_username'] = byuser
                 threaditem['last_update'] = last_post_time
                 reply_review = self.get_text(line.css("td:nth-child(4)"))
-                try:
-                    threaditem['replies'] = re.search(r"(\d+) Replies", reply_review, re.S | re.M).group(1)
-                except Exception as e:
-                    print(str(e))
-                    threaditem['replies'] = 0
-                try:
-                    threaditem['views'] = re.search(r"(\d+) Views", reply_review, re.S | re.M).group(1)
-                except Exception as e:
-                    print(str(e))
-                    threaditem['views'] = 0
+                threaditem['replies'] = re.search(r"(\d+) Replies", reply_review, re.S | re.M).group(1)
+                threaditem['views'] = re.search(r"(\d+) Views", reply_review, re.S | re.M).group(1)
             yield threaditem
 
     # ########### LOGIN HANDLING ################
@@ -330,7 +235,7 @@ class MajesticGardenForumSpider(ForumSpiderV3):
             timestr = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
             last_post_time = self.to_utc(dateutil.parser.parse(timestr))
         except Exception as e:
-            print(str(e))
+            self.logger.warning("Error: %s at %s" % (str(e), response.url))  
             if timestr:
                 self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
         return last_post_time
