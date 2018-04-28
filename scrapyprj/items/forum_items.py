@@ -74,4 +74,4 @@ class User(scrapy.Item):
 	trophy_points = scrapy.Field()
 	user_sales = scrapy.Field() # Use when there is a number of transactions assigned for a seller.
 	user_buys  = scrapy.Field() # Use when there is a number of transactions assigned for a buyer.
-
+	awards = scrapy.Field()
