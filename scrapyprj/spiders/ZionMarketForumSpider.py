@@ -5,6 +5,9 @@ from urlparse import urlparse
 from scrapy.http import FormRequest, Request
 from scrapyprj.spiders.ForumSpider import ForumSpider
 import scrapyprj.items.forum_items as items
+from scrapy.shell import inspect_response
+import time
+
 
 class ZionMarketForumSpider(ForumSpider):
     name = "zionmarket_forum"
@@ -29,8 +32,7 @@ class ZionMarketForumSpider(ForumSpider):
         self.parse_handlers = {
             'index'         : self.parse_index,
             'threadlisting' : self.parse_thread_listing,
-            'thread'        : self.parse_thread,
-            'userprofile'   : self.parse_userprofile
+            'thread'        : self.parse_thread
         }
 
     def start_requests(self):
@@ -57,7 +59,7 @@ class ZionMarketForumSpider(ForumSpider):
         elif reqtype == 'dologin':
             req = self.create_request_from_login_page(kwargs['response'])
             req.dont_filter = True
-        elif reqtype in ['threadlisting', 'thread', 'userprofile']:
+        elif reqtype in ['threadlisting', 'thread']:
             req = Request(kwargs['url'], headers=self.user_agent)
             req.dont_filter = False
             req.meta['shared'] = True
@@ -192,16 +194,12 @@ class ZionMarketForumSpider(ForumSpider):
                 if author:
                     threaditem['author_username'] = author.css('::text').extract_first().strip()
                 else:
-                    #byuser = cells[1].css('h4 div small::text').extract_first(
                     byuser = cells[1].xpath('.//h4/div/small//text()').extract()
                     byuser = ''.join(byuser)
                     if byuser:
                         matches = re.search(" ago by (.+)", byuser) # regex
                         if matches:
                             threaditem['author_username'] = matches.group(1).strip()
-                    if "Support" in byuser:
-                        self.logger.warning("Encountered a post by support.")
-
                 # Cannot get last update time exactly, that's because the update time
                 # doesn't follow time format, it's something like "XX days ago".
                 moment_time_value = cells[3].css('small::text').extract()[-1]
@@ -220,132 +218,127 @@ class ZionMarketForumSpider(ForumSpider):
 
     def parse_thread(self, response):
         threadid = self.get_id_from_url(response.url)
-
-        # Parse first post
-        post = response.css('.row .col-lg-8 > div')
-
+        # We first parse the first post. 
         messageitem = items.Message()
-        post_info = ''.join(post.css('small.lightGrey *::text').extract())
-        if post_info:
-            matches = re.search(r'(\d+) (.+) ago by ([^ ]+)', post_info)
-            if matches:
-                messageitem['posted_on'] = self.parse_timestr(matches.group(0))
-                messageitem['author_username'] = matches.group(3).strip()
-
+        #messageitem['postid'] = "msg" + threadid Cannot be yielded since there is none.
         messageitem['threadid'] = threadid
-        messageitem['postid'] = "msg" + threadid
-
-        msg = post.css('.alert.alert-info')
+        messageitem['postid'] = "msg" + threadid # Note this!
+        msg = response.xpath('.//div[@class="col-xs-10 alert alert-info whitebg"]')
         messageitem['contenttext'] = self.get_text(msg)
-        messageitem['contenthtml'] = self.get_text(msg.extract_first())
+        messageitem['contenthtml'] = self.get_text(msg.extract_first())        
 
+        # there are 3 user classes. Buyer, vendor and support.
+        vendor  = response.xpath(".//div[@class='col-xs-12']/small/a/text()").extract_first() is not None
+        support = response.xpath(".//div[@class='col-xs-12']/small/b/text()").extract_first() == 'Support'
+        buyer   = vendor is False and support is False
+        # Buyer username.
+        if buyer is True:
+            author_username = response.xpath(".//div[@class='col-xs-12']/small/text()").extract_first()
+            author_username = re.search('by (.*)$', author_username).group(1)
+            messageitem['author_username'] = author_username
+            membergroup = "Buyer"
+        # Support staff.
+        elif support is True:
+            author_username = response.xpath(".//div[@class='col-xs-12']/small/b/text()").extract_first().strip()
+            messageitem['author_username'] = author_username
+            membergroup = "Support"
+        # vendor username.
+        elif vendor is True: 
+            author_username = response.xpath(".//div[@class='col-xs-12']/small/a/text()").extract_first()
+            messageitem['author_username'] = author_username
+            membergroup = "Vendor"
+        else: 
+            self.logger.warning('Unknown member group at %s' % response.url)
+        # Get info about the post.
+        postinfo = self.get_text(response.xpath(".//div[@class='col-xs-12']/small"))
+        if postinfo:
+            matches = re.search(r'(\d+) (.+) ago by ([^ ]+)', postinfo)
+            messageitem['posted_on'] = self.parse_timestr(matches.group(0))
+        else:
+            self.logger.warning("No postinfo yielded at %s" % response.url)
         yield messageitem
 
-        # vendor_link = post.css('a.vendorname::attr(href)').extract_first()
-        # if vendor_link:
-        #     yield self.make_request('userprofile', url=vendor_link, shared=True)
-        # else:
-        #     star_rating = post.css('small.lightGrey span.alert::text').extract_first()
-        #     if star_rating:
-        #         matches = re.search(r'(\w+): (\d+)', star_rating)
-        #         if matches:
-        #             membergroup = matches.group(1)
-        #             rating_count = int(matches.group(2))
 
-        #             user = items.User()
-        #             user['username'] = messageitem['author_username']
-        #             user['membergroup'] = membergroup
-        #             user['rating_count'] = rating_count
+        # Then we yield the first user.
+        # To treat the DB nice and avoid race conditions, sleep for a second.
+        time.sleep(0.5)
+        user = items.User()
+        user['username'] = author_username
+        user['membergroup'] = membergroup
+        if membergroup in ["Buyer", "Support"]:
+            user['relativeurl'] = user['username']
+            user['fullurl'] = self.spider_settings['endpoint'] + user['username']
+        elif membergroup == "Vendor":
+            user['relativeurl'] = response.xpath(".//div[@class='col-xs-12']/small/a/@href").extract_first()
+            user['fullurl'] = self.spider_settings['endpoint'] + user['relativeurl']
+        else:
+            self.logger.warning('Unknown member group at %s' % response.url)
 
-        #             yield user
+        poster_block = response.xpath(".//div[@class='col-xs-12']")
+        if membergroup in ['Buyer', 'Vendor']:
+            stars = poster_block.xpath('.//span[@class="nowrap btn-xs alert brightBlueBG"]/text()').extract_first()
+            if stars:
+                stars = re.search('[Vendor|Buyer]: ([0-9]{1,1000})', stars).group(1)
+                user['stars'] = stars
+            else:
+                self.logger.warning('No stars at URL %s' % response.url)
+        yield user
 
-        # Parse comments
+        # We now parse the comments and yield them to the DB.
+        # To treat the DB nice and avoid race conditions, sleep for a second.
+        time.sleep(0.5)
+        post = response.css('.row .col-lg-8 > div')
+        # # Parse the remaining comments.
         reply_index = 1
         for comment in post.css('div.comment p'):
             messageitem = items.Message()
-
             messageitem['threadid'] = threadid
             messageitem['postid'] = "reply_%s-%d" % (threadid, reply_index)
             reply_index += 1
-
             post_info = comment.css('small::text').extract_first()
             if post_info:
                 matches = re.search(r'(\d+) point([s]*) (.+)', post_info)
                 if matches:
                     messageitem['posted_on'] = self.parse_timestr(matches.group(3))
-
             author_name = comment.css('a.vendorname::text').extract_first()
             if not author_name:
                 author_name = comment.css('*::text').extract_first()
             messageitem['author_username'] = author_name.strip()
-
             messageitem['contenttext'] = ''.join(comment.css('p::text').extract()[1:])
             messageitem['contenthtml'] = self.get_text(comment.css('p').extract_first())
-
             yield messageitem
-
-            # commented_by_link = comment.css('a.vendorname::attr(href)').extract_first()
-            # if commented_by_link:
-            #     yield self.make_request('userprofile', url=commented_by_link, shared=True)
-            # else:
-            #     commented_by = comment.css('p *::text').extract()[0]
-            #     star_rating = comment.css('p > span.alert::text').extract_first()
-            #     if star_rating:
-            #         matches = re.search(r'(\w+): (\d+)', star_rating)
-            #         if matches:
-            #             membergroup = matches.group(1)
-            #             rating_count = int(matches.group(2))
-
-            #             user = items.User()
-            #             user['username'] = commented_by
-            #             user['membergroup'] = membergroup
-            #             user['rating_count'] = rating_count
-
-            #             yield user
-
-    def parse_userprofile(self, response):
-        try:
-            user = items.User()
-            user['relativeurl'] = urlparse(response.url).path
-            user['fullurl'] = response.url
-            user['username'] = response.css('div.container div.row h3 a::text').extract_first()
-
-            star_rating = response.css('div.container div.row h3 span.alert::text').extract_first()
-            if star_rating:
-                matches = re.search(r'(\w+): (\d+)', star_rating)
-                if matches:
-                    membergroup = matches.group(1)
-                    user['membergroup'] = membergroup
-                    user['rating_count'] = int(matches.group(2))
-
-            userinfo = response.css('div.container div.row span.right span.right')
-            user['location'] = userinfo.css('b::text').extract_first()
-            member_since = userinfo.css('small::text').extract_first()
-            user['joined_on'] = parser.parse(member_since[13:]) # Skip 'Member since '
-            user['last_activity'] = userinfo.css('span.greenText::text').extract_first()
-
-            user['pgp_key'] = response.css('div#content4 textarea::text').extract_first()
-
-            # ratings = response.css('div.container div.alert.alert-warning')
-            # if ratings:
-            #     for rating in ratings.css('table tbody tr td span.blackT'):
-            #         rating_name = rating.css('small::text')
-            #         rating_value = rating.css('b::text')
-
-            #         if rating_name == 'Positive':
-            #             user['positive_feedback'] = rating_value
-            #         elif rating_name == 'Neutral':
-            #             user['neutral_feedback'] = rating_value
-            #         elif rating_name == 'Negative':
-            #             user['negative_feedback'] = rating_value
-
-            #if membergroup == 'Vendor':
-            #    user['user_sales'] = len(response.css('div.container div.prodwide'))
-
-            yield user
-
-        except Exception as ex:
-            self.logger.warning("Error in retrieving user. %s" % ex)
+        # Sleep again to avoid race condition.
+        time.sleep(0.5)
+        for comment in post.css('div.comment p'):
+            useritem = items.User()
+            vendor  = comment.xpath('.//a[@class="vendorname"]/text()').extract_first() is not None
+            buyer   = comment.xpath('.//span[@class="left lightGrey"]').extract_first() is not None and self.get_text(comment).startswith('Support') is False
+            support = comment.xpath('.//span/b') is not None and self.get_text(comment).startswith('Support') is True
+            if vendor is True:
+                useritem['username'] = comment.xpath('.//a[@class="vendorname"]/text()').extract_first()
+                useritem['relativeurl'] = comment.xpath('.//a[@class="vendorname"]/@href').extract_first()
+                useritem['fullurl'] = self.spider_settings['endpoint'] + useritem['relativeurl']
+                membergroup = "Vendor"
+                useritem['stars'] = comment.xpath('.//span[@class="nowrap btn-xs alert brightBlueBG"]/text()').extract_first().replace('Vendor: ', '')
+            elif support is True:
+                username = self.get_text(comment)
+                username = re.search('^(Support)[0-9]{1,100} ', username).group(1)
+                useritem['username'] = username
+                useritem['relativeurl'] = useritem['username']
+                useritem['fullurl'] = self.spider_settings['endpoint'] + useritem['username']
+                membergroup = "Support"
+            elif buyer is True:
+                username = self.get_text(comment)
+                username = re.search('^(.*?) Buyer', username).group(1)
+                useritem['username'] = username
+                useritem['relativeurl'] = useritem['username']
+                useritem['fullurl'] = self.spider_settings['endpoint'] + useritem['username']
+                membergroup = "Buyer"
+                useritem['stars'] = comment.xpath('.//span[@class="nowrap btn-xs alert brightBlueBG"]/text()').extract_first().replace('Buyer: ', '')
+            else:
+                self.logger.warning("Unknown commenter group at %s" % response.url)
+            useritem['membergroup'] = membergroup
+            yield useritem
 
     def parse_timestr(self, timestr):
         parsed_time = None
