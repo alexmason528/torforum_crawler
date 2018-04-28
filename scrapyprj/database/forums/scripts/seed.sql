@@ -68,4 +68,5 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
     ('aol', 'AOL Messenger'),
     ('user_sales', 'Sales'),
     ('user_buys', 'Buys'),
-    ('awards', 'Awards');
+    ('awards', 'Awards'),
+    ('rank', 'Rank');

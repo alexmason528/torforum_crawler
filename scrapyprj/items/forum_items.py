@@ -38,6 +38,7 @@ class User(scrapy.Item):
 	personal_text = scrapy.Field()
 	postgroup = scrapy.Field()
 	realname = scrapy.Field()
+	rank = scrapy.Field() # Use when there is a specific field referencing this value.
 	signature = scrapy.Field()
 	title = scrapy.Field()	
 	website = scrapy.Field()
