@@ -6,13 +6,9 @@
 # Rasmus is unsure whether stars actually indicate number of transactions, but this may be so. Many users have
 # 0 and it seems congruent with vendor sales.
 #
-# Two bugs are handled in-script. One is a race condition which occurs when Messages and Users are yielded in
-# rapid succession. Due to caching, one might reach the DB before the other which returns an error. To avoid 
-# this, we sleep for 0.5 seconds between each yield. If you encounter the error where an ID is read from the 
-# cache but not DB, try to increase this sleep time.
-# Another bug is yielding users without relative urls. Buyers do not have links, and can therefore not be
-# yielded with propvals (stars, member group). To do so anyways, we generate non-working URLs for fullurl 
-# and relativeurl which are endpoint+username and username.
+# One bug and fix is that when yielding users without relative urls. Buyers do not have links, and can 
+# therefore not be yielded with propvals (stars, member group). To do so anyways, we generate non-working URLs 
+# for fullurl and relativeurl which are endpoint+username and username.
 
 settings = {
 	'timezone' : 'UTC',

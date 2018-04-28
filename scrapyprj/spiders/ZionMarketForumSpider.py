@@ -222,7 +222,7 @@ class ZionMarketForumSpider(ForumSpider):
         messageitem = items.Message()
         #messageitem['postid'] = "msg" + threadid Cannot be yielded since there is none.
         messageitem['threadid'] = threadid
-        messageitem['postid'] = "msg" + threadid # Note this!
+        messageitem['postid'] = "thread" + threadid # Note this!
         msg = response.xpath('.//div[@class="col-xs-10 alert alert-info whitebg"]')
         messageitem['contenttext'] = self.get_text(msg)
         messageitem['contenthtml'] = self.get_text(msg.extract_first())        
@@ -233,7 +233,7 @@ class ZionMarketForumSpider(ForumSpider):
         buyer   = vendor is False and support is False
         # Buyer username.
         if buyer is True:
-            author_username = response.xpath(".//div[@class='col-xs-12']/small/text()").extract_first()
+            author_username = response.xpath(".//div[@class='col-xs-12']/small/text()").extract_first().strip()
             author_username = re.search('by (.*)$', author_username).group(1)
             messageitem['author_username'] = author_username
             membergroup = "Buyer"
@@ -261,7 +261,7 @@ class ZionMarketForumSpider(ForumSpider):
 
         # Then we yield the first user.
         # To treat the DB nice and avoid race conditions, sleep for a second.
-        time.sleep(0.5)
+        #time.sleep(0.5)
         user = items.User()
         user['username'] = author_username
         user['membergroup'] = membergroup
@@ -286,15 +286,18 @@ class ZionMarketForumSpider(ForumSpider):
 
         # We now parse the comments and yield them to the DB.
         # To treat the DB nice and avoid race conditions, sleep for a second.
-        time.sleep(0.5)
+        #time.sleep(0.5)
         post = response.css('.row .col-lg-8 > div')
-        # # Parse the remaining comments.
-        reply_index = 1
+        # Parse the remaining comments.
+        # Post IDs are not caught by the comment selector. We loop them using an index.
+        reply_index = 0
+        msg_ids = post.xpath(".//span[@class='forumMsgOffset']")
         for comment in post.css('div.comment p'):
             messageitem = items.Message()
-            messageitem['threadid'] = threadid
-            messageitem['postid'] = "reply_%s-%d" % (threadid, reply_index)
+            messageitem['threadid'] = threadid   
+            messageitem['postid']   = msg_ids[reply_index].xpath("@id").extract_first()
             reply_index += 1
+
             post_info = comment.css('small::text').extract_first()
             if post_info:
                 matches = re.search(r'(\d+) point([s]*) (.+)', post_info)
@@ -308,7 +311,7 @@ class ZionMarketForumSpider(ForumSpider):
             messageitem['contenthtml'] = self.get_text(comment.css('p').extract_first())
             yield messageitem
         # Sleep again to avoid race condition.
-        time.sleep(0.5)
+        #time.sleep(0.5)
         for comment in post.css('div.comment p'):
             useritem = items.User()
             vendor  = comment.xpath('.//a[@class="vendorname"]/text()').extract_first() is not None
