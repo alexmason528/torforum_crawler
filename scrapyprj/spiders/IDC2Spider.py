@@ -162,7 +162,7 @@ class IDC2Spider(ForumSpiderV3):
 
             # Yield user.
             useritem = items.User()
-            if guest_user is False:
+            if guest_user is False or special_user is True:
                 useritem['username']        = messageitem['author_username']
                 useritem['fullurl']         = post.xpath('.//div[@class="author_information"]//span[@class="largetext"]/a/@href').extract_first()
                 useritem['relativeurl']     = useritem['fullurl'].split('.onion')[1]
@@ -171,8 +171,7 @@ class IDC2Spider(ForumSpiderV3):
                 useritem['message_count']   = int(re.sub('[^0-9]', '', message_count))
                 post_count                  = post.xpath('.//div[@class="author_statistics"]/text()[3]').extract_first()
                 useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
-                joined_on                   = post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first()
-                useritem['joined_on']       = parse(re.search('([a-zA-Z]{3} [0-9]{4})', joined_on).group(1))
+                useritem['joined_on']       = post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first().replace("Registrato: ")
                 useritem['reputation']      = post.xpath('.//strong[contains(@class, "reputation")]/text()').extract_first()
                 useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
                 useritem['username_id']     = re.search('([0-9]+)', useritem['relativeurl']).group(1)
@@ -180,7 +179,7 @@ class IDC2Spider(ForumSpiderV3):
             else:
                 # Unregistered users have no message count, join date, post count, reputation, id..
                 useritem['username']        = messageitem['author_username']
-                useritem['fullurl']         = self.spider_settings['endpoint'] + useritem['username']
+                useritem['fullurl']         = self.spider_settings['endpoint'] + "/" + useritem['username']
                 useritem['relativeurl']     = useritem['username']
                 useritem['title']           = post.xpath('.//div[@class="author_information"]//span[@class="smalltext"]/text()[1]').extract_first().strip()
 
