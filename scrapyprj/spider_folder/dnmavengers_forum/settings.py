@@ -65,7 +65,15 @@ settings = {
 			'/index\.php\?topic=\d+\.\d+\;prev_next=prev',
 			'/index\.php\?action=login',
 			'/mailto',
-			'action=printpage'
+			'action=printpage',
+			'action=profile;area=index;sa=settings',
+			'togglebar$',
+			'action=profile;area=account;u=31284',
+			'action=profile;area=forumprofile',
+			'action=profile;area=theme',
+			'action=profile;area=notification',
+			'action=profile;area=pmprefs',
+			'action=profile;area=lists'
 		}
 	}
 }
