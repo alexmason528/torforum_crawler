@@ -171,7 +171,7 @@ class IDC2Spider(ForumSpiderV3):
                 useritem['message_count']   = int(re.sub('[^0-9]', '', message_count))
                 post_count                  = post.xpath('.//div[@class="author_statistics"]/text()[3]').extract_first()
                 useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
-                useritem['joined_on']       = post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first().replace("Registrato: ")
+                useritem['joined_on']       = post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first().replace("Registrato: ", '')
                 useritem['reputation']      = post.xpath('.//strong[contains(@class, "reputation")]/text()').extract_first()
                 useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
                 useritem['username_id']     = re.search('([0-9]+)', useritem['relativeurl']).group(1)

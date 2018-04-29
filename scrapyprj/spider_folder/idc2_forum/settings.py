@@ -1,5 +1,9 @@
 # IDC 2.0 is an italian language forum. It dates back to at least 2014. There are no particularities regarding the spider,
 # or data observed.
+#
+# It is noted, that to properly collect guest users we must collect them with dummy-urls. Relative and full URLs are 
+# generated using the username and the URL. Further, Joined on is collected as a string, because parsing italian dates
+# is not ideal without thorough control.
 
 
 settings = {
