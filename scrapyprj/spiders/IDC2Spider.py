@@ -43,6 +43,15 @@ class IDC2Spider(ForumSpiderV3):
         self.loggedin = False                   # Login flag. 
         self.user_agent = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
 
+    # Fixes:
+    # Add not permitted to view.
+
+    def is_restricted_page(self, response):
+        restricted = response.xpath('.//div[@class="wrapper"]').xpath(".//td[@class='trow1']/text()").extract_first()
+        if restricted is not None and "Non hai i permessi per accedere a questa pagina." in restricted:
+            return True
+        else:
+            return False 
 
     def start_requests(self):
         yield self.make_request(url = 'index', dont_filter=True)
@@ -108,7 +117,9 @@ class IDC2Spider(ForumSpiderV3):
                 parser = self.parse_threadlisting
             elif self.is_parse_thread(response) is True:
                 parser = self.parse_thread
-
+            # Check if the page is supposed to be accessible.
+            if self.is_restricted_page(response) is True:
+                self.logger.warning("Encountered a restricted page at %s. Consider checking it out using a non-operating profile (mrmiyagi pass0000) or adding it to the exclude-list." % response.url)    
             # Yield the appropriate parsing function.
             if parser is not None:
                 for x in parser(response):
@@ -134,7 +145,7 @@ class IDC2Spider(ForumSpiderV3):
                 continue
             messageitem = items.Message()
 
-            messageitem['author_username'] = response.xpath('.//div[@class="author_information"]//a[contains(@href, "member")]//text()').extract_first()
+            messageitem['author_username'] = post.xpath('.//div[@class="author_information"]//a[contains(@href, "member")]//text()').extract_first()
             messageitem['postid'] = post.xpath('@id').extract_first().lstrip('post_')
             messageitem['threadid'] = re.search('tid\=([0-9]+)', response.url).group(1)
             msg = post.xpath('.//div[contains(@class, "post_body")]')
