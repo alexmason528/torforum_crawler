@@ -61,7 +61,8 @@ class ForumSpiderV3(ForumSpider):
             hrefs = response.css('a::attr(href)').extract()
             for uri in hrefs:
                 full_url = self.check_relative_url(uri, response)
-                if self.should_follow(full_url, uri):
+                if self.should_follow(full_url, uri) is True:
+                    #self.logger.info("making request to %s" % full_url)
                     yield self.make_request(url = full_url)        
         
     def check_relative_url(self, uri, response):
@@ -104,4 +105,5 @@ class ForumSpiderV3(ForumSpider):
             for regex in exclude['regex']:
                 if re.search(regex, full_url) is not None:
                     return False
+        #self.logger.warning("Following %s because it didn't match %s" % (full_url, regex))
         return True
