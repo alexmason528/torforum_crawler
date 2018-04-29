@@ -35,8 +35,6 @@ settings = {
             'extern\.php',
             'post\.php',
             'help\.php',
-            'userlist\.php',
-            'profile\.php',
             '#p[0-9]{1,5}',
             'mailto:',
             'javascript:'
