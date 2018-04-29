@@ -1,18 +1,17 @@
-# Some settings specific to a spider.
-# The required settings are listed in this template file.
+# IDC 2.0 is an italian language forum. It dates back to at least 2014. There are no particularities regarding the spider,
+# or data observed.
 
-# Copy this file for each spider.
 
 settings = {
-	'timezone' : 'GMT',								# Timezone used on the website. 
-	'endpoint' : 'http://idcrldul6umarqwi.onion',	# Endpoint of the site. Hostname only
-	'prefix' : '',					# http://myhost.onion/prefix1/prefixe2/profix3/page.php
-	'resources' : {									# List of availables resources. Url can be created like   self.make_url('MyResource1')  = http://blahblahblah.onion/prefix1/prefix2/section1/page2.php
+	'timezone' : 'GMT',			
+	'endpoint' : 'http://idcrldul6umarqwi.onion',	
+	'prefix' : '',			
+	'resources' : {			
 		'index' : "index.php",
 		'loginpage' : "member.php"
 		},
-	'logins' : {				# Login information. They will be selected in a round robin fashioned when multiple spider is launched at once.
-		'vivarossa1': {			# The selected login information is avalaible through  self.login
+	'logins' : {			
+		'vivarossa1': {		
 			'username' : 'vivarossa1',
 			'password' : 'pass0000'
 		},
@@ -38,7 +37,6 @@ settings = {
 		'prefix' : { # Prefix exclude like '/account/' everything like '/account/logout' or '/account/settings' will be excluded
 		},
 		'regex' : { # Regex prefixes, ran against the url part that comes after '.onion/'
-			# 'member\.php\?action\=logout|profile|register|lostpw', # Profile action except login
 			'.*\#.*', # Links to individual posts
 			'.*sortby.*', # Thread sorting links
 			'.*lastpost.*', # Links to last post
