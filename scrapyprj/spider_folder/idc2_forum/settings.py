@@ -63,7 +63,8 @@ settings = {
 			'/awards.php',
 			'/portal.php',
 			'/member.php',
-			'/archive'
+			'/archive',
+			'/attachment\.php'
 		}
 	}
 }
