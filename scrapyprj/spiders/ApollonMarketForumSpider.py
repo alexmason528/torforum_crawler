@@ -49,6 +49,7 @@ class ApollonMarketForumSpider(ForumSpiderV3):
             req = Request(self.make_url('loginpage'), dont_filter=True)
         elif reqtype is 'regular':
             req = Request(kwargs['url'])
+            req.meta['shared'] = True
         # Some meta-keys that are shipped with the request.
         if 'relativeurl' in kwargs:
             req.meta['relativeurl'] = kwargs['relativeurl']
@@ -67,17 +68,16 @@ class ApollonMarketForumSpider(ForumSpiderV3):
         # Handle login status.
         if self.islogged(response) is False:
             self.loggedin = False
+            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request                
             if self.is_login_page(response) is False:
                 # req_once_logged:
                 # stores the request we will go to after logging in.
-                req_once_logged = response.request
+                self.logger.info('Not logged in. Going to login page.')
                 yield self.make_request(
                     reqtype='loginpage',
                     response=response,
                     req_once_logged=req_once_logged)
             else:
-                req_once_logged = response.meta['req_once_logged'] \
-                    if 'req_once_logged' in response.meta else response.request
                 # Try to yield informative error messages if we can't logon.
                 if self.is_login_page(response) is True \
                         and self.login_failed(response) is True:
@@ -105,6 +105,7 @@ class ApollonMarketForumSpider(ForumSpiderV3):
                     )
         # Handle parsing.
         else:
+            self.loggedin = True
             # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info(
@@ -120,7 +121,6 @@ class ApollonMarketForumSpider(ForumSpiderV3):
                         " This should not happen."
                     )
                 yield response.meta['req_once_logged']
-                self.loggedin = True
             # Notify on succesful login and set parsing flag.
             # Parsing handlers.
             # A simple function designates whether a page should be parsed.
@@ -227,7 +227,7 @@ class ApollonMarketForumSpider(ForumSpiderV3):
 
                 yield messageitem
             except Exception as e:
-                self.logger.warning("Invalid thread page. %s" % e)
+                self.logger.warning("Invalid thread page. %s. URL:" % (e, response.url))
 
     def parse_threadlisting(self, response):
         # self.logger.info("Yielding threads from %s" % response.url)
@@ -235,7 +235,7 @@ class ApollonMarketForumSpider(ForumSpiderV3):
             threaditem = items.Thread()
             title = self.get_text(line.css("td:first-child a"))
             if title is '':
-                continue
+                self.logger.warning("Title of the thread is ''. Please handle the error at %s" % response.url)
             last_post_time = self.parse_timestr(
                 self.get_text(line.css("td:last-child a")))
             # First or None if empty
