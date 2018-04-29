@@ -36,7 +36,7 @@ class DNMAvengersSpider(ForumSpiderV3):
     def __init__(self, *args, **kwargs):
         super(DNMAvengersSpider, self).__init__(*args, **kwargs)
 
-        self.set_max_concurrent_request(10)      # Scrapy config
+        self.set_max_concurrent_request(1)      # Scrapy config
         self.set_download_delay(10)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
@@ -98,13 +98,13 @@ class DNMAvengersSpider(ForumSpiderV3):
                 yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
         # Handle parsing.
         else:
+            self.loggedin = True
             # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
-                yield response.meta['req_once_logged']
-                self.loggedin = True
+                yield response.meta['req_once_logged']    
             else:
                 if self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
@@ -264,7 +264,7 @@ class DNMAvengersSpider(ForumSpiderV3):
                 yield threaditem
 
             except Exception as e:
-                self.logger.error("Cannot parse thread item : %s" % e)
+                self.logger.error("Cannot parse thread item: %s for reason:" % (response.url, e))
                 raise
 
     ############ LOGIN HANDLING ################
