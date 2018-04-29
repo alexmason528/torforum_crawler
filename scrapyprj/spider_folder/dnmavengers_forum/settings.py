@@ -65,6 +65,7 @@ settings = {
 			'/index\.php\?topic=\d+\.\d+\;prev_next=prev',
 			'/index\.php\?action=login',
 			'/mailto',
+			'action=printpage'
 		}
 	}
 }
