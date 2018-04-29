@@ -16,7 +16,6 @@ settings = {
             'username': 'atomscurl',
             'password': 'pass0000'
         },
-        # Logins commented out. Keep these as backups for when we get blocked.
         'marlboroman': {
             'username': 'marlboroman',
             'password': 'pass0000'
@@ -55,6 +54,8 @@ settings = {
             '/order/',
             '/listings/',
             '/p/',
+            '/\?do',
+            '\[ToggleUserSubscription\]'
         }
     }
 }
