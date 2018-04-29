@@ -123,40 +123,66 @@ class IDC2Spider(ForumSpiderV3):
     def parse_thread(self, response):
         posts = response.xpath('.//div[@class="post "]')
         for post in posts:
-            if posts.xpath('.//span[contains(text(), "Unregistered")]'):
-                continue
-            else:
-                self.logger.warning("Unhandled error. Couldn't parse posts at URL %s" % response.url)
-            # Yield message.
             messageitem                     = items.Message()
-            messageitem['author_username']  = post.xpath('.//div[@class="author_information"]//a[contains(@href, "member")]//text()').extract_first()
-            messageitem['postid']           = post.xpath('@id').extract_first().lstrip('post_')
-            messageitem['threadid']         = re.search('tid\=([0-9]+)', response.url).group(1)
-            msg                             = post.xpath('.//div[contains(@class, "post_body")]')
-            messageitem['contenttext']      = self.get_text(msg)
-            messageitem['contenthtml']      = self.get_text(msg.extract_first())
-            # Post date handling
-            posted_on                       = post.xpath('.//span[@class="post_date"]/text()').extract_first()
-            messageitem['posted_on']        = self.parse_date_idc(posted_on)
+            #if posts.xpath('.//span[contains(text(), "Unregistered")]'):
+            #    continue
+            #else:
+            #    self.logger.warning("Unhandled error. Couldn't parse posts at URL %s" % response.url)
+            # Yield message.
+            guest_user   = len(post.xpath('.//span[contains(text(), "Unregistered")]')) > 0
+            special_user = guest_user is True and post.xpath('.//div[@class="author_information"]/strong/span/a[contains(@href, "member")]//text()').extract_first() is not None
+
+
+            if guest_user is False or special_user is True:
+                messageitem['author_username']  = post.xpath('.//div[@class="author_information"]//a[contains(@href, "member")]//text()').extract_first()
+                if messageitem['author_username'] is None:
+                    messageitem['author_username'] = post.xpath('.//div[@class="author_information"]/strong/span/a[contains(@href, "member")]//text()').extract_first()
+                messageitem['postid']           = post.xpath('@id').extract_first().lstrip('post_')
+                messageitem['threadid']         = re.search('tid\=([0-9]+)', response.url).group(1)
+                msg                             = post.xpath('.//div[contains(@class, "post_body")]')
+                messageitem['contenttext']      = self.get_text(msg)
+                messageitem['contenthtml']      = self.get_text(msg.extract_first())
+                # Post date handling
+                posted_on                       = post.xpath('.//span[@class="post_date"]/text()').extract_first()
+                messageitem['posted_on']        = self.parse_date_idc(posted_on)
+            else:
+                messageitem['author_username']  = post.xpath('div/div/strong/span/text()').extract_first()
+                messageitem['postid']           = post.xpath('@id').extract_first().lstrip('post_')
+                messageitem['threadid']         = re.search('tid\=([0-9]+)', response.url).group(1)
+                msg                             = post.xpath('.//div[contains(@class, "post_body")]')
+                messageitem['contenttext']      = self.get_text(msg)
+                messageitem['contenthtml']      = self.get_text(msg.extract_first())
+                # Post date handling
+                posted_on                       = post.xpath('.//span[@class="post_date"]/text()').extract_first()
+                messageitem['posted_on']        = self.parse_date_idc(posted_on)                
+            if messageitem['author_username'] is None:
+                inspect_response(response, self)
 
             yield messageitem
 
             # Yield user.
             useritem = items.User()
-            useritem['username']        = messageitem['author_username']
-            useritem['fullurl']         = post.xpath('.//div[@class="author_information"]//span[@class="largetext"]/a/@href').extract_first()
-            useritem['relativeurl']     = useritem['fullurl'].split('.onion')[1]
-            useritem['title']           = post.xpath('.//div[@class="author_information"]//span[@class="smalltext"]/text()[1]').extract_first().strip()
-            message_count               = post.xpath('.//div[@class="author_statistics"]/text()[2]').extract_first()
-            useritem['message_count']   = int(re.sub('[^0-9]', '', message_count))
-            post_count                  = post.xpath('.//div[@class="author_statistics"]/text()[3]').extract_first()
-            useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
-            joined_on                   = post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first()
-            useritem['joined_on']       = parse(re.search('([a-zA-Z]{3} [0-9]{4})', joined_on).group(1))
-            useritem['reputation']      = post.xpath('.//strong[contains(@class, "reputation")]/text()').extract_first()
-            useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
-            useritem['username_id']     = re.search('([0-9]+)', useritem['relativeurl']).group(1)
-            useritem['membergroup']     = post.xpath('.//img[not(@class="buddy_status")]/@title').extract_first()                
+            if guest_user is False:
+                useritem['username']        = messageitem['author_username']
+                useritem['fullurl']         = post.xpath('.//div[@class="author_information"]//span[@class="largetext"]/a/@href').extract_first()
+                useritem['relativeurl']     = useritem['fullurl'].split('.onion')[1]
+                useritem['title']           = post.xpath('.//div[@class="author_information"]//span[@class="smalltext"]/text()[1]').extract_first().strip()
+                message_count               = post.xpath('.//div[@class="author_statistics"]/text()[2]').extract_first()
+                useritem['message_count']   = int(re.sub('[^0-9]', '', message_count))
+                post_count                  = post.xpath('.//div[@class="author_statistics"]/text()[3]').extract_first()
+                useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
+                joined_on                   = post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first()
+                useritem['joined_on']       = parse(re.search('([a-zA-Z]{3} [0-9]{4})', joined_on).group(1))
+                useritem['reputation']      = post.xpath('.//strong[contains(@class, "reputation")]/text()').extract_first()
+                useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
+                useritem['username_id']     = re.search('([0-9]+)', useritem['relativeurl']).group(1)
+                useritem['membergroup']     = post.xpath('.//img[not(@class="buddy_status")]/@title').extract_first()                
+            else:
+                # Unregistered users have no message count, join date, post count, reputation, id..
+                useritem['username']        = messageitem['author_username']
+                useritem['fullurl']         = self.spider_settings['endpoint'] + useritem['username']
+                useritem['relativeurl']     = useritem['username']
+                useritem['title']           = post.xpath('.//div[@class="author_information"]//span[@class="smalltext"]/text()[1]').extract_first().strip()
 
             yield useritem
 
