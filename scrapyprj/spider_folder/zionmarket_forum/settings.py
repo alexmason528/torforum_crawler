@@ -10,6 +10,11 @@
 # therefore not be yielded with propvals (stars, member group). To do so anyways, we generate non-working URLs 
 # for fullurl and relativeurl which are endpoint+username and username.
 #
+# Another bug is that the first post in a thread does not have a postid. One is generated as such:
+#		thread1017
+# We thus know that each postid starting with thread is the original thread post. Subsequent postid's begin
+# with a "msg", so they are easily identified. 
+#
 # Note that on first inspection, it might seem we are not collecting all posts, because in total the number of 
 # threads displayed on zion.onion/forum is higher than what we collect. Rasmus manually went to the last available
 # page in the largest subforum, and found that the number of viewable threads did not correspond to the number
