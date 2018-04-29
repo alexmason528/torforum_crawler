@@ -10,6 +10,7 @@ import dateutil.parser
 from scrapy.http import FormRequest, Request
 import scrapyprj.items.forum_items as items
 from scrapyprj.spiders.ForumSpiderV3 import ForumSpiderV3
+from scrapy.shell import inspect_response
 
 
 class MajesticGardenForumSpider(ForumSpiderV3):
@@ -137,36 +138,45 @@ class MajesticGardenForumSpider(ForumSpiderV3):
             messageitem['contenttext'] = self.get_text(msg)
             messageitem['contenthtml'] = self.get_text(msg.extract_first())
             yield messageitem
-        useritem = items.User()
+
         for post in posts:
+            useritem = items.User()
             username = post.xpath(".//h4/a/text()").extract_first()
             if username is not None: # Verified posters.
                 useritem['username'] = username.strip()
                 useritem["relativeurl"] = post.css(".poster h4 a::attr(href)").extract_first()
                 useritem["fullurl"] = self.make_url(post.css(".poster h4 a::attr(href)").extract_first())
-                for li in post.xpath(".//ul/li"):
-                     key = li.xpath(".//@class").extract_first()
-                     keytext = li.xpath(".//text()").extract_first()
-                     if key == "postgroup":
-                         useritem['postgroup'] = keytext
-                     elif key == "membergroup":
-                         useritem['membergroup'] = keytext
-                     elif key == 'karma':
-                         useritem['karma'] = keytext.replace('Karma: ', '')
-                     elif key == 'title':
-                         useritem['title'] = keytext
-                     elif key == 'stars':
-                        useritem['stars'] = keytext
-                     elif key == 'postcount':
-                         useritem['post_count'] = keytext.replace('Posts: ', '')
-                     elif key == 'custom':
-                         awards = li.xpath(".//text()").extract()
-                         useritem['awards'] = '|'.join(awards).replace('Awards: |', '')
-                     elif key is None or key in ['blurb', 'avatar', 'profile', 'new_win', 'quote', 'quote_button']:
-                         pass
-                     else:
-                         self.logger.warning("Unknown key in user profile '%s' with value '%s'" % (key, keytext))
-                yield useritem  
+            elif post.xpath(".//h4/text()").extract_first() is not None:
+                useritem['username']        = post.xpath(".//h4/text()").extract_first().strip()
+                useritem["relativeurl"]     = useritem['username']
+                useritem["fullurl"]         = self.spider_settings['endpoint'] + useritem['username']
+            else:
+                self.logger.warning('Unknown problem yielding user at URL %s' % response.url)
+            
+            for li in post.xpath(".//ul/li"):
+                 key = li.xpath(".//@class").extract_first()
+                 keytext = li.xpath(".//text()").extract_first()
+                 if key == "postgroup":
+                     useritem['postgroup'] = keytext
+                 elif key == "membergroup":
+                     useritem['membergroup'] = keytext
+                 elif key == 'karma':
+                     useritem['karma'] = keytext.replace('Karma: ', '')
+                 elif key == 'title':
+                     useritem['title'] = keytext
+                 elif key == 'stars':
+                    useritem['stars'] = keytext
+                 elif key == 'postcount':
+                     useritem['post_count'] = keytext.replace('Posts: ', '')
+                 elif key == 'custom':
+                     awards = li.xpath(".//text()").extract()
+                     useritem['awards'] = '|'.join(awards).replace('Awards: |', '')
+                 elif key is None or key in ['blurb', 'avatar', 'profile', 'new_win', 'quote', 'quote_button']:
+                     pass
+                 else:
+                     self.logger.warning("Unknown key in user profile '%s' with value '%s'" % (key, keytext))
+            yield useritem
+              
 
 
     def parse_threadlisting(self, response):
@@ -191,7 +201,9 @@ class MajesticGardenForumSpider(ForumSpiderV3):
                 reply_review = self.get_text(line.css("td:nth-child(4)"))
                 threaditem['replies'] = re.search(r"(\d+) Replies", reply_review, re.S | re.M).group(1)
                 threaditem['views'] = re.search(r"(\d+) Views", reply_review, re.S | re.M).group(1)
-            yield threaditem
+                yield threaditem
+            else:
+                self.logger.warning('Couldn\'t yield thread. Please review: %s' % response.url)
 
     # ########### LOGIN HANDLING ################
     def login_failed(self, response):
