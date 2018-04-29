@@ -25,7 +25,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         super(CannabisGrowersCoopForum, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(5)             # Scrapy config
+        self.set_download_delay(15)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
@@ -214,7 +214,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         return False
 
     def parse_user(self, response):
-        self.logger.info("Yielding profile from %s" % response.url)
+        #self.logger.info("Yielding profile from %s" % response.url)
         user = items.User()
         user['relativeurl'] = urlparse(response.url).path
         user['fullurl'] = response.url
