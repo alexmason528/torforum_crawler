@@ -34,7 +34,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         self.loggedin = False                   # Login flag.
 
     def start_requests(self):
-        yield self.make_request(url="index", dont_filter=True)
+        yield self.make_request(url="index", dont_filter=True, req_once_logged = self.make_url('index'))
 
     def make_request(self, reqtype='regular', **kwargs):
         if 'url' in kwargs and reqtype != 'captcha':
@@ -129,15 +129,14 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
                 if self.is_login_url(response) is True:
                     self.logger.info("Login URL was returned")
                     return
-                elif self.is_forum_domain(response) is False:
-                    parser = None
+                elif self.is_user(response) is True:
+                    parser = self.parse_user
                 elif self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
                 elif self.is_message(response) is True:
                     parser = self.parse_message
-                elif self.is_user(response) is True:
-                    parser = self.parse_user
-
+                elif self.is_forum_domain(response) is False:
+                    parser = None
                 # Yield the appropriate parsing function.
                 if parser is not None:
                     for x in parser(response):
