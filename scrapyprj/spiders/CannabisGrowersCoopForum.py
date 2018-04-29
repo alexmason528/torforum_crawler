@@ -75,18 +75,18 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         parser = None
         # Handle login status.
         if self.islogged(response) is False:
+            req_once_logged = response.meta['req_once_logged'] \
+                if 'req_once_logged' in response.meta else response.request
+
             if self.is_login_page(response) is False:
                 # req_once_logged stores the request \
                 # we will go to after logging in.
-                req_once_logged = response.request
                 yield self.make_request(
                     reqtype='loginpage',
                     response=response,
                     req_once_logged=req_once_logged)
             else:
                 self.loggedin = False
-                req_once_logged = response.meta['req_once_logged'] \
-                    if 'req_once_logged' in response.meta else response.request
                 # Allow the spider to fail if it can't log on.
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
                     self.wait_for_input(
@@ -245,7 +245,8 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             value = self.get_text(tr_item.css("div.aux div span"))
 
             if key == "":
-                continue 
+                self.logger.warning("Key is ''. Value is %s at URL %s" % (value, response.url))
+                #continue 
 
             if key == "Last Seen":
                 user["last_activity"] = self.parse_timestr(value)
