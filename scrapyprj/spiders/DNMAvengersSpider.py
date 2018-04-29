@@ -37,7 +37,7 @@ class DNMAvengersSpider(ForumSpiderV3):
         super(DNMAvengersSpider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(10)             # Scrapy config
+        self.set_download_delay(15)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
@@ -263,7 +263,7 @@ class DNMAvengersSpider(ForumSpiderV3):
                 yield threaditem
 
             except Exception as e:
-                self.logger.error("Cannot parse thread item: %s for reason:" % (response.url, e))
+                self.logger.warning("Cannot parse thread item: %s for reason:" % (response.url, e))
                 raise
 
     ############ LOGIN HANDLING ################
