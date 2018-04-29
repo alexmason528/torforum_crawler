@@ -1,5 +1,5 @@
 settings = {
-	'timezone' : 'UTC',
+	'timezone' : 'GMT',
 	'endpoint' : 'http://kbyz2vu3fnv2di7l.onion',
 	'prefix' : '',
 	'resources' : {
@@ -12,9 +12,21 @@ settings = {
 			'username' : 'malleybono',
 			'password' : 'Hsdkhsd@432432'
 		},
-		'alexmason': {
-			'username': 'alexmason',
-			'password': 'Alexmason528'
+		'negatron': {
+			'username': 'negatron',
+			'password': 'Pass0000'
+		},
+		'jacksmith': {
+			'username': 'jacksmith',
+			'password': 'Pass0000'
+		},
+		'cvvsfortheworld': {
+			'username': 'cvvsfortheworld',
+			'password': 'Pass0000'
+		},
+		'overflow': {
+			'username': 'overflow',
+			'password': 'Pass0000'
 		}
 	},
 	'exclude' : {
