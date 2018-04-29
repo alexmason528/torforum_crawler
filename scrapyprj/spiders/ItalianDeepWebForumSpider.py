@@ -75,7 +75,7 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
         # Handle login status.
         if self.islogged(response) is False:
             self.loggedin = False              
-            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request
+            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
             if self.is_login_page(response) is False:
                 # req_once_logged stores the request we will go to after logging in.
                 yield self.make_request(reqtype='loginpage',response=response, req_once_logged=req_once_logged)
@@ -204,7 +204,7 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
             return True
 
     def islogged(self, response):
-        if 'Logout' in response.body:
+        if 'Log Out' in response.xpath('.//span[@class="welcome"]/a/text()').extract_first():
             return True
         return False
 
