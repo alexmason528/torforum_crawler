@@ -22,7 +22,7 @@ class User(scrapy.Item):
 	username = scrapy.Field()
 	relativeurl =  scrapy.Field()
 	fullurl =  scrapy.Field()
-	username_id = scrapy.Field()
+	username_id = scrapy.Field() # Is a propval. It shouldn't be relevant for DB structure and yielding.
 	
 	# Presentation.
 	age = scrapy.Field()
