@@ -36,22 +36,12 @@ class IDC2Spider(ForumSpiderV3):
         self.set_max_concurrent_request(1)      # Scrapy config
         self.set_download_delay(10)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
-        self.statsinterval = 60                 # Custom Queue system
-        self.logintrial = 0                     # Max login attempts.
-        self.alt_hostnames = []                 # Not in use.
-        self.report_status = True               # Report 200's.
-        self.loggedin = False                   # Login flag. 
-        self.user_agent = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
-
-    # Fixes:
-    # Add not permitted to view.
-
-    def is_restricted_page(self, response):
-        restricted = response.xpath('.//div[@class="wrapper"]').xpath(".//td[@class='trow1']/text()").extract_first()
-        if restricted is not None and "Non hai i permessi per accedere a questa pagina." in restricted:
-            return True
-        else:
-            return False 
+        self.statsinterval      = 60            # Custom Queue system
+        self.logintrial         = 0             # Max login attempts.
+        self.alt_hostnames      = []            # Not in use.
+        self.report_status      = True          # Report 200's.
+        self.loggedin           = False         # Login flag. 
+        self.user_agent         = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
 
     def start_requests(self):
         yield self.make_request(url = 'index', dont_filter=True)
@@ -60,7 +50,6 @@ class IDC2Spider(ForumSpiderV3):
         if 'url' in kwargs:
             kwargs['url'] = self.make_url(kwargs['url'])
         # Handle the requests.
-        # If you need to bypass DDoS protection, put it in here.
         if reqtype is 'dologin':
             req = self.craft_login_request_from_form(kwargs['response']) 
             req.dont_filter = True
@@ -68,17 +57,18 @@ class IDC2Spider(ForumSpiderV3):
             req = Request(self.make_url('loginpage'), dont_filter=True, headers=self.user_agent)
         elif reqtype is 'regular':
             req = Request(kwargs['url'], headers=self.user_agent)
-            req.meta['shared'] = True # Ensures that requests are shared among spiders.
-        # Some meta-keys that are shipped with the request.
+            req.meta['shared'] = True 
+
         if 'relativeurl' in kwargs:
             req.meta['relativeurl'] = kwargs['relativeurl']
         if 'dont_filter' in kwargs:
             req.dont_filter = kwargs['dont_filter']
         if 'req_once_logged' in kwargs:
             req.meta['req_once_logged'] = kwargs['req_once_logged']  
+
         req.meta['proxy'] = self.proxy  
         req.meta['slot'] = self.proxy
-        req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
+        req.meta['reqtype'] = reqtype   
         return req
 
     def parse_response(self, response):
@@ -87,15 +77,12 @@ class IDC2Spider(ForumSpiderV3):
         if self.islogged(response) is False:
             self.loggedin = False
             if self.is_login_page(response) is False:
-                # req_once_logged stores the request we will go to after logging in.
-                req_once_logged = response.request
-                yield self.make_request(reqtype='loginpage',response=response, req_once_logged=req_once_logged) 
+                req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
+                yield self.make_request(reqtype='loginpage',response=response, req_once_logged=req_once_logged)                 
             else:
-                req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request
-                # Try to yield informative error messages if we can't logon.
+                req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
                 if self.is_login_page(response) is True and self.login_failed(response) is True:
                     self.logger.info('Failed last login as %s. Trying again. Error: %s' % (self.login['username'], self.get_text(response.xpath('.//div/ul[@class="error-list"]'))))
-                # Allow the spider to fail if it can't log on.
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
                     self.wait_for_input("Too many login failed", req_once_logged)
                     self.logintrial = 0
@@ -106,21 +93,17 @@ class IDC2Spider(ForumSpiderV3):
         # Handle parsing.
         else:
             self.loggedin = True
-            # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
                 yield response.meta['req_once_logged']
-
             if self.is_threadlisting(response) is True:
                 parser = self.parse_threadlisting
             elif self.is_parse_thread(response) is True:
                 parser = self.parse_thread
-            # Check if the page is supposed to be accessible.
             if self.is_restricted_page(response) is True:
                 self.logger.warning("Encountered a restricted page at %s. Consider checking it out using a non-operating profile (mrmiyagi pass0000) or adding it to the exclude-list." % response.url)    
-            # Yield the appropriate parsing function.
             if parser is not None:
                 for x in parser(response):
                     yield x
@@ -135,62 +118,59 @@ class IDC2Spider(ForumSpiderV3):
     def is_threadlisting(self, response):
         if "forumdisplay.php?fid=" in response.url:
             return True
+
     ########## PARSING FUNCTIONS ##########
     def parse_thread(self, response):
         posts = response.xpath('.//div[@class="post "]')
-
         for post in posts:
-            # Scrape post
             if posts.xpath('.//span[contains(text(), "Unregistered")]'):
                 continue
-            messageitem = items.Message()
-
-            messageitem['author_username'] = post.xpath('.//div[@class="author_information"]//a[contains(@href, "member")]//text()').extract_first()
-            messageitem['postid'] = post.xpath('@id').extract_first().lstrip('post_')
-            messageitem['threadid'] = re.search('tid\=([0-9]+)', response.url).group(1)
-            msg = post.xpath('.//div[contains(@class, "post_body")]')
-            messageitem['contenttext'] = self.get_text(msg)
-            messageitem['contenthtml'] = self.get_text(msg.extract_first())
-
+            else:
+                self.logger.warning("Unhandled error. Couldn't parse posts at URL %s" % response.url)
+            # Yield message.
+            messageitem                     = items.Message()
+            messageitem['author_username']  = post.xpath('.//div[@class="author_information"]//a[contains(@href, "member")]//text()').extract_first()
+            messageitem['postid']           = post.xpath('@id').extract_first().lstrip('post_')
+            messageitem['threadid']         = re.search('tid\=([0-9]+)', response.url).group(1)
+            msg                             = post.xpath('.//div[contains(@class, "post_body")]')
+            messageitem['contenttext']      = self.get_text(msg)
+            messageitem['contenthtml']      = self.get_text(msg.extract_first())
             # Post date handling
-            posted_on = post.xpath('.//span[@class="post_date"]/text()').extract_first()
-            messageitem['posted_on'] = self.parse_date_idc(posted_on)
+            posted_on                       = post.xpath('.//span[@class="post_date"]/text()').extract_first()
+            messageitem['posted_on']        = self.parse_date_idc(posted_on)
 
             yield messageitem
-            # Scrape user
-            useritem = items.User()
-            useritem['username'] = messageitem['author_username']
-            useritem['fullurl']  = post.xpath('.//div[@class="author_information"]//span[@class="largetext"]/a/@href').extract_first()
-            useritem['relativeurl'] = useritem['fullurl'].split('.onion')[1]
-            useritem['title'] = post.xpath('.//div[@class="author_information"]//span[@class="smalltext"]/text()[1]').extract_first().strip()
-            message_count = post.xpath('.//div[@class="author_statistics"]/text()[2]').extract_first()
-            useritem['message_count'] = int(re.sub('[^0-9]', '', message_count))
-            post_count = post.xpath('.//div[@class="author_statistics"]/text()[3]').extract_first()
-            useritem['post_count'] = int(re.sub('[^0-9]', '', post_count))
-            joined_on = post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first()
 
-            useritem['joined_on'] = parse(re.search('([a-zA-Z]{3} [0-9]{4})', joined_on).group(1))
-            useritem['reputation'] = post.xpath('.//strong[contains(@class, "reputation")]/text()').extract_first()
-            useritem['post_count'] = int(re.sub('[^0-9]', '', post_count))
-            useritem['username_id'] = re.search('([0-9]+)', useritem['relativeurl']).group(1)
-            useritem['membergroup'] = post.xpath('.//img[not(@class="buddy_status")]/@title').extract_first()                
+            # Yield user.
+            useritem = items.User()
+            useritem['username']        = messageitem['author_username']
+            useritem['fullurl']         = post.xpath('.//div[@class="author_information"]//span[@class="largetext"]/a/@href').extract_first()
+            useritem['relativeurl']     = useritem['fullurl'].split('.onion')[1]
+            useritem['title']           = post.xpath('.//div[@class="author_information"]//span[@class="smalltext"]/text()[1]').extract_first().strip()
+            message_count               = post.xpath('.//div[@class="author_statistics"]/text()[2]').extract_first()
+            useritem['message_count']   = int(re.sub('[^0-9]', '', message_count))
+            post_count                  = post.xpath('.//div[@class="author_statistics"]/text()[3]').extract_first()
+            useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
+            joined_on                   = post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first()
+            useritem['joined_on']       = parse(re.search('([a-zA-Z]{3} [0-9]{4})', joined_on).group(1))
+            useritem['reputation']      = post.xpath('.//strong[contains(@class, "reputation")]/text()').extract_first()
+            useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
+            useritem['username_id']     = re.search('([0-9]+)', useritem['relativeurl']).group(1)
+            useritem['membergroup']     = post.xpath('.//img[not(@class="buddy_status")]/@title').extract_first()                
 
             yield useritem
 
     def parse_threadlisting(self, response):
-        #self.logger.info("Yielding threads from %s" % response.url)
         topics = response.xpath('.//tr[@class="inline_row"]')
         for topic in topics:
-            threaditem = items.Thread()
-            threaditem['title'] =  topic.xpath('.//span[contains(@id, "tid")]/a/text()').extract_first()
-
-            threaditem['relativeurl'] = topic.xpath('.//span[contains(@id, "tid")]/a/@href').extract_first()
-            threaditem['fullurl']   = self.make_url(threaditem['relativeurl'])
-            threaditem['threadid'] = re.search('([0-9]+)', threaditem['relativeurl']).group(1)
+            threaditem                    = items.Thread()
+            threaditem['title']           =  topic.xpath('.//span[contains(@id, "tid")]/a/text()').extract_first()
+            threaditem['relativeurl']     = topic.xpath('.//span[contains(@id, "tid")]/a/@href').extract_first()
+            threaditem['fullurl']         = self.make_url(threaditem['relativeurl'])
+            threaditem['threadid']        = re.search('([0-9]+)', threaditem['relativeurl']).group(1)
             threaditem['author_username'] = topic.xpath('.//div[contains(@class, "author")]/a/text()').extract_first()
-            threaditem['replies'] = re.sub('[^0-9]', '', topic.xpath('.//td[4]/a/text()').extract_first())
-            threaditem['views'] = re.sub('[^0-9]', '', topic.xpath('.//td[5]/text()').extract_first())
-
+            threaditem['replies']         = re.sub('[^0-9]', '', topic.xpath('.//td[4]/a/text()').extract_first())
+            threaditem['views']           = re.sub('[^0-9]', '', topic.xpath('.//td[5]/text()').extract_first())
             # Last update handling
             lastupdate = topic.xpath('.//span[contains(@class, "lastpost")]/text()[1]').extract_first()
             threaditem['last_update'] = self.parse_date_idc(lastupdate)
@@ -215,7 +195,6 @@ class IDC2Spider(ForumSpiderV3):
     def craft_login_request_from_form(self, response):
         captcha_src = response.css("form#login img::attr(src)").extract_first()
         if captcha_src:
-
             imagehash = response.xpath('//input[@id="imagehash"]/@value').extract_first()
             data = {
                 'username':self.login['username'],
@@ -225,13 +204,11 @@ class IDC2Spider(ForumSpiderV3):
                 'submit':'Login',
                 'action':'do_login',
             }
-
             req.meta['captcha'] = {        # CaptchaMiddleware will take care of that.
                 'request' : self.make_request(url=captcha_src, dont_filter = True, priority = 10),
                 'name' : 'imagestring',    # Preprocess image to extract what's within the rectangle
                 'preprocess' : 'DreamMarketRectangleCropper'
                 }
-
         else:
             data = {
                 'username' : self.login['username'],
@@ -241,6 +218,13 @@ class IDC2Spider(ForumSpiderV3):
         req.dont_filter = True
 
         return req
+
+    def is_restricted_page(self, response):
+        restricted = response.xpath('.//div[@class="wrapper"]').xpath(".//td[@class='trow1']/text()").extract_first()
+        if restricted is not None and "Non hai i permessi per accedere a questa pagina." in restricted:
+            return True
+        else:
+            return False 
 
     ########### MISCELLANEOUS ###################
     def parse_date_idc(self, date):
