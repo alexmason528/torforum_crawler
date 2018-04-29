@@ -220,9 +220,8 @@ class ZionMarketForumSpider(ForumSpider):
         threadid = self.get_id_from_url(response.url)
         # We first parse the first post. 
         messageitem = items.Message()
-        #messageitem['postid'] = "msg" + threadid Cannot be yielded since there is none.
         messageitem['threadid'] = threadid
-        messageitem['postid'] = "thread" + threadid # Note this!
+        messageitem['postid'] = "thread" + threadid
         msg = response.xpath('.//div[@class="col-xs-10 alert alert-info whitebg"]')
         messageitem['contenttext'] = self.get_text(msg)
         messageitem['contenthtml'] = self.get_text(msg.extract_first())        
