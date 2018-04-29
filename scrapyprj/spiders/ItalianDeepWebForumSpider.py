@@ -74,13 +74,12 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
         parser = None
         # Handle login status.
         if self.islogged(response) is False:
-            self.loggedin = False
+            self.loggedin = False              
+            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request
             if self.is_login_page(response) is False:
                 # req_once_logged stores the request we will go to after logging in.
-                req_once_logged = response.request
                 yield self.make_request(reqtype='loginpage',response=response, req_once_logged=req_once_logged)
             else:
-                req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request
                 # Try to yield informative error messages if we can't logon.
                 if self.is_login_page(response) is True and self.login_failed(response) is True:
                     self.logger.info('Failed last login as %s. Trying again' % self.login['username'])
