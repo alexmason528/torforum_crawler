@@ -16,6 +16,7 @@ import re
 import pytz
 import dateutil
 from IPython import embed
+from dateutil import parser
 
 class OnionlandbakytSpider(ForumSpider):
     name = "onionland_forum"
@@ -139,14 +140,30 @@ class OnionlandbakytSpider(ForumSpider):
                 threaditem['relativeurl'] = threadurl
                 threaditem['fullurl'] = self.make_url(threadurl)
 
-                #Last update
-                lastpost_str = self.get_text(threadline.css(".lastpost"))
-                m = re.search("(.+) by (.+)", lastpost_str)
-                if m:
-                    threaditem['last_update'] = self.parse_timestr(m.group(1))
-                else:
-                    self.logger.warning("Failed to get last update on %s" % response.url)
+                #Last update. There are three known formats. 
+                last_update = threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[following-sibling::a][2]").extract_first()
+                if last_update is not None and last_update != "":
+                    last_update = threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[following-sibling::a][2]").extract_first().strip()
+                elif last_update is None:
+                    last_update = threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[preceding-sibling::a]").extract_first().strip()
+                # Fallback to the today format.
+                if last_update == "":
+                    date = self.get_text(threadline.xpath(".//td[contains(@class, 'lastpost')]/strong/text()").extract_first())
+                    time = self.get_text(threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[following-sibling::a][3]").extract_first())
+                    last_update = date + " " + time
+                threaditem['last_update'] = self.parse_timestr(last_update, response)
 
+                # last_update = threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[following-sibling::a][2]").extract_first()
+                # if last_update is not None and last_update != "":
+                #     last_update = threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[following-sibling::a][2]").extract_first().strip()
+                # # Fallback in case date is today.
+                # elif last_update == "":
+                #     date = self.get_text(threadline.xpath(".//td[contains(@class, 'lastpost')]/strong/text()").extract_first())
+                #     time = self.get_text(threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[following-sibling::a][3]").extract_first())
+                #     last_update = date + " " + time
+                # elif last_update is None:
+                #     inspect_response(response, self)
+                # threaditem['last_update'] = self.parse_timestr(last_update, response)
                 #Stats cell
                 statcellcontent = self.get_text(threadline.css("td.stats"))
                 m = re.search("(\d+) Replies [^\d]+(\d+) Views", statcellcontent)
@@ -197,9 +214,9 @@ class OnionlandbakytSpider(ForumSpider):
         postmeta_ascii = re.sub(r'[^\x00-\x7f]',r'', postmeta).strip()
         m = re.search('on:\s*(.+)', postmeta_ascii)
         if m:
-            msgitem['posted_on'] = self.parse_timestr(m.group(1))
+            msgitem['posted_on'] = self.parse_timestr(m.group(1), response)
         else:
-            self.logger.error("Cannot parse posted on at %s because: %s" % (response.url, e))
+            self.logger.error("Cannot parse posted on at %s." % (response.url))
             
         postcontent = postwrapper.css(".postarea .post").xpath("./div[contains(@id, 'msg_')]")
 
@@ -217,41 +234,40 @@ class OnionlandbakytSpider(ForumSpider):
         return msgitem
 
     def get_user_item_from_postwrapper(self, postwrapper, response):
-        useritem = items.User()
-        profilelink = postwrapper.css(".poster h4").xpath(".//a[not(contains(@href, 'action=pm'))]")
-        useritem['username'] = self.get_text(postwrapper.css(".poster h4"))
-        #useritem['relativeurl'] = profilelink.xpath("@href").extract_first()
-        extrainfo = postwrapper.css(".poster ul")
-        useritem['postgroup'] = self.get_text(extrainfo.css("li.postgroup"))
+        useritem                = items.User()
+        profilelink             = postwrapper.css(".poster h4").xpath(".//a[not(contains(@href, 'action=pm'))]")
+        relativeurl             = postwrapper.xpath('.//h4/a[contains(@title, "View the profile")]/@href').extract_first()
+        useritem['username']    = self.get_text(postwrapper.css(".poster h4"))
+        extrainfo               = postwrapper.css(".poster ul")
+        useritem['postgroup']   = self.get_text(extrainfo.css("li.postgroup"))
         useritem['membergroup'] = self.get_text(extrainfo.css("li.membergroup"))
-        m = re.search('(\d+)', self.get_text(extrainfo.css("li.postcount")))
+        m                       = re.search('(\d+)', self.get_text(extrainfo.css("li.postcount")))
         if m:
-            useritem['post_count'] = m.group(1)       
-        else:
-            self.logger.error("Cannot locate post count at %s because: %s" % (response.url, e))
+            useritem['post_count'] = m.group(1)
+        elif relativeurl is not None: # guest users dont have post counts or a relativeurl.
+            self.logger.error("Cannot locate post count at %s." % (response.url))
+            
 
         useritem['karma'] = self.get_text(extrainfo.css("li.karma"))
         useritem['stars'] = str(len(extrainfo.css("li.stars img")))
-        #self.logger.warning("%s" % useritem)
-        relativeurl = postwrapper.xpath('.//h4/a[contains(@title, "View the profile")]/@href').extract_first()
+
         if relativeurl is None:
             self.logger.warning("No relative URL could be generated from %s. User: %s Userinfo: %s" % (response.url, useritem['username'], self.get_text(postwrapper.xpath(".//div[@class='poster']/ul"))))
-            self.logger.warning("Because no relative URL could be generated, URL-value fields are set as GUEST NAME and ENDPOINT + GUEST NAME.")
             # See of filling in shitty data makes it ok. If not, IT MUST BE DELETED
             useritem['relativeurl'] = useritem['username']
             useritem['fullurl'] = self.spider_settings['endpoint'] + useritem['username']
         else:
-            useritem['relativeurl'] = relativeurl
+            useritem['relativeurl'] = self.get_relative_url(relativeurl)
             useritem['fullurl'] = self.make_url(useritem['relativeurl'])
 
         return useritem
 
     def parse_userprofile(self, response):
         user = items.User()
-        user['username'] = self.get_text(response.css("#basicinfo .username h4::text").extract_first())
-        user['relativeurl'] = response.meta['relativeurl']
-        user['fullurl'] = response.url
-        user['membergroup'] = self.get_text(response.css("#basicinfo .username h4 span.position"))
+        user['username']        = self.get_text(response.css("#basicinfo .username h4::text").extract_first())
+        user['relativeurl']     = response.meta['relativeurl']
+        user['fullurl']         = response.url
+        user['membergroup']     = self.get_text(response.css("#basicinfo .username h4 span.position"))
 
         dts = response.css("#detailedinfo .content dl dt")
         
@@ -277,7 +293,7 @@ class OnionlandbakytSpider(ForumSpider):
             elif key == 'personal text':
                 user['personal_text'] = ddtext
             elif key == 'date registered':
-                user['joined_on'] = self.parse_timestr(ddtext)
+                user['joined_on'] = self.parse_timestr(ddtext, response)
             elif key == 'last active':
                 user['last_active'] = ddtext            
             elif key == 'location':
@@ -295,13 +311,15 @@ class OnionlandbakytSpider(ForumSpider):
 
         yield user
 
-    def parse_timestr(self, timestr):
+    def parse_timestr(self, timestr, response):
         timestr = timestr.lower()
         try:
             timestr = timestr.replace('today at', str(self.localnow().date()))
-            return self.to_utc(dateutil.parser.parse(timestr))
-        except:
-            self.logger.warning("Cannot parse timestring %s " % timestr)
+            return self.to_utc(parser.parse(timestr))
+        except Exception as e:
+            self.logger.warning("Cannot parse timestring %s because %s" % (timestr, e))
+            inspect_response(response, self)
+
 
 
     def craft_login_request_from_form(self, response):
@@ -334,3 +352,21 @@ class OnionlandbakytSpider(ForumSpider):
     #So there's a simili-protection on the login page where we need to submit a hash of the password salted with the session id.
     def make_hash(self, u, p, sessid):
         return hashlib.sha1(hashlib.sha1(u.encode('utf8')+p.encode('utf8')).hexdigest()+sessid).hexdigest()
+
+
+    def normalize_pgp_key(self, key):
+        begin = '-----BEGIN PGP (PUBLIC|PRIVATE) KEY BLOCK-----'
+        end = '-----END PGP (PUBLIC|PRIVATE) KEY BLOCK-----'
+        m = re.search('(%s)(.+)(%s)' % (begin, end), key,re.S)
+        if m:
+            newlines = []
+            for line in m.group(3).splitlines():
+                if re.search('version', line, re.IGNORECASE):
+                    continue
+                elif re.search('comment', line, re.IGNORECASE):
+                    continue
+                newlines.append(line)
+            content = ''.join(newlines)
+            return '%s\n\n%s\n%s' % (m.group(1), content, m.group(4))        
+        self.logger.warning('Failed to clean PGP key. \n %s' % key)
+        return key     
