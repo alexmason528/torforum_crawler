@@ -69,4 +69,5 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
     ('user_sales', 'Sales'),
     ('user_buys', 'Buys'),
     ('awards', 'Awards'),
-    ('rank', 'Rank');
+    ('rank', 'Rank'),
+    ('flair', 'Flair');
