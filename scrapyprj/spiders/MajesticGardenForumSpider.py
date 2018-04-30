@@ -144,8 +144,8 @@ class MajesticGardenForumSpider(ForumSpiderV3):
             username = post.xpath(".//h4/a/text()").extract_first()
             if username is not None: # Verified posters.
                 useritem['username'] = username.strip()
-                useritem["relativeurl"] = post.css(".poster h4 a::attr(href)").extract_first()
-                useritem["fullurl"] = self.make_url(post.css(".poster h4 a::attr(href)").extract_first())
+                useritem["relativeurl"]     = self.get_relative_url(post.css(".poster h4 a::attr(href)").extract_first())
+                useritem["fullurl"]         = self.make_url(post.css(".poster h4 a::attr(href)").extract_first())
             elif post.xpath(".//h4/text()").extract_first() is not None:
                 useritem['username']        = post.xpath(".//h4/text()").extract_first().strip()
                 useritem["relativeurl"]     = useritem['username']
@@ -182,25 +182,25 @@ class MajesticGardenForumSpider(ForumSpiderV3):
     def parse_threadlisting(self, response):
         # self.logger.info("Yielding threads from %s" % response.url)
         for line in response.css("#messageindex table tbody tr"):
-            threaditem = items.Thread()
-            last_post_time = self.parse_timestr(self.get_text(line.css("td:last-child")).split("by")[0].strip())
-            threadlinkobj = next(iter(line.css("td:nth-child(3) span a") or []), None)  # First or None if empty
+            threaditem                      = items.Thread()
+            last_post_time                  = self.parse_timestr(self.get_text(line.css("td:last-child")).split("by")[0].strip())
+            threadlinkobj                   = next(iter(line.css("td:nth-child(3) span a") or []), None)  # First or None if empty
             if threadlinkobj:
-                threadlinkhref = threadlinkobj.xpath("@href").extract_first() if threadlinkobj else None
-                threaditem['title'] = self.get_text(threadlinkobj)
-                threaditem['relativeurl'] = threadlinkhref
-                threaditem['fullurl'] = self.make_url(threadlinkhref)
-                threaditem['threadid'] = self.get_url_param(threaditem['fullurl'], 'topic').split(".")[0]
-                byuser = self.get_text(line.css("td:nth-child(3) p a"))
-                byuser1 = self.get_text(line.css("td:nth-child(3) p")).replace("Started by ", "")
+                threadlinkhref              = threadlinkobj.xpath("@href").extract_first() if threadlinkobj else None
+                threaditem['title']         = self.get_text(threadlinkobj)
+                threaditem['relativeurl']   = self.get_relative_url(threadlinkhref)
+                threaditem['fullurl']       = self.make_url(threadlinkhref)
+                threaditem['threadid']      = self.get_url_param(threaditem['fullurl'], 'topic').split(".")[0]
+                byuser                      = self.get_text(line.css("td:nth-child(3) p a"))
+                byuser1                     = self.get_text(line.css("td:nth-child(3) p")).replace("Started by ", "")
                 if byuser == '' and byuser1 != '':
                     threaditem['author_username'] = byuser1
                 else:
                     threaditem['author_username'] = byuser
-                threaditem['last_update'] = last_post_time
-                reply_review = self.get_text(line.css("td:nth-child(4)"))
-                threaditem['replies'] = re.search(r"(\d+) Replies", reply_review, re.S | re.M).group(1)
-                threaditem['views'] = re.search(r"(\d+) Views", reply_review, re.S | re.M).group(1)
+                threaditem['last_update']   = last_post_time
+                reply_review                = self.get_text(line.css("td:nth-child(4)"))
+                threaditem['replies']       = re.search(r"(\d+) Replies", reply_review, re.S | re.M).group(1)
+                threaditem['views']         = re.search(r"(\d+) Views", reply_review, re.S | re.M).group(1)
                 yield threaditem
             else:
                 self.logger.warning('Couldn\'t yield thread. Please review: %s' % response.url)
