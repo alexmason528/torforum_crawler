@@ -216,25 +216,29 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
     def parse_user(self, response):
         #self.logger.info("Yielding profile from %s" % response.url)
         user = items.User()
-        user['relativeurl'] = urlparse(response.url).path
+        user['relativeurl'] = self.get_relative_url(response.url)
         user['fullurl'] = response.url
 
         user['username'] = self.get_text(response.css("div.main-infos h2"))
-
         if user["username"] == "":
             return
+        else: 
+            self.logger.warning("Couldn't get username at %s. Field empty." % response.url)
 
         rating_str = self.get_text(response.css("div.rating.stars"))
         if rating_str != "":
             m = re.search(r"\[([\d\.]+)\]", rating_str, re.M | re.I)
-
             if m is not None:
                 user["average_rating"] = m.group(1).strip()
+            else:
+                self.logger.warning("Couldn't get username at %s. Field empty." % response.url)
 
             m = re.search(r"\(([\d]+)[\s]rating", rating_str, re.M | re.I)
-
             if m is not None:
                 user["rating_count"] = m.group(1).strip()
+            self.logger.warning("Couldn't get rating count at %s. Field empty." % response.url)
+        else:
+            self.logger.warning("Couldn't get ratings at %s. Field empty." % response.url)
 
         user["membergroup"] = self.get_text(response.css("div.main-infos p"))
         activity_list = response.css("div.corner ul.zebra.big-list li")
@@ -307,6 +311,8 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         match = re.search(r'/post/(\d+)/', uri)
         if match:
             return match.group(1)
+
+        self.logger.warning("Couldn't get threadid at %s. Field empty." % uri)
         return None
 
     def get_post_id(self, uri):
@@ -316,6 +322,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         match = re.search(r'comment-(\d+)', uri)
         if match:
             return match.group(1)
+        self.logger.warning("Couldn't get postid at %s. Field empty." % uri)
         return None
 
     def parse_timestr(self, timestr):
