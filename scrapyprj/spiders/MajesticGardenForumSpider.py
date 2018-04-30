@@ -129,14 +129,14 @@ class MajesticGardenForumSpider(ForumSpiderV3):
             messageitem = items.Message()
             posttime = self.parse_timestr(re.search("«.*on:(.*?)»", self.get_text(post.css("div.keyinfo div.smalltext")), re.S | re.M).group(1).strip())
 
-            messageitem['author_username'] = self.get_text(post.css(".poster h4"))
-            messageitem['postid'] = post.css("div.post div.inner::attr(id)").extract_first().replace("msg_", "")
-            messageitem['threadid'] = threadid
-            messageitem['posted_on'] = posttime
+            messageitem['author_username']   = self.get_text(post.css(".poster h4"))
+            messageitem['postid']            = post.css("div.post div.inner::attr(id)").extract_first().replace("msg_", "")
+            messageitem['threadid']          = threadid
+            messageitem['posted_on']         = posttime
 
             msg = post.css("div.post")
-            messageitem['contenttext'] = self.get_text(msg)
-            messageitem['contenthtml'] = self.get_text(msg.extract_first())
+            messageitem['contenttext']       = self.get_text(msg)
+            messageitem['contenthtml']       = self.get_text(msg.extract_first())
             yield messageitem
 
         for post in posts:
