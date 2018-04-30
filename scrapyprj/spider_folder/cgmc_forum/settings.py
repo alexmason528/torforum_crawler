@@ -1,3 +1,17 @@
+# CGMC is a cannabis- and psychedelics only market. It offers an onsite discussion forum,
+# where buyers and vendors post and comment under their own names. If further offers 
+# blogging functionality. This is not processed presently, but can be recovered from 
+# replays. CGMC require a waiting period of 24-48 hours before a profile can be activated.
+# If you need to make new logins, get a bunch of invite codes and save them in this file
+# for later use.
+#
+# Vendor activity on market and forum can be connected through their profiles. 
+# Interestingly, some vendors cannot be recognized by their URL (/v/ versurs /u/). Be 
+# aware of this for analysis.
+
+
+
+
 settings = {
     'timezone': 'UTC',                             # Timezone used on the website.
     'endpoint': 'http://forum.cgmcoopwhempo6a5.onion/',    # Endpoint of the site. Hostname only
@@ -55,7 +69,8 @@ settings = {
             '/listings/',
             '/p/',
             '/\?do',
-            '\[ToggleUserSubscription\]'
+            '\[ToggleUserSubscription\]',
+            '/comments/' # Comments are actually ratings. We do not need to collect them, as they are collected by the market spider.
         }
     }
 }
