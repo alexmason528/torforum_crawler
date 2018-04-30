@@ -153,18 +153,7 @@ class OnionlandbakytSpider(ForumSpider):
                     last_update = date + " " + time
                 threaditem['last_update'] = self.parse_timestr(last_update, response)
 
-                # last_update = threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[following-sibling::a][2]").extract_first()
-                # if last_update is not None and last_update != "":
-                #     last_update = threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[following-sibling::a][2]").extract_first().strip()
-                # # Fallback in case date is today.
-                # elif last_update == "":
-                #     date = self.get_text(threadline.xpath(".//td[contains(@class, 'lastpost')]/strong/text()").extract_first())
-                #     time = self.get_text(threadline.xpath(".//td[contains(@class, 'lastpost')]/text()[following-sibling::a][3]").extract_first())
-                #     last_update = date + " " + time
-                # elif last_update is None:
-                #     inspect_response(response, self)
-                # threaditem['last_update'] = self.parse_timestr(last_update, response)
-                #Stats cell
+
                 statcellcontent = self.get_text(threadline.css("td.stats"))
                 m = re.search("(\d+) Replies [^\d]+(\d+) Views", statcellcontent)
                 if m :
@@ -318,7 +307,7 @@ class OnionlandbakytSpider(ForumSpider):
             return self.to_utc(parser.parse(timestr))
         except Exception as e:
             self.logger.warning("Cannot parse timestring %s because %s" % (timestr, e))
-            inspect_response(response, self)
+            
 
 
 
