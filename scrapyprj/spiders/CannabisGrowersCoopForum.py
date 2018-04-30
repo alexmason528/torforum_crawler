@@ -208,37 +208,29 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         return False
 
     def is_user(self, response):
-        if ("/u/" in response.url) or ("/v/" in response.url):
+        if ("/u/" in response.url) or ("/v/" in response.url and "/comments/" not in response.url):
             return True
-
         return False
 
     def parse_user(self, response):
-        #self.logger.info("Yielding profile from %s" % response.url)
         user = items.User()
         user['relativeurl'] = self.get_relative_url(response.url)
-        user['fullurl'] = response.url
+        user['fullurl']     = response.url
 
-        user['username'] = self.get_text(response.css("div.main-infos h2"))
+        user['username']    = self.get_text(response.css("div.main-infos h2"))
         if user["username"] == "":
-            return
-        else: 
             self.logger.warning("Couldn't get username at %s. Field empty." % response.url)
 
+        # Extract ratings.
+        # If the user has no ratings, we will receive a "".
         rating_str = self.get_text(response.css("div.rating.stars"))
-        if rating_str != "":
+        if rating_str != "": 
             m = re.search(r"\[([\d\.]+)\]", rating_str, re.M | re.I)
             if m is not None:
                 user["average_rating"] = m.group(1).strip()
-            else:
-                self.logger.warning("Couldn't get username at %s. Field empty." % response.url)
-
             m = re.search(r"\(([\d]+)[\s]rating", rating_str, re.M | re.I)
             if m is not None:
                 user["rating_count"] = m.group(1).strip()
-            self.logger.warning("Couldn't get rating count at %s. Field empty." % response.url)
-        else:
-            self.logger.warning("Couldn't get ratings at %s. Field empty." % response.url)
 
         user["membergroup"] = self.get_text(response.css("div.main-infos p"))
         activity_list = response.css("div.corner ul.zebra.big-list li")
