@@ -22,9 +22,6 @@ class OlympusMarketForumSpider(ForumSpider):
 
     custom_settings = {
         'MAX_LOGIN_RETRY' : 10,
-        'RESCHEDULE_RULES' : {
-            'The post table and topic table seem to be out of sync' : 60
-        },
         'HTTPERROR_ALLOW_ALL' : True,
         'RETRY_ENABLED' : True,
         'RETRY_TIMES' : 5       
@@ -71,8 +68,6 @@ class OlympusMarketForumSpider(ForumSpider):
                 req.meta['threadid'] = kwargs['threadid']
             if 'username' in kwargs:
                 req.meta['username'] = kwargs['username']
-
-
         else:
             raise Exception('Unsuported request type ' + reqtype)
 
@@ -162,7 +157,7 @@ class OlympusMarketForumSpider(ForumSpider):
 
                 yield self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link, username=messageitem['author_username'])
             except Exception as e:
-                self.logger.warning("Invalid thread page. %s" % e)
+                self.logger.warning("Invalid thread page %s. %s" % (response.url, e))
 
         for link in response.css(".PageNav nav a::attr(href)").extract():
             yield self.make_request('thread', url=link, threadid = response.meta['threadid'])
@@ -273,4 +268,5 @@ class OlympusMarketForumSpider(ForumSpider):
             m2  = re.match("(.+\.)?(\d+)/?", m.group(1))
             return m2.group(2)
         except Exception as e:
+            self.logger.warning("Couldn't get thread id from %s because: %s" % (url, e))
             return None
