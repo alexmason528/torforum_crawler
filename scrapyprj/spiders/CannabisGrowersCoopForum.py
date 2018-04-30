@@ -8,7 +8,7 @@ from urlparse import urlparse
 import re
 import dateutil
 import time
-
+from scrapy.shell import inspect_response
 
 class CannabisGrowersCoopForum(ForumSpiderV3):
     name = "cgmc_forum"
@@ -56,8 +56,6 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             req = Request(self.spider_settings["endpoint"])
 
         # Some meta-keys that are shipped with the request.
-        if 'relativeurl' in kwargs:
-            req.meta['relativeurl'] = kwargs['relativeurl']
         if 'dont_filter' in kwargs:
             req.dont_filter = kwargs['dont_filter']
         if 'shared' in kwargs:
@@ -73,6 +71,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
 
     def parse_response(self, response):
         parser = None
+
         # Handle login status.
         if self.islogged(response) is False:
             req_once_logged = response.meta['req_once_logged'] \
@@ -241,8 +240,6 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
 
             if key == "":
                 self.logger.warning("Key is ''. Value is %s at URL %s" % (value, response.url))
-                #continue 
-
             if key == "Last Seen":
                 user["last_activity"] = self.parse_timestr(value)
             elif key == "Forum Posts":
@@ -250,9 +247,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             elif key == "Followers":
                 user["followers"] = value
             else:
-                self.logger.warning(
-                    'New information found on use profile page: "{}", {}'
-                    .format(key, response.url))
+                self.logger.warning('New information found on use profile page: "{}", {}'.format(key, response.url))
         yield user
 
     def parse_threadlisting(self, response):
@@ -263,7 +258,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
                 topic.css("div.main > div > a"))
 
             href = topic.css("div.main > div > a::attr(href)").extract_first()
-            threaditem['relativeurl'] = href
+            threaditem['relativeurl'] = self.get_relative_url(href)
             if href != "":
                 threaditem['fullurl'] = self.make_url(href)
             threadid = self.get_thread_id(href)
@@ -281,19 +276,14 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
     def parse_message(self, response):
         posts = response.css('ul.row.list-posts > li')
         for post in posts:
-            messageitem = items.Message()
-
-            messageitem['author_username'] = self.get_text(
-                post.css('.post-header a.poster'))
-            messageitem['postid'] = self.get_post_id(
-                post.css('span:first-child::attr(id)').extract_first())
-            messageitem['threadid'] = self.get_thread_id(response.url)
-            messageitem['posted_on'] = dateutil.parser.parse(self.get_text(
-                post.css('.footer .cols-10 .col-4:first-child strong')))
-
+            messageitem                     = items.Message()
+            messageitem['author_username']  = self.get_text(post.css('.post-header a.poster'))
+            messageitem['postid']           = self.get_post_id(post.css('span:first-child::attr(id)').extract_first())
+            messageitem['threadid']         = self.get_thread_id(response.url)
+            messageitem['posted_on']        = self.parse_timestr(self.get_text(post.css('.footer .cols-10 .col-4:first-child strong')))
             msg = post.css("div.content")
-            messageitem['contenttext'] = self.get_text(msg)
-            messageitem['contenthtml'] = self.get_text(msg.extract_first())
+            messageitem['contenttext']      = self.get_text(msg)
+            messageitem['contenthtml']      = self.get_text(msg.extract_first())
             yield messageitem
 
     def get_thread_id(self, uri):
@@ -303,7 +293,6 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         match = re.search(r'/post/(\d+)/', uri)
         if match:
             return match.group(1)
-
         self.logger.warning("Couldn't get threadid at %s. Field empty." % uri)
         return None
 
@@ -322,21 +311,13 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         try:
             timestr = timestr.lower()
             if "days ago" in timestr:
-                v = re.search(
-                    r"([\d]+)[\s]day",
-                    timestr,
-                    re.M | re.I | re.S
-                    ).group(1).strip()
-                timestr = str(self.localnow().date() - timedelta(days=int(v)))
-
-            timestr = timestr.replace('today', str(self.localnow().date()))
-            timestr = timestr.replace('today', str(self.localnow().date()))
-            timestr = timestr.replace('yesterday', str(
-                self.localnow().date() - timedelta(days=1)))
-            last_post_time = self.to_utc(dateutil.parser.parse(timestr))
-        except Exception:
+                v            = re.search(r"([\d]+)[\s]day", timestr, re.M | re.I | re.S).group(1).strip()
+                timestr      = str(self.localnow().date() - timedelta(days=int(v)))
+            timestr          = timestr.replace('today', str(self.localnow().date()))
+            timestr          = timestr.replace('today', str(self.localnow().date()))
+            timestr          = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
+            last_post_time   = self.to_utc(dateutil.parser.parse(timestr))
+        except Exception as error:
             if timestr:
-                self.logger.warning(
-                    "Could not determine time from this string : "
-                    "'%s'. Ignoring" % timestr)
+                self.logger.warning("Could not determine time from this string: '%s'. Error:s %s" % timestr)
         return last_post_time
