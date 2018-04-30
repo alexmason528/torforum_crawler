@@ -34,7 +34,7 @@ class OnionlandbakytSpider(ForumSpider):
 
         self.logintrial = 0
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(10)              # Scrapy config
+        self.set_download_delay(15)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 
         self.parse_handlers = {
@@ -133,6 +133,8 @@ class OnionlandbakytSpider(ForumSpider):
                 m = re.search("\?topic=(\d+)", threadurl)
                 if m:
                     threaditem['threadid'] = m.group(1).strip()
+                else:
+                    self.logger.warning("Failed to get threadid on %s" % response.url)
                 threaditem['title'] = self.get_text(threadlink)
                 threaditem['relativeurl'] = threadurl
                 threaditem['fullurl'] = self.make_url(threadurl)
@@ -142,6 +144,8 @@ class OnionlandbakytSpider(ForumSpider):
                 m = re.search("(.+) by (.+)", lastpost_str)
                 if m:
                     threaditem['last_update'] = self.parse_timestr(m.group(1))
+                else:
+                    self.logger.warning("Failed to get last update on %s" % response.url)
 
                 #Stats cell
                 statcellcontent = self.get_text(threadline.css("td.stats"))
@@ -162,7 +166,7 @@ class OnionlandbakytSpider(ForumSpider):
                 for threadlink in threadline.xpath('.//a[contains(@href, "?topic=") and not(contains(@href, "#new"))]'):
                     yield self.make_request('thread', url = threadlink.xpath("@href").extract_first(), threadid=threaditem['threadid'] )
             except Exception as e:
-                self.logger.error("Cannot parse thread item : %s" % e)
+                self.logger.error("Cannot parse thread item at %s because: %s" % (response.url, e))
                 raise
 
 
@@ -183,7 +187,7 @@ class OnionlandbakytSpider(ForumSpider):
                     u = userlink.xpath("@href").extract_first()
                     yield self.make_request('userprofile', url = u, relativeurl=u)
             except Exception as e:
-                self.logger.error("Cannot parse Message item : %s" % e)
+                self.logger.error("Cannot parse Message item at %s because: %s" % (response.url, e))
                 raise
 
 
@@ -194,12 +198,16 @@ class OnionlandbakytSpider(ForumSpider):
         m = re.search('on:\s*(.+)', postmeta_ascii)
         if m:
             msgitem['posted_on'] = self.parse_timestr(m.group(1))
+        else:
+            self.logger.error("Cannot parse posted on at %s because: %s" % (response.url, e))
             
         postcontent = postwrapper.css(".postarea .post").xpath("./div[contains(@id, 'msg_')]")
 
         m = re.search('msg_(\d+)', postcontent.xpath('@id').extract_first())
         if m:
             msgitem['postid'] = m.group(1)
+        else:
+            self.logger.error("Cannot locate postid at %s because: %s" % (response.url, e))
 
         msgitem['threadid']         = response.meta['threadid']
         msgitem['author_username']  = self.get_text(postwrapper.css(".poster h4"))  
@@ -219,6 +227,8 @@ class OnionlandbakytSpider(ForumSpider):
         m = re.search('(\d+)', self.get_text(extrainfo.css("li.postcount")))
         if m:
             useritem['post_count'] = m.group(1)       
+        else:
+            self.logger.error("Cannot locate post count at %s because: %s" % (response.url, e))
 
         useritem['karma'] = self.get_text(extrainfo.css("li.karma"))
         useritem['stars'] = str(len(extrainfo.css("li.stars img")))
@@ -275,7 +285,7 @@ class OnionlandbakytSpider(ForumSpider):
             elif key == 'custom title':
                 user['custom_title'] = ddtext
             elif key == 'pgp public key':
-                user['pgp_key'] = self.normlaize_pgp_key(ddtext)
+                user['pgp_key'] = self.normalize_pgp_key(ddtext)
             elif key == 'email':
                  user['email'] = ddtext
             elif key in ['local time']:
@@ -324,22 +334,3 @@ class OnionlandbakytSpider(ForumSpider):
     #So there's a simili-protection on the login page where we need to submit a hash of the password salted with the session id.
     def make_hash(self, u, p, sessid):
         return hashlib.sha1(hashlib.sha1(u.encode('utf8')+p.encode('utf8')).hexdigest()+sessid).hexdigest()
-
-    # This is the function that maket PGP keys are processed through located in dataformatter.py.
-    # I'm not sure how to incorporate it in there, so for now it is located in-script.
-    def normlaize_pgp_key(self, key):
-        begin = '-----BEGIN PGP (PUBLIC|PRIVATE) KEY BLOCK-----'
-        end = '-----END PGP (PUBLIC|PRIVATE) KEY BLOCK-----'
-        m = re.search('(%s)(.+)(%s)' % (begin, end), key,re.S)
-        if m:
-            newlines = []
-            for line in m.group(3).splitlines():
-                if re.search('version', line, re.IGNORECASE):
-                    continue
-                elif re.search('comment', line, re.IGNORECASE):
-                    continue
-                newlines.append(line)
-            content = ''.join(newlines)
-            return '%s\n\n%s\n%s' % (m.group(1), content, m.group(4))        
-        self.logger.warning('Failed to clean PGP key. \n %s' % key)
-        return key
