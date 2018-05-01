@@ -62,6 +62,8 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             req.meta['shared'] = kwargs['shared']
         if 'req_once_logged' in kwargs:
             req.meta['req_once_logged'] = kwargs['req_once_logged']
+        if 'flair' in kwargs:
+            req.meta['flair'] = kwargs['flair']
 
         req.meta['proxy'] = self.proxy
         req.meta['slot'] = self.proxy
@@ -206,10 +208,13 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             return True
         return False
 
-    def is_user(self, response):
-        if ("/u/" in response.url) or ("/v/" in response.url and "/comments/" not in response.url):
+    def is_user_url(self, url):
+        if ("/u/" in url) or ("/v/" in url and "/comments/" not in url):
             return True
         return False
+
+    def is_user(self, response):
+        return self.is_user_url(response.url)
 
     def parse_user(self, response):
         user = items.User()
@@ -233,6 +238,13 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
 
         user["membergroup"] = self.get_text(response.css("div.main-infos p"))
         activity_list = response.css("div.corner ul.zebra.big-list li")
+
+        if "flair" in response.meta:
+            user["flair"] = response.meta["flair"]
+
+        pgp_key_str = self.get_text(response.css("div.right div.contents label.textarea textarea"))
+        if pgp_key_str != "":
+            user["pgp_key"] = self.normalize_pgp_key(pgp_key_str)
 
         for tr_item in activity_list:
             key = self.get_text(tr_item.css("div.main div span"))
@@ -265,6 +277,8 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             threaditem['threadid'] = threadid
             threaditem['author_username'] = topic.css(
                 "div.main > div > span a::text").extract_first()
+            flair = topic.css(
+                "div.main > div > span a::attr(data-flair)").extract_first()
 
             replies = self.get_text(
                 topic.css("div.main > div > span strong:last-child"))
@@ -273,11 +287,19 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             threaditem['replies'] = replies
             yield threaditem
 
+            if flair is not None:
+                user_href = topic.css(
+                    "div.main > div > span a::attr(href)").extract_first()
+                if self.is_user_url(user_href) is True:
+                    yield self.make_request(
+                        url=user_href, dont_filter=True, flair=flair
+                    )
+
     def parse_message(self, response):
         posts = response.css('ul.row.list-posts > li')
         for post in posts:
             messageitem                     = items.Message()
-            messageitem['author_username']  = self.get_text(post.css('.post-header a.poster'))
+            messageitem['author_username']  = post.css('.post-header a.poster::text').extract_first()
             messageitem['postid']           = self.get_post_id(post.css('span:first-child::attr(id)').extract_first())
             messageitem['threadid']         = self.get_thread_id(response.url)
             messageitem['posted_on']        = self.parse_timestr(self.get_text(post.css('.footer .cols-10 .col-4:first-child strong')))
