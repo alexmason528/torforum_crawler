@@ -165,7 +165,7 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
             yield useritem
 
         except Exception as e:
-            self.logger.warning("Cannot parse user item. %s" % e)
+            self.logger.warning("Cannot parse user item at URL %s because %s" % (response.url, e))
             pass
 
 
@@ -198,7 +198,7 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
                     yield messageitem
 
                 except Exception as e:
-                    self.logger.warning("Cannot parse message item. %s" % e)
+                    self.logger.warning("Cannot parse message item at URL %s because %s" % (response.url, e))
                     pass
 
     def parse_threadlisting(self, response):
@@ -229,7 +229,7 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
                 yield threaditem
 
             except Exception as e:
-                self.logger.error("Cannot parse thread item : %s" % e)
+                self.logger.warning("Cannot parse thread item at URL %s because %s" % (response.url, e))
                 pass
 
 
