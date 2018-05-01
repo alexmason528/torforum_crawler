@@ -41,6 +41,7 @@ class IDC2Spider(ForumSpiderV3):
         self.alt_hostnames      = []            # Not in use.
         self.report_status      = True          # Report 200's.
         self.loggedin           = False         # Login flag. 
+        self.report_hostnames_found = False     # Disable/enable logging of outbound URLs.
         self.user_agent         = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
 
     def start_requests(self):
@@ -124,11 +125,6 @@ class IDC2Spider(ForumSpiderV3):
         posts = response.xpath('.//div[@class="post "]')
         for post in posts:
             messageitem                     = items.Message()
-            #if posts.xpath('.//span[contains(text(), "Unregistered")]'):
-            #    continue
-            #else:
-            #    self.logger.warning("Unhandled error. Couldn't parse posts at URL %s" % response.url)
-            # Yield message.
             guest_user   = len(post.xpath('.//span[contains(text(), "Unregistered")]')) > 0
             special_user = guest_user is True and post.xpath('.//div[@class="author_information"]/strong/span/a[contains(@href, "member")]//text()').extract_first() is not None
 
@@ -156,7 +152,7 @@ class IDC2Spider(ForumSpiderV3):
                 posted_on                       = post.xpath('.//span[@class="post_date"]/text()').extract_first()
                 messageitem['posted_on']        = self.parse_date_idc(posted_on)                
             if messageitem['author_username'] is None:
-                inspect_response(response, self)
+                self.logger.warning("Author username is still None at URL: %s. Can't yield item." % response.url)
 
             yield messageitem
 
@@ -189,7 +185,7 @@ class IDC2Spider(ForumSpiderV3):
         topics = response.xpath('.//tr[@class="inline_row"]')
         for topic in topics:
             threaditem                    = items.Thread()
-            threaditem['title']           =  topic.xpath('.//span[contains(@id, "tid")]/a/text()').extract_first()
+            threaditem['title']           = topic.xpath('.//span[contains(@id, "tid")]/a/text()').extract_first()
             threaditem['relativeurl']     = topic.xpath('.//span[contains(@id, "tid")]/a/@href').extract_first()
             threaditem['fullurl']         = self.make_url(threaditem['relativeurl'])
             threaditem['threadid']        = re.search('([0-9]+)', threaditem['relativeurl']).group(1)
@@ -231,8 +227,7 @@ class IDC2Spider(ForumSpiderV3):
             }
             req.meta['captcha'] = {        # CaptchaMiddleware will take care of that.
                 'request' : self.make_request(url=captcha_src, dont_filter = True, priority = 10),
-                'name' : 'imagestring',    # Preprocess image to extract what's within the rectangle
-                'preprocess' : 'DreamMarketRectangleCropper'
+                'name' : 'imagestring'
                 }
         else:
             data = {
@@ -253,17 +248,17 @@ class IDC2Spider(ForumSpiderV3):
 
     ########### MISCELLANEOUS ###################
     def parse_date_idc(self, date):
-        if re.search(r'oggi', date): # 'Today, HH:MM PM/AM'
+        if 'oggi' in date: # 'Today, HH:MM PM/AM'
             time = dateutil.parser.parse(re.sub(r'oggi, ', '', date))
-            return datetime.now() + relativedelta(hour=time.hour, minute=time.minute, second=0)
-        elif re.search(r'ieri', date): # 'Yesterday, HH:MM PM/AM'
+            return datetime.now() + timedelta(hours=time.hour, minutes=time.minute, seconds=0)
+        elif 'ieri' in date: # 'Yesterday, HH:MM PM/AM'
             time = dateutil.parser.parse(re.sub(r'ieri, ', '', date))
-            return datetime.now() + relativedelta(days=-1, hour=time.hour, minute=time.minute, second=0)
-        elif re.search(r'ore fa', date): # 'HH hours ago'
+            return datetime.now() + timedelta(days=-1, hours=time.hour, minutes=time.minute, seconds=0)
+        elif 'ore' in date: # 'HH hours ago'
             hours_ago = int(re.search('([0-9]+)', date).group(1))
-            return datetime.now() + relativedelta(hours=-hours_ago, second=0)
-        elif re.search(r'minuti fa', date): # 'HH minutes ago'
+            return datetime.now() + timedelta(hours=-hours_ago, seconds=0)
+        elif 'minuti' in date: # 'HH minutes ago'
             minutes_ago = int(re.search('([0-9]+)', date).group(1))
-            return datetime.now() + relativedelta(minutes=-minutes_ago, second=0)
+            return datetime.now() + timedelta(minutes=-minutes_ago, seconds=0)
         else:
             return dateutil.parser.parse(date)
