@@ -26,7 +26,7 @@ class ApollonMarketForumSpider(ForumSpiderV3):
         super(ApollonMarketForumSpider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(10)             # Scrapy config
+        self.set_download_delay(1)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
@@ -51,6 +51,8 @@ class ApollonMarketForumSpider(ForumSpiderV3):
             req = Request(kwargs['url'])
             req.meta['shared'] = True
         # Some meta-keys that are shipped with the request.
+        if 'shared' in kwargs:
+            req.meta['shared'] = kwargs['shared']
         if 'relativeurl' in kwargs:
             req.meta['relativeurl'] = kwargs['relativeurl']
         if 'dont_filter' in kwargs:
@@ -68,7 +70,7 @@ class ApollonMarketForumSpider(ForumSpiderV3):
         # Handle login status.
         if self.islogged(response) is False:
             self.loggedin = False
-            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request                
+            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
             if self.is_login_page(response) is False:
                 # req_once_logged:
                 # stores the request we will go to after logging in.
@@ -231,11 +233,8 @@ class ApollonMarketForumSpider(ForumSpiderV3):
 
     def parse_threadlisting(self, response):
         # self.logger.info("Yielding threads from %s" % response.url)
-        for line in response.css("#punviewforum tbody tr"):
+        for line in response.css('#punviewforum tbody tr:not([class*="inone"])'):
             threaditem = items.Thread()
-            title = self.get_text(line.css("td:first-child a"))
-            if title is '':
-                self.logger.warning("Title of the thread is ''. Please handle the error at %s" % response.url)
             last_post_time = self.parse_timestr(
                 self.get_text(line.css("td:last-child a")))
             # First or None if empty
@@ -303,6 +302,7 @@ class ApollonMarketForumSpider(ForumSpiderV3):
                 self.localnow().date() - timedelta(days=1)))
             last_post_time = self.to_utc(dateutil.parser.parse(timestr))
         except Exception as e:
+            print(str(e))
             print(str(e))
             if timestr:
                 self.logger.warning(
