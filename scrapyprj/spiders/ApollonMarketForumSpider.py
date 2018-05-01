@@ -26,13 +26,13 @@ class ApollonMarketForumSpider(ForumSpiderV3):
         super(ApollonMarketForumSpider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(1)             # Scrapy config
+        self.set_download_delay(5)              # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
-        self.statsinterval = 60                 # Custom Queue system
-        self.logintrial = 0                     # Max login attempts.
-        self.alt_hostnames = []                 # Not in use.
-        self.report_status = True               # Report 200's.
-        self.loggedin = False                   # Login flag.
+        self.statsinterval  = 60                # Custom Queue system
+        self.logintrial     = 0                 # Max login attempts.
+        self.alt_hostnames  = []                # Not in use.
+        self.report_status  = True              # Report 200's.
+        self.loggedin       = False             # Login flag.
 
     def start_requests(self):
         yield self.make_request(url='index', dont_filter=True)
@@ -159,8 +159,8 @@ class ApollonMarketForumSpider(ForumSpiderV3):
     def parse_user(self, response):
         # self.logger.info("Yielding profile from %s" % response.url)
         user = items.User()
-        user['relativeurl'] = urlparse(response.url).path
-        user['fullurl'] = response.url
+        user['relativeurl'] = self.get_relative_url(response.url)
+        user['fullurl']     = response.url
 
         dts = response.css("#viewprofile dl dt")
 
