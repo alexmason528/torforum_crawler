@@ -90,8 +90,9 @@ class ForumSpiderV3(ForumSpider):
         endpoint = self.spider_settings['endpoint']
         if parsed_url.hostname not in endpoint:
             if parsed_url.hostname not in self.alt_hostnames:
-                self.logger.warning('Not following url with different hostname, possibly an alt hostname : %s' % (full_url))
                 self.alt_hostnames.append(parsed_url.hostname)
+                if self.report_hostnames_found is True:
+                    self.logger.warning('Not following url with different hostname, possibly an alt hostname : %s' % (full_url))
             return False
 
         exclude = self.spider_settings['exclude']
