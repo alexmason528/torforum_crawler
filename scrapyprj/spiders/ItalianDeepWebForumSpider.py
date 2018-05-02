@@ -130,6 +130,9 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
             useritem                    = items.User()
 
             useritem['username']        = self.get_text(response.css("fieldset span.largetext span"))
+            if useritem['username'] == '' or useritem['username'] is None:
+                useritem['username'] = self.get_text(response.xpath('.//span[@class="largetext"]'))
+
             useritem['relativeurl']     = urlparse(response.url).path
             useritem['fullurl']         = response.url
             useritem['username_id']     = self.get_url_param(response.url, 'uid')
@@ -142,26 +145,31 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
                     content = self.get_text(tr.xpath('.//td[last()]/text()').extract_first())
 
                     if key == 'joined:':
-                        useritem['joined_on'] = self.parse_timestr(content)
+                        useritem['joined_on'] = self.parse_timestr(content, response)
                     elif key == 'last visit:':
-                        useritem['last_active'] = self.parse_timestr(content)
+                        useritem['last_active'] = self.parse_timestr(content, response)
                     elif key == 'total posts:':
                         match = re.match('(\d+\.?\d*)', content)
                         if match:
                             useritem['message_count'] = match.group(1)
+                        else:
+                            self.logger.warning("Couldn't get user's total number of posts at %s" % response.url)
                     elif key == 'total threads:':
                         match = re.match('(\d+\.?\d*)', content)
                         if match:
                             useritem['post_count'] = match.group(1)
                     elif key == 'reputation:':
-                        useritem['reputation'] = self.get_text(tr.css('.reputation_positive'))
+                        useritem['reputation']     = self.get_text(tr.css('.reputation_positive'))
                     elif key == 'sex:':
-                        useritem['gender'] = content
+                        useritem['gender']         = content
+                    elif key == 'warning level:':
+                        useritem['warning_level']  = self.get_text(tr.xpath('.//td[last()]'))
+                    elif key == 'homepage:':
+                        useritem['website']        = self.get_text(tr.xpath('.//td[last()]'))
                     elif key in ['avatar', 'email:', 'private message:', 'bio:', 'time spent online:']:
                         pass
                     else:
-                        self.logger.warning('New information found on user profile page : "%s"' % key)
-
+                        self.logger.warning('New information found on user profile page: "%s" with value "%s"' % (key, content))
             yield useritem
 
         except Exception as e:
@@ -178,16 +186,16 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
         for post in posts:
             if not 'deleted_post_hidden' in post.xpath('@class').extract_first():
                 try:
-                    post_date           = self.parse_timestr(self.get_text(post.css('span.post_date::text')))
-                    author_username     = self.get_text(post.css('.post_author .largetext a span'))
+                    post_date_string = self.get_text(post.css('span.post_date::text'))
+                    if post_date_string == '':
+                        post_date_string = post.css('span.post_date::text').extract_first()
+                    post_date           = self.parse_timestr(post_date_string, response)
+                    author_username     = self.get_text(post.xpath('.//span[@class="largetext"]'))
                     contenttext         = post.css('.post_body')
                     match               = re.match('post_(\d+)', post.xpath("@id").extract_first())
-
                     if match:
                         post_id = match.group(1)
-
-                    messageitem                         = items.Message()
-
+                    messageitem                         = items.Message()                    
                     messageitem['author_username']      = author_username
                     messageitem['postid']               = post_id
                     messageitem['threadid']             = threadid
@@ -200,6 +208,8 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
                 except Exception as e:
                     self.logger.warning("Cannot parse message item at URL %s because %s" % (response.url, e))
                     pass
+            else:
+                self.logger.warning("Did not yield post because it was deleted or hidden at %s" % response.url)
 
     def parse_threadlisting(self, response):
         # self.logger.info("Yielding threads from %s" % response.url)
@@ -208,23 +218,28 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
 
         for thread in threads:
             try:
-                threadlink          = thread.css("td:nth-child(3)").xpath(".//span[contains(@id, 'tid_')]/a")
-                threadurl           = threadlink.xpath('@href').extract_first()
-                lastpost_content    = self.get_text(thread.css("td:last-child span.lastpost"))
-                match               = re.search("(.+)Ultimo", lastpost_content)
-                last_post_time  = self.parse_timestr(match.group(1)) if match else None
-
                 threaditem                      = items.Thread()
-                threaditem['threadid'] 		    = self.get_url_param(threadurl, 'tid')
-                threaditem['title']			    = self.get_text(threadlink)
-                threaditem['relativeurl']       = threadurl
-                threaditem['fullurl']           = self.make_url(threadurl)
-                threaditem['author_username']   = self.get_text(thread.css("td:nth-child(3) div.author a"))
-                threaditem['last_update']       = last_post_time
-                threaditem['replies']           = self.get_text(thread.css("td:nth-child(4) a"))
-                threaditem['views']             = self.get_text(thread.css("td:nth-child(5)"))
+                threadlink                      = thread.css("td:nth-child(3)").xpath(".//span[contains(@id, 'tid_')]/a")
+                threaditem['title']             = self.get_text(threadlink)
+                # Handle deleted threads.
+                deleted_thread                  = thread.xpath('.//td/em/text()').extract_first()
+                if len(threadlink) < 1 and deleted_thread == 'Deleted Thread':
+                    self.logger.warning("A deleted thread was not collected from %s." % response.url)
+                else:
+                    threadurl                       = threadlink.xpath('@href').extract_first()
+                    lastpost_content                = self.get_text(thread.css("td:last-child span.lastpost"))
+                    match                           = re.search("(.+)Ultimo", lastpost_content)
+                    last_post_time                  = self.parse_timestr(match.group(1), response) if match else None
+                
+                    threaditem['threadid'] 		    = self.get_url_param(threadurl, 'tid')
+                    threaditem['relativeurl']       = threadurl
+                    threaditem['fullurl']           = self.make_url(threadurl)
+                    threaditem['author_username']   = self.get_text(thread.css("td:nth-child(3) div.author a"))
+                    threaditem['last_update']       = last_post_time
+                    threaditem['replies']           = self.get_text(thread.css("td:nth-child(4) a"))
+                    threaditem['views']             = self.get_text(thread.css("td:nth-child(5)"))
 
-                yield threaditem
+                    yield threaditem
 
             except Exception as e:
                 self.logger.warning("Cannot parse thread item at URL %s because %s" % (response.url, e))
@@ -237,7 +252,6 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
 
     def islogged(self, response):
         if 'Log Out' in response.body:
-            self.loggedin = True
             return True
         return False
 
@@ -259,18 +273,44 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
 
         return req
 
-    ########### MISCELLANEOUS ###################
-    def parse_timestr(self, timestr):
-        last_post_time = None
-        if timestr == '(Hidden)':
-            return last_post_time
+    # ########### MISCELLANEOUS ###################
+    def parse_timestr(self, timestr, response):
+        if timestr == '' or timestr is None:
+            self.logger.warning("Was given bad input to parse as datetime '%s'" % timestr)
 
-        try:
-            timestr = timestr.lower()
+        timestr = timestr.lower()
+        if timestr == '(hidden)':      
+            return None
+        if 'today' in timestr:
             timestr = timestr.replace('today', str(self.localnow().date()))
+        elif 'yesterday' in timestr:
             timestr = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
-            last_post_time = self.to_utc(dateutil.parser.parse(timestr))
-        except:
-            if timestr:
-                self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
-        return last_post_time
+        elif 'hour' in timestr:
+            hours = int(re.search("([0-9])* hour", timestr).group(1))
+            timestr = str(datetime.now() - timedelta(hours=hours))
+        elif 'minute' in timestr:
+            minutes = int(re.search("([0-9])* minute", timestr).group(1))
+            timestr = str(datetime.now() - timedelta(hours=minutes))
+        else:
+            try:
+                return dateutil.parser.parse(timestr)
+            except Exception as error:            
+                self.logger.warning("Unknown date. Input was '%s'. Error was %s." % (timestr, error))
+                return None
+
+            
+
+    # def parse_timestr(self, timestr):
+    #     last_post_time = None
+    #     if timestr == '(Hidden)':
+    #         return last_post_time
+
+    #     try:
+    #         timestr = timestr.lower()
+    #         timestr = timestr.replace('today', str(self.localnow().date()))
+    #         timestr = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
+    #         last_post_time = self.to_utc(dateutil.parser.parse(timestr))
+    #     except:
+    #         if timestr:
+    #             self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
+    #     return last_post_time
