@@ -18,7 +18,6 @@ import dateutil
 from IPython import embed
 from random import randint
 
-
 class DNMAvengersSpider(ForumSpiderV3):
     name = "dnmavengers_forum"  
     custom_settings = {
@@ -36,8 +35,8 @@ class DNMAvengersSpider(ForumSpiderV3):
     def __init__(self, *args, **kwargs):
         super(DNMAvengersSpider, self).__init__(*args, **kwargs)
 
-        self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(15)             # Scrapy config
+        self.set_max_concurrent_request(10)      # Scrapy config
+        self.set_download_delay(10)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
@@ -79,11 +78,12 @@ class DNMAvengersSpider(ForumSpiderV3):
         # Handle login status.
         if self.islogged(response) is False:
             self.loggedin = False
-            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
             if self.is_login_page(response) is False:
                 # req_once_logged stores the request we will go to after logging in.
+                req_once_logged = response.request
                 yield self.make_request(reqtype='loginpage',response=response, req_once_logged=req_once_logged) 
             else:
+                req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request
                 # Try to yield informative error messages if we can't logon.
                 if self.is_login_page(response) is True and self.login_failed(response) is True:
                     self.logger.info('Failed last login as %s. Trying again. Error: %s' % (self.login['username'], self.get_text(response.xpath('.//div/ul[@class="error-list"]'))))
@@ -97,13 +97,13 @@ class DNMAvengersSpider(ForumSpiderV3):
                 yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
         # Handle parsing.
         else:
-            self.loggedin = True
             # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
-                yield response.meta['req_once_logged']    
+                yield response.meta['req_once_logged']
+                self.loggedin = True
             else:
                 if self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
@@ -140,7 +140,13 @@ class DNMAvengersSpider(ForumSpiderV3):
         user['username'] = self.get_text(response.css("#basicinfo .username h4::text").extract_first())
         user['fullurl'] = response.url.replace(";area=summary", "")
         user['membergroup'] = self.get_text(response.css("#basicinfo .username h4 span.position"))
-
+        checkEmail = response.xpath('//li[@class="custom_field"]/text()').extract_first()
+        if checkEmail:
+            user['email'] = checkEmail
+        checkSignature = response.xpath('//div[@class="signature"]/h5/following-sibling::text()').extract_first()
+        if checkSignature:
+            user['signature'] = checkSignature
+                
         dts = response.css("#detailedinfo .content dl dt")
         for dt in dts:
             key = self.get_text(dt).lower().rstrip(':')
@@ -263,7 +269,7 @@ class DNMAvengersSpider(ForumSpiderV3):
                 yield threaditem
 
             except Exception as e:
-                self.logger.warning("Cannot parse thread item: %s for reason:" % (response.url, e))
+                self.logger.error("Cannot parse thread item : %s" % e)
                 raise
 
     ############ LOGIN HANDLING ################
