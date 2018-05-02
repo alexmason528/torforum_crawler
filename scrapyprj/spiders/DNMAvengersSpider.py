@@ -35,7 +35,7 @@ class DNMAvengersSpider(ForumSpiderV3):
     def __init__(self, *args, **kwargs):
         super(DNMAvengersSpider, self).__init__(*args, **kwargs)
 
-        self.set_max_concurrent_request(10)      # Scrapy config
+        self.set_max_concurrent_request(1)      # Scrapy config
         self.set_download_delay(10)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
@@ -133,7 +133,6 @@ class DNMAvengersSpider(ForumSpiderV3):
             
     ########## PARSING FUNCTIONS ##########
     def parse_user(self, response):
-        #self.logger.info("Yielding profile from %s" % response.url)
 
         user = items.User()
         user['relativeurl'] = response.url.replace("http://avengersdutyk3xf.onion", "").replace(";area=summary", "")
@@ -230,7 +229,6 @@ class DNMAvengersSpider(ForumSpiderV3):
             yield messageitem
 
     def parse_threadlisting(self, response):
-        #self.logger.info("Yielding threads from %s" % response.url)
         for threadline in response.css('#messageindex table tbody tr'):
 
             try:
