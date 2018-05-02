@@ -212,9 +212,7 @@ class ItalianDeepWebForumSpider(ForumSpiderV3):
                 threadurl           = threadlink.xpath('@href').extract_first()
                 lastpost_content    = self.get_text(thread.css("td:last-child span.lastpost"))
                 match               = re.search("(.+)Ultimo", lastpost_content)
-
-                if match:
-                    last_post_time  = self.parse_timestr(match.group(1))
+                last_post_time  = self.parse_timestr(match.group(1)) if match else None
 
                 threaditem                      = items.Thread()
                 threaditem['threadid'] 		    = self.get_url_param(threadurl, 'tid')
