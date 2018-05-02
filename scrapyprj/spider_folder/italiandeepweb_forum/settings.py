@@ -16,11 +16,10 @@ settings = {
 			'username': 'negatron',
 			'password': 'Pass0000'
 		},
-		# This login might be defective.
-		# 'jacksmith': {
-		# 	'username': 'jacksmith',
-		# 	'password': 'Pass0000'
-		# },
+		'generalissimo': {
+			'username': 'generalissimo',
+			'password': 'Pass0000'
+		},
 		'cvvsfortheworld': {
 			'username': 'cvvsfortheworld',
 			'password': 'Pass0000'
@@ -54,7 +53,21 @@ settings = {
 			'printthread\.php',
 			'post\.php',
 			'#p[0-9]{1,5}',
-			'mailto:'
+			'mailto:',
+			':javascript',
+			'javascript:',
+			'datecut=',
+			'=markread',
+			'mode=threaded',
+			'=nextnewest',
+			'&action=lastpost',
+			'action=logout',
+			'mode=linear',
+			'newthread\.php',
+			'action=newpost',
+			'#',
+			'&action=nextoldest',
+			'\.png$'
 		}
 	}
 }
