@@ -61,8 +61,9 @@ class ForumSpiderV3(ForumSpider):
             hrefs = response.css('a::attr(href)').extract()
             for uri in hrefs:
                 full_url = self.check_relative_url(uri, response)
-                if self.should_follow(uri, full_url):
-                    yield self.make_request(url = uri)        
+                if self.should_follow(full_url, uri) is True:
+                    #self.logger.info("making request to %s" % full_url)
+                    yield self.make_request(url = full_url)        
         
     def check_relative_url(self, uri, response):
         if uri.startswith('?'): # relative path to current path
@@ -85,7 +86,7 @@ class ForumSpiderV3(ForumSpider):
 
     #     return req
 
-    def should_follow(self, relative_url, full_url):
+    def should_follow(self, full_url, relative_url):
         parsed_url = urlparse(full_url)
         endpoint = self.spider_settings['endpoint']
         if parsed_url.hostname not in endpoint:
@@ -103,11 +104,7 @@ class ForumSpiderV3(ForumSpider):
                     return False
         if 'regex' in exclude:
             for regex in exclude['regex']:
-                if re.search(regex, relative_url) is not None:
+                if re.search(regex, full_url) is not None:
                     return False
-                if re.search(regex, parsed_url.path) is not None:
-                    return False
-                if re.search(regex, parsed_url.query) is not None:
-                    return False
-        #self.logger.info('Following %s' % (relative_url))
+        #self.logger.warning("Following %s because it didn't match %s" % (full_url, regex))
         return True
