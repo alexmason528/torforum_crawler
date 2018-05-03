@@ -42,7 +42,7 @@ class SilkRoadSpider(ForumSpiderV3):
 
         self.set_max_concurrent_request(1)      # Scrapy config
         self.set_download_delay(10)             # Scrapy config
-        self.set_max_queue_transfer_chunk(16)   # Custom Queue system
+        self.set_max_queue_transfer_chunk(1)   # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
@@ -138,7 +138,6 @@ class SilkRoadSpider(ForumSpiderV3):
         
     ########## PARSING FUNCTIONS ##########
     def parse_user(self, response):
-        #self.logger.info("Yielding profile from %s" % response.url)
         if response.xpath('.//div[@class="inner"]/p/text()').extract_first() and "The requested user does not exist." in response.xpath('.//div[@class="inner"]/p/text()').extract_first():
             self.logger.warning('User profile not available. Likely deleted: "%s"' % response.url)
             return
@@ -180,7 +179,6 @@ class SilkRoadSpider(ForumSpiderV3):
             yield user
 
     def parse_message(self, response):
-        #self.logger.info("Yielding messages from %s" % response.url)
         if response.xpath('.//div[@class="inner"]/p/text()').extract_first() and "The requested topic does not exist." in response.xpath('.//div[@class="inner"]/p/text()').extract_first():
             self.logger.warning('Post not available. Likely deleted: "%s"' % response.url)
             return
@@ -218,8 +216,7 @@ class SilkRoadSpider(ForumSpiderV3):
                     self.logger.warning("Invalid thread page. %s" % e)
 
     def parse_threadlisting(self, response):
-        self.logger.info("Yielding threads from %s" % response.url)
-
+        
         for line in response.xpath('//ul[@class="topiclist topics"]/li'):
             threaditem = items.Thread()
             title =  line.xpath('.//a[@class="topictitle"]/text()').extract_first()
@@ -263,7 +260,7 @@ class SilkRoadSpider(ForumSpiderV3):
             'login':'Login',
         }
 
-        req = FormRequest.from_response(response, formid='login', formdata=data)
+        req = FormRequest.from_response(response, formid='login', formdata=data, headers=self.headers)
 
         req.dont_filter = True
         return req
