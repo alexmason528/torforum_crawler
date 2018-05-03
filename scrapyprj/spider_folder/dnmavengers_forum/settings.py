@@ -56,7 +56,6 @@ settings = {
 			'/index\.php\?action=reporttm',
 			'/index\.php\?action=emailuser',
 			'/index\.php\?topic=\d+\.msg',
-			'/index\.php\?action=profile;u=d+;area=summary',
 			'/javascript',
 			'/index\.php\?action=reminder',
 			'/index\.php\?action=buddy',
@@ -73,7 +72,8 @@ settings = {
 			'action=profile;area=theme',
 			'action=profile;area=notification',
 			'action=profile;area=pmprefs',
-			'action=profile;area=lists'
+			'action=profile;area=lists',
+			';area=summary$'
 		}
 	}
 }
