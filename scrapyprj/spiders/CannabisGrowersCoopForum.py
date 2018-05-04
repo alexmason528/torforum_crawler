@@ -30,7 +30,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
-        self.report_status = True               # Report 200's.
+        self.report_status = False              # Report 200's.
         self.loggedin = False                   # Login flag.
 
     def start_requests(self):
