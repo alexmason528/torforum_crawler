@@ -10,6 +10,7 @@ import dateutil.parser
 from scrapy.http import FormRequest, Request
 import scrapyprj.items.forum_items as items
 from scrapyprj.spiders.ForumSpiderV3 import ForumSpiderV3
+from scrapy.shell import inspect_response
 
 
 class MajesticGardenForumSpider(ForumSpiderV3):
@@ -128,70 +129,81 @@ class MajesticGardenForumSpider(ForumSpiderV3):
             messageitem = items.Message()
             posttime = self.parse_timestr(re.search("«.*on:(.*?)»", self.get_text(post.css("div.keyinfo div.smalltext")), re.S | re.M).group(1).strip())
 
-            messageitem['author_username'] = self.get_text(post.css(".poster h4"))
-            messageitem['postid'] = post.css("div.post div.inner::attr(id)").extract_first().replace("msg_", "")
-            messageitem['threadid'] = threadid
-            messageitem['posted_on'] = posttime
+            messageitem['author_username']   = self.get_text(post.css(".poster h4"))
+            messageitem['postid']            = post.css("div.post div.inner::attr(id)").extract_first().replace("msg_", "")
+            messageitem['threadid']          = threadid
+            messageitem['posted_on']         = posttime
 
             msg = post.css("div.post")
-            messageitem['contenttext'] = self.get_text(msg)
-            messageitem['contenthtml'] = self.get_text(msg.extract_first())
+            messageitem['contenttext']       = self.get_text(msg)
+            messageitem['contenthtml']       = self.get_text(msg.extract_first())
             yield messageitem
-        useritem = items.User()
+
         for post in posts:
+            useritem = items.User()
             username = post.xpath(".//h4/a/text()").extract_first()
             if username is not None: # Verified posters.
                 useritem['username'] = username.strip()
-                useritem["relativeurl"] = post.css(".poster h4 a::attr(href)").extract_first()
-                useritem["fullurl"] = self.make_url(post.css(".poster h4 a::attr(href)").extract_first())
-                for li in post.xpath(".//ul/li"):
-                     key = li.xpath(".//@class").extract_first()
-                     keytext = li.xpath(".//text()").extract_first()
-                     if key == "postgroup":
-                         useritem['postgroup'] = keytext
-                     elif key == "membergroup":
-                         useritem['membergroup'] = keytext
-                     elif key == 'karma':
-                         useritem['karma'] = keytext.replace('Karma: ', '')
-                     elif key == 'title':
-                         useritem['title'] = keytext
-                     elif key == 'stars':
-                        useritem['stars'] = keytext
-                     elif key == 'postcount':
-                         useritem['post_count'] = keytext.replace('Posts: ', '')
-                     elif key == 'custom':
-                         awards = li.xpath(".//text()").extract()
-                         useritem['awards'] = '|'.join(awards).replace('Awards: |', '')
-                     elif key is None or key in ['blurb', 'avatar', 'profile', 'new_win', 'quote', 'quote_button']:
-                         pass
-                     else:
-                         self.logger.warning("Unknown key in user profile '%s' with value '%s'" % (key, keytext))
-                yield useritem  
+                useritem["relativeurl"]     = self.get_relative_url(post.css(".poster h4 a::attr(href)").extract_first())
+                useritem["fullurl"]         = self.make_url(post.css(".poster h4 a::attr(href)").extract_first())
+            elif post.xpath(".//h4/text()").extract_first() is not None:
+                useritem['username']        = post.xpath(".//h4/text()").extract_first().strip()
+                useritem["relativeurl"]     = useritem['username']
+                useritem["fullurl"]         = self.spider_settings['endpoint'] + useritem['username']
+            else:
+                self.logger.warning('Unknown problem yielding user at URL %s' % response.url)
+            
+            for li in post.xpath(".//ul/li"):
+                 key = li.xpath(".//@class").extract_first()
+                 keytext = li.xpath(".//text()").extract_first()
+                 if key == "postgroup":
+                     useritem['postgroup'] = keytext
+                 elif key == "membergroup":
+                     useritem['membergroup'] = keytext
+                 elif key == 'karma':
+                     useritem['karma'] = keytext.replace('Karma: ', '')
+                 elif key == 'title':
+                     useritem['title'] = keytext
+                 elif key == 'stars':
+                    useritem['stars'] = keytext
+                 elif key == 'postcount':
+                     useritem['post_count'] = keytext.replace('Posts: ', '')
+                 elif key == 'custom':
+                     awards = li.xpath(".//text()").extract()
+                     useritem['awards'] = '|'.join(awards).replace('Awards: |', '')
+                 elif key is None or key in ['blurb', 'avatar', 'profile', 'new_win', 'quote', 'quote_button']:
+                     pass
+                 else:
+                     self.logger.warning("Unknown key in user profile '%s' with value '%s'" % (key, keytext))
+            yield useritem
+              
 
 
     def parse_threadlisting(self, response):
         # self.logger.info("Yielding threads from %s" % response.url)
         for line in response.css("#messageindex table tbody tr"):
-            threaditem = items.Thread()
-            last_post_time = self.parse_timestr(self.get_text(line.css("td:last-child")).split("by")[0].strip())
-            threadlinkobj = next(iter(line.css("td:nth-child(3) span a") or []), None)  # First or None if empty
+            threaditem                      = items.Thread()
+            last_post_time                  = self.parse_timestr(self.get_text(line.css("td:last-child")).split("by")[0].strip())
+            threadlinkobj                   = next(iter(line.css("td:nth-child(3) span a") or []), None)  # First or None if empty
             if threadlinkobj:
-                threadlinkhref = threadlinkobj.xpath("@href").extract_first() if threadlinkobj else None
-                threaditem['title'] = self.get_text(threadlinkobj)
-                threaditem['relativeurl'] = threadlinkhref
-                threaditem['fullurl'] = self.make_url(threadlinkhref)
-                threaditem['threadid'] = self.get_url_param(threaditem['fullurl'], 'topic').split(".")[0]
-                byuser = self.get_text(line.css("td:nth-child(3) p a"))
-                byuser1 = self.get_text(line.css("td:nth-child(3) p")).replace("Started by ", "")
+                threadlinkhref              = threadlinkobj.xpath("@href").extract_first() if threadlinkobj else None
+                threaditem['title']         = self.get_text(threadlinkobj)
+                threaditem['relativeurl']   = self.get_relative_url(threadlinkhref)
+                threaditem['fullurl']       = self.make_url(threadlinkhref)
+                threaditem['threadid']      = self.get_url_param(threaditem['fullurl'], 'topic').split(".")[0]
+                byuser                      = self.get_text(line.css("td:nth-child(3) p a"))
+                byuser1                     = self.get_text(line.css("td:nth-child(3) p")).replace("Started by ", "")
                 if byuser == '' and byuser1 != '':
                     threaditem['author_username'] = byuser1
                 else:
                     threaditem['author_username'] = byuser
-                threaditem['last_update'] = last_post_time
-                reply_review = self.get_text(line.css("td:nth-child(4)"))
-                threaditem['replies'] = re.search(r"(\d+) Replies", reply_review, re.S | re.M).group(1)
-                threaditem['views'] = re.search(r"(\d+) Views", reply_review, re.S | re.M).group(1)
-            yield threaditem
+                threaditem['last_update']   = last_post_time
+                reply_review                = self.get_text(line.css("td:nth-child(4)"))
+                threaditem['replies']       = re.search(r"(\d+) Replies", reply_review, re.S | re.M).group(1)
+                threaditem['views']         = re.search(r"(\d+) Views", reply_review, re.S | re.M).group(1)
+                yield threaditem
+            else:
+                self.logger.warning('Couldn\'t yield thread. Please review: %s' % response.url)
 
     # ########### LOGIN HANDLING ################
     def login_failed(self, response):

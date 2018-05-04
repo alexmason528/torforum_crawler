@@ -72,19 +72,6 @@ class ForumSpiderV3(ForumSpider):
         
         return self.make_url(uri)
 
-    # def make_request(self, **kwargs):
-    #     if 'url' in kwargs:
-    #         kwargs['url'] = self.make_url(kwargs['url'])
-
-    #     req = Request(kwargs['url'])
-
-    #     if 'dont_filter' in kwargs:
-    #         req.dont_filter = kwargs['dont_filter']
-
-    #     req.meta['proxy'] = self.proxy  #meta[proxy] is handled by scrapy.
-    #     req.meta['slot'] = self.proxy
-
-    #     return req
 
     def should_follow(self, full_url, relative_url):
         parsed_url = urlparse(full_url)
@@ -108,3 +95,21 @@ class ForumSpiderV3(ForumSpider):
                     return False
         #self.logger.warning("Following %s because it didn't match %s" % (full_url, regex))
         return True
+
+
+    def normalize_pgp_key(self, key):
+        begin = '-----BEGIN PGP (PUBLIC|PRIVATE) KEY BLOCK-----'
+        end = '-----END PGP (PUBLIC|PRIVATE) KEY BLOCK-----'
+        m = re.search('(%s)(.+)(%s)' % (begin, end), key,re.S)
+        if m:
+            newlines = []
+            for line in m.group(3).splitlines():
+                if re.search('version', line, re.IGNORECASE):
+                    continue
+                elif re.search('comment', line, re.IGNORECASE):
+                    continue
+                newlines.append(line)
+            content = ''.join(newlines)
+            return '%s\n\n%s\n%s' % (m.group(1), content, m.group(4))        
+        self.logger.warning('Failed to clean PGP key. \n %s' % key)
+        return key       

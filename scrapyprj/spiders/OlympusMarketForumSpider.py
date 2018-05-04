@@ -16,15 +16,13 @@ import re
 import pytz
 import dateutil
 from IPython import embed
+from dateutil import parser
 
 class OlympusMarketForumSpider(ForumSpider):
     name = "olympusmarket_forum"
 
     custom_settings = {
         'MAX_LOGIN_RETRY' : 10,
-        'RESCHEDULE_RULES' : {
-            'The post table and topic table seem to be out of sync' : 60
-        },
         'HTTPERROR_ALLOW_ALL' : True,
         'RETRY_ENABLED' : True,
         'RETRY_TIMES' : 5       
@@ -71,8 +69,6 @@ class OlympusMarketForumSpider(ForumSpider):
                 req.meta['threadid'] = kwargs['threadid']
             if 'username' in kwargs:
                 req.meta['username'] = kwargs['username']
-
-
         else:
             raise Exception('Unsuported request type ' + reqtype)
 
@@ -128,7 +124,16 @@ class OlympusMarketForumSpider(ForumSpider):
             threaditem['author_username']       = line.xpath('@data-author').extract_first()
             threaditem['replies']               = self.get_text(line.css("div.stats .major dd"))
             threaditem['views']                 = self.get_text(line.css("div.stats .minor dd"))
-            threaditem['last_update']           = self.parse_timestr(self.get_text(line.css("div.lastPost a.dateTime abbr")), response)
+            # last_update comes in two formats with different layout.
+            short_timestring = line.xpath(".//span[@class='DateTime']/text()").extract_first()
+            long_timestring  = line.xpath(".//abbr[@class='DateTime']/text()").extract_first()
+            if long_timestring is not None:
+                threaditem['last_update']       = self.parse_timestr(long_timestring, response)
+            elif long_timestring is None or short_timestring is not None:
+                threaditem['last_update']       = self.parse_timestr(short_timestring, response)
+            else:
+                self.logger.warning("Couldn't get the correct time for the last update of post at %s." % response.url)
+
             threaditem['relativeurl']           = threadlink
             threaditem['fullurl']               = self.make_url(threadlink)
             threaditem['threadid']              = threadid
@@ -162,7 +167,7 @@ class OlympusMarketForumSpider(ForumSpider):
 
                 yield self.make_request('userprofile', url = userprofile_link, relativeurl=userprofile_link, username=messageitem['author_username'])
             except Exception as e:
-                self.logger.warning("Invalid thread page. %s" % e)
+                self.logger.warning("Invalid thread page %s. %s" % (response.url, e))
 
         for link in response.css(".PageNav nav a::attr(href)").extract():
             yield self.make_request('thread', url=link, threadid = response.meta['threadid'])
@@ -244,18 +249,21 @@ class OlympusMarketForumSpider(ForumSpider):
         return req
 
     def parse_timestr(self, timestr, response):
-        post_time = None
+        if timestr is None or timestr == '':
+            self.logger.warning("Unreasonably short time string submitted '%s', from %s" % (timestr, response.url))
 
+        post_time = None
         try:
             timestr     = timestr.lower()
-            timestr     = timestr.replace('today', str(self.localnow().date()))
-            timestr     = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
-            post_time   = self.to_utc(dateutil.parser.parse(timestr))
+            if 'day' in timestr:
+                timestr     = timestr.replace('today', str(self.localnow().date()))
+                timestr     = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
+            post_time   = self.to_utc(parser.parse(timestr))
         except:
             if timestr:
                 self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
-                self.logger.warning("At %s with HTML %s" % (response.url, response.body))
-
+        if post_time is None or post_time == '':
+            self.logger.warning("Unreasonably short timestring '%s' returned from '%s' at %s" % (post_time, timestr, response.url))
         return post_time
 
     def islogged(self, response):
@@ -273,4 +281,5 @@ class OlympusMarketForumSpider(ForumSpider):
             m2  = re.match("(.+\.)?(\d+)/?", m.group(1))
             return m2.group(2)
         except Exception as e:
+            self.logger.warning("Couldn't get thread id from %s because: %s" % (url, e))
             return None

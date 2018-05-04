@@ -1,5 +1,5 @@
 settings = {
-	'timezone' : 'EST',
+	'timezone' : 'UTC',
 	'endpoint' : 'http://olptalkpybezjlhx.onion/',
 	'prefix' : '',
 	'resources' : {
