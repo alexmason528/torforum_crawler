@@ -25,7 +25,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         super(CannabisGrowersCoopForum, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(15)             # Scrapy config
+        self.set_download_delay(10)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
@@ -62,8 +62,6 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             req.meta['shared'] = kwargs['shared']
         if 'req_once_logged' in kwargs:
             req.meta['req_once_logged'] = kwargs['req_once_logged']
-        if 'flair' in kwargs:
-            req.meta['flair'] = kwargs['flair']
 
         req.meta['proxy'] = self.proxy
         req.meta['slot'] = self.proxy
@@ -239,9 +237,6 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         user["membergroup"] = self.get_text(response.css("div.main-infos p"))
         activity_list = response.css("div.corner ul.zebra.big-list li")
 
-        if "flair" in response.meta:
-            user["flair"] = response.meta["flair"]
-
         pgp_key_str = self.get_text(response.css("div.right div.contents label.textarea textarea"))
         if pgp_key_str != "":
             user["pgp_key"] = self.normalize_pgp_key(pgp_key_str)
@@ -276,10 +271,7 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             threadid = self.get_thread_id(href)
             threaditem['threadid'] = threadid
             threaditem['author_username'] = topic.css(
-                "div.main > div > span a::text").extract_first()
-            flair = topic.css(
-                "div.main > div > span a::attr(data-flair)").extract_first()
-
+                "div.main > div > span a::text").extract_first("").strip()
             replies = self.get_text(
                 topic.css("div.main > div > span strong:last-child"))
             if re.match(r'^\d+$', replies) is None:
@@ -287,25 +279,34 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
             threaditem['replies'] = replies
             yield threaditem
 
+            flair = topic.css(
+                "div.main > div > span a::attr(data-flair)"
+                ).extract_first()
+
             if flair is not None:
-                user_href = topic.css(
-                    "div.main > div > span a::attr(href)").extract_first()
-                if self.is_user_url(user_href) is True:
-                    yield self.make_request(
-                        url=user_href, dont_filter=True, flair=flair
-                    )
+                user = items.User()
+                user["username"] = topic.css(
+                    "div.main > div > span a::text").extract_first("").strip()
+                user["flair"] = flair.strip()
+                user['fullurl'] = topic.css(
+                    "div.main > div > span a::attr(href)").extract_first("").strip()
+                user["relativeurl"] = self.get_relative_url(user['fullurl'])
+                yield user
 
     def parse_message(self, response):
         posts = response.css('ul.row.list-posts > li')
         for post in posts:
             messageitem                     = items.Message()
-            messageitem['author_username']  = post.css('.post-header a.poster::text').extract_first()
+            author_username_str             = self.get_text(post.css('.post-header a.poster'))
+            flair_str                       = self.get_text(post.css('.post-header a.poster span.flair'))
+            messageitem["author_username"]  = author_username_str.replace(flair_str, "")
             messageitem['postid']           = self.get_post_id(post.css('span:first-child::attr(id)').extract_first())
             messageitem['threadid']         = self.get_thread_id(response.url)
             messageitem['posted_on']        = self.parse_timestr(self.get_text(post.css('.footer .cols-10 .col-4:first-child strong')))
             msg = post.css("div.content")
             messageitem['contenttext']      = self.get_text(msg)
             messageitem['contenthtml']      = self.get_text(msg.extract_first())
+
             yield messageitem
 
     def get_thread_id(self, uri):
