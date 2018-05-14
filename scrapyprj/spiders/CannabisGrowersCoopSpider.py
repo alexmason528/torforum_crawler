@@ -183,7 +183,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		if 'LTC' in price:
 			ads_item['price_ltc'] = price
 		elif 'BTC' in price:
-			ads_item['price'] = price
+			ads_item['price_btc'] = price
 		elif 'minimum' in price:
 			self.logger.info('No price in cryptocurrency available at %s. Trying to exchange into BTC using exchange rate.' % (response.url))
 			# Get the exchange rate.
@@ -198,7 +198,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			# Calculate price in BTC.
 			price = price/exchange_rate
 			price = str(price) + " BTC"
-			ads_item['price'] = price
+			ads_item['price_btc'] = price
 		else:
 			self.logger.warning('Unhandled price input.' % (response.url))
 		
