@@ -35,6 +35,7 @@ insert ignore into `ads_propkey` (`name`, `prettyname`) values
     ('price_usd', 'Price (USD)'),
 	('price_ltc', 'Price (litecoin)'),
     ('price_bch', 'Price (bitcoin cash)'),
+    ('price_btc', 'Price (Bitcoin)'),
     ('price_xmr', 'Price (monero)'),
 	('accepted_currencies', 'Accepted Currencies'),
     ('shipping_time', 'Shipping Time'),

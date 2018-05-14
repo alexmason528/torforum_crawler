@@ -32,6 +32,7 @@ class Ads(scrapy.Item) :
 	price_usd = scrapy.Field()
 	price_ltc = scrapy.Field()
 	price_bch = scrapy.Field()
+	price_btc = scrapy.Field()
 	price_xmr = scrapy.Field()
 	accepted_currencies = scrapy.Field()
 	shipping_time = scrapy.Field()
