@@ -186,7 +186,6 @@ class DreamMarketSpider(MarketSpider):
 			yield self.make_request('ads_list', url=url)	# Here, we rely on duplicate filter because we will generate a lot!
 
 	def parse_ads(self, response):
-		
 		##  =============   ADS   ======================
 		listing_not_found = self.get_text(response.xpath('.//div[@class="content"]/div/div[1]/text()').extract_first())
 		if listing_not_found != 'Listing not found':
@@ -205,44 +204,18 @@ class DreamMarketSpider(MarketSpider):
 					yield self.make_request('user', url = url, priority=5)
 					
 				elif label_txt == 'price':
-					# ads_item['price'] = self.get_text(span) malfunctions and returns prices 
-					# in different currencies. The issue is that when accidentally clicking 
-					# selectCurrency we return currencies to the database that should not be there. 
-					# Price is denoted in one of these formats using currency symbols.
-					# BTC1 (USD5000)
-					# BTC1
-					# BTC1 (POUND/EURO6000)
 					price 		 = self.get_text(span)
-					btc_price    = re.search(r'\xe0\xb8\xbf([0-9.]{1,10})', price)
-					dollar_price = re.search('\$([0-9.]{1,10})', price)
-					# If the price is available in BTC, use that as the price.
-					if btc_price is not None:
-						price = btc_price.group(1)
-						#self.logger.warning('BTC price: %s. Pier-Yver\'s price was: %s' % (price, self.get_text(span)))
-					# If it's not, convert USD to BTC.
-					elif btc_price is None and dollar_price is not None:
-						self.logger.warning('Using dollar price %s' % (price))
-						price = dollar_price.group(1)
-						# Try to find the exchange rate.
-						exchange_rates = response.xpath('.//*[@class = "exchangeRateListing"]').extract()[0]
-						try:
-							dollar_rate    = re.search('USD.*?([0-9\\.]{1,10})', exchange_rates, re.DOTALL).group(1)
-						except:
-							self.logger.warning("Couldn't get the dollar exchange rate. Dumping the XML: %s" % exchange_rates)
-						# Then try to convert.
-						try:
-							dollar_rate      = float(dollar_rate)
-							price = float(price) / dollar_rate
-							self.logger.warning('Found a product in dollar at (%s). Converted to BTC. Math was: $ %s / exchange rate %s = %s' % (response.url, dollar_price.group(1), dollar_rate, price))
-						except:
-							self.logger.warning("Failed to convert. Dumping values dollar rate %s, price %s and raw price %s. Using Pier-Yver's price." % (dollar_rate, price, price_raw))
-							price = self.get_text(span)						
-					# Worst case scenario, use a price that works somewhat - Pier-Yver's old price.
+					price_btc    = re.search('.([0-9.]{1,10})', price)
+					price_usd 	 = re.search('\$([0-9.]{1,10})', price)
+					if price_btc and price_usd:
+						ads_item['price_usd'] = price_usd.group(1)
+						ads_item['price_btc'] = price_btc.group(1)
+					elif price_btc:
+						ads_item['price_btc'] = price_btc.group(1)
+					elif price_usd:
+						ads_item['price_usd'] = price_usd.group(1)
 					else:
-						self.logger.warning("Couldn't determine currency. Inserted: %s" % self.get_text(span))
-						price = self.get_text(span)
-					# Add it to the database export pipeline.
-					ads_item['price'] = price
+						self.logger.warning("Couldn't set a price at URL: %s" % response.url)
 				elif label_txt == 'ships to':
 					ads_item['ships_to'] = self.get_text(span)
 				elif label_txt == 'ships from':
