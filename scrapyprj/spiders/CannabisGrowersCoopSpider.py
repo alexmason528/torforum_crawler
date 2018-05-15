@@ -91,9 +91,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		self.logger.info("HTTP %s at %s" % (response.status, response.url))
 		if response.status in range(400, 600):
 			self.logger.warning("Got response %s at URL %s" % (response.status, response.url))
-
 		if not self.loggedin(response):	
-
 			if self.isloginpage(response):
 				self.logger.debug('Encountered a login page.')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
@@ -110,6 +108,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 				yield self.make_request('dologin', req_once_logged=req_once_logged, response=response, priority=10)
 			else:
+
 				self.logger.warning('Something went wrong. See the exception and investigate %s. Dumping html: %s' % (response.url, response.body))
 				raise Exception("Not implemented yet, figure what to do here !")
 		else : 
@@ -388,10 +387,9 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			self.logger.error("Cannot parse time string '%s'. Error : %s" % (timestr, e))
 
 	def loggedin(self, response):
-		my_account_link = response.css('header .right .menu .drop:last-child > a')
-		if my_account_link and my_account_link.css("::text").extract_first() == "My Account":
+		my_account_link = response.xpath('.//div[@class="left"]/div[@class="dropdown"]/a/text()')
+		if my_account_link and my_account_link.extract_first() == "My Account":
 			return True
-
 		return False
 
 	def isloginpage(self, response):
