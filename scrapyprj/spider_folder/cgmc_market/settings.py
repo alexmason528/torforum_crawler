@@ -20,7 +20,7 @@ settings = {
 	'prefix' : '',					# http://myhost.onion/prefix1/prefixe2/profix3/page.php
 	'resources' : {									# List of availables resources. Url can be created like   self.make_url('MyResource1')  = http://blahblahblah.onion/prefix1/prefix2/section1/page2.php
 		'index' : "/",
-		'ads_list' : "/listings/"
+		'ads_list' : "/listings/all/rating/"
 		},
 	
 	'logins' : {				# Login information. They will be selected in a round robin fashioned when multiple spider is launched at once.

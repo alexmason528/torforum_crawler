@@ -198,8 +198,11 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			price = price/exchange_rate
 			price = str(price) + " BTC"
 			ads_item['price_btc'] = price
+		elif 'FREE' in price:
+			ads_item['price_btc'] = 0
+			self.logger.warning('Item priced as free. Set price_btc = 0 at %s' % (response.url))
 		else:
-			self.logger.warning('Unhandled price input.' % (response.url))
+			self.logger.warning('Unhandled price input at %s.' % (response.url))
 		
 		ads_item['ships_from'] = self.get_text(response.css('section#main .row.cols-20 .top-tabs .col-6.label.big:last-child'))
 		ads_item['fullurl'] = response.url
@@ -313,7 +316,6 @@ class CannabisGrowersCoopSpider(MarketSpider):
 		# Yield vendor listings.
 		vendor_listings = response.xpath('.//div[@class="corner"]/a/@href').extract_first()
 		if vendor_listings is not None:
-			self.logger.info('Yielding listings from vendor page.')
 			yield self.make_request('ads_list', url=vendor_listings, priority = 15)
 		else: 
 			self.logger.warning("No additional listings found for vendor. This should happen rarely. See %s" % response.url)
@@ -335,9 +337,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 				rating = items.UserRating()
 				rating['username'] = response.meta['username']
 				rating['item_name'] = self.get_text(product_name_element)
-			
 			rating['submitted_on'] = self.to_utc(dateutil.parser.parse(self.get_text(rating_element.css('.left date'))))
-
 			rating['rating'] = len(rating_element.css('.rating.stars i.full'))
 			rating['comment'] = self.get_text(rating_element.css('div.right.formatted'))
 			yield rating
