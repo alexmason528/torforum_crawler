@@ -89,10 +89,11 @@ class DreamMarketSpider(MarketSpider):
 
 
 	def parse(self, response):
-		if response.status is 200:
-			self.logger.info("HTTP 200 at %s" % response.url)
+		# if response.status is 200:
+		# 	self.logger.info("HTTP 200 at %s" % response.url)
 		if response.status is 504 and response.request is "http://wn2vtsetsdggve45.onion/":
 			self.logger.warning("504 on login. Going to retry.")
+			self.http504max =+ 1
 			if self.http504max > 5:
 				self.wait_for_input("Too many login failed", req_once_logged)				
 			else:
