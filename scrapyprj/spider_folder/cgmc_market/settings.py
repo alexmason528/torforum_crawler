@@ -12,7 +12,10 @@
 # in case we get blocked. 
 #
 # Invite codes:
-# http://joincgmc55oplang.onion/zhen5zhocq/
+# http://joincgmc55oplang.onion/5l1dwvuin3/
+# http://joincgmc55oplang.onion/5ihen01qdo/
+# http://joincgmc55oplang.onion/uwytsj2tul/
+
 
 settings = {
 	'timezone' : 'UTC',								# Timezone used on the website. 
