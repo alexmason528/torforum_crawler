@@ -279,7 +279,7 @@ class OnionlandbakytSpider(ForumSpider):
             elif key == 'custom title':
                 user['custom_title'] = ddtext
             elif key == 'pgp public key':
-                user['pgp_key'] = self.normlaize_pgp_key(ddtext)
+                user['pgp_key'] = self.normalize_pgp_key(ddtext)
             elif key == 'email':
                  user['email'] = ddtext
             elif key in ['local time']:
