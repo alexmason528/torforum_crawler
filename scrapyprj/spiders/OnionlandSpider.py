@@ -15,6 +15,7 @@ import traceback
 import re
 import pytz
 import dateutil
+import dateparser
 from IPython import embed
 
 class OnionlandbakytSpider(ForumSpider):
@@ -143,7 +144,7 @@ class OnionlandbakytSpider(ForumSpider):
                 lastpost_str = self.get_text(threadline.css(".lastpost"))
                 m = re.search("(.+) by (.+)", lastpost_str)
                 if m:
-                    threaditem['last_update'] = self.parse_timestr(m.group(1))
+                    threaditem['last_update'] = self.parse_datetime(m.group(1))
 
                 #Stats cell
                 statcellcontent = self.get_text(threadline.css("td.stats"))
@@ -195,7 +196,7 @@ class OnionlandbakytSpider(ForumSpider):
         postmeta_ascii = re.sub(r'[^\x00-\x7f]',r'', postmeta).strip()
         m = re.search('on:\s*(.+)', postmeta_ascii)
         if m:
-            msgitem['posted_on'] = self.parse_timestr(m.group(1))
+            msgitem['posted_on'] = self.parse_datetime(m.group(1))
             
         postcontent = postwrapper.css(".postarea .post").xpath("./div[contains(@id, 'msg_')]")
 
@@ -271,9 +272,9 @@ class OnionlandbakytSpider(ForumSpider):
             elif key == 'personal text':
                 user['personal_text'] = ddtext
             elif key == 'date registered':
-                user['joined_on'] = self.parse_timestr(ddtext)
+                user['joined_on'] = self.parse_datetime(ddtext)
             elif key == 'last active':
-                user['last_active'] = ddtext            
+                user['last_active'] = self.parse_datetime(ddtext)
             elif key == 'location':
                 user['location'] = ddtext
             elif key == 'custom title':
@@ -288,15 +289,6 @@ class OnionlandbakytSpider(ForumSpider):
                 self.logger.warning('New information found on use profile page : %s. (%s)' % (key, response.url))
 
         yield user
-
-    def parse_timestr(self, timestr):
-        timestr = timestr.lower()
-        try:
-            timestr = timestr.replace('today at', str(self.localnow().date()))
-            return self.to_utc(dateutil.parser.parse(timestr))
-        except:
-            self.logger.warning("Cannot parse timestring %s " % timestr)
-
 
     def craft_login_request_from_form(self, response):
         sessionid = response.css('#frmLogin::attr(onsubmit)').re("'(.+)'")
@@ -346,3 +338,8 @@ class OnionlandbakytSpider(ForumSpider):
             return '%s\n\n%s\n%s' % (m.group(1), content, m.group(4))        
         self.logger.warning('Failed to clean PGP key. \n %s' % key)
         return key     
+
+    def parse_datetime(self, timestr):
+        timestr = timestr.replace('less than', '')
+        datetime = dateparser.parse(timestr)
+        return datetime
