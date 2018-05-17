@@ -108,8 +108,8 @@ class CannabisGrowersCoopSpider(MarketSpider):
 
 				yield self.make_request('dologin', req_once_logged=req_once_logged, response=response, priority=10)
 			else:
-
 				self.logger.warning('Something went wrong. See the exception and investigate %s. Dumping html: %s' % (response.url, response.body))
+				inspect_response(response, self)
 				raise Exception("Not implemented yet, figure what to do here !")
 		else : 
 			self.logintrial = 0
@@ -387,7 +387,7 @@ class CannabisGrowersCoopSpider(MarketSpider):
 			self.logger.error("Cannot parse time string '%s'. Error : %s" % (timestr, e))
 
 	def loggedin(self, response):
-		my_account_link = response.xpath('.//div[@class="left"]/div[@class="dropdown"]/a/text()')
+		my_account_link = response.xpath('.//div[@class="left"]/div[@class="dropdown"]/a/text()|.//div[@class="menu"]/div/div[@class="drop"]/a/text()')
 		if my_account_link and my_account_link.extract_first() == "My Account":
 			return True
 		return False
