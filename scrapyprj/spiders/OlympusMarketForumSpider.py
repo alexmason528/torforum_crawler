@@ -17,6 +17,7 @@ import pytz
 import dateutil
 from IPython import embed
 from dateutil import parser
+import dateparser
 
 class OlympusMarketForumSpider(ForumSpider):
     name = "olympusmarket_forum"
@@ -128,9 +129,9 @@ class OlympusMarketForumSpider(ForumSpider):
             short_timestring = line.xpath(".//span[@class='DateTime']/text()").extract_first()
             long_timestring  = line.xpath(".//abbr[@class='DateTime']/text()").extract_first()
             if long_timestring is not None:
-                threaditem['last_update']       = self.parse_timestr(long_timestring, response)
+                threaditem['last_update']       = self.parse_datetime(long_timestring)
             elif long_timestring is None or short_timestring is not None:
-                threaditem['last_update']       = self.parse_timestr(short_timestring, response)
+                threaditem['last_update']       = self.parse_datetime(short_timestring)
             else:
                 self.logger.warning("Couldn't get the correct time for the last update of post at %s." % response.url)
 
@@ -159,7 +160,7 @@ class OlympusMarketForumSpider(ForumSpider):
                 messageitem['author_username']      = post.xpath('.//div[@class="uix_userTextInner"]/a/text()').extract_first()
                 messageitem['postid']               = re.match("post-(\d+)", fullid).group(1)
                 messageitem['threadid']             = threadid
-                messageitem['posted_on']            = self.parse_timestr(self.get_text(post.xpath(".//a[@class='datePermalink']")), response)
+                messageitem['posted_on']            = self.parse_datetime(self.get_text(post.xpath(".//a[@class='datePermalink']")))
                 messageitem['contenttext']          = self.get_text(content)
                 messageitem['contenthtml']          = self.get_text(content.extract_first())
 
@@ -210,7 +211,7 @@ class OlympusMarketForumSpider(ForumSpider):
                 ddtext = self.get_text(dt.xpath('following-sibling::dd[1]'))
 
                 if key == 'joined:':
-                    user['joined_on'] = self.parse_timestr(ddtext, response)
+                    user['joined_on'] = self.parse_datetime(ddtext)
                 elif key == 'messages:':
                     user['message_count'] = ddtext
                 elif key == 'likes received:':
@@ -248,23 +249,10 @@ class OlympusMarketForumSpider(ForumSpider):
 
         return req
 
-    def parse_timestr(self, timestr, response):
-        if timestr is None or timestr == '':
-            self.logger.warning("Unreasonably short time string submitted '%s', from %s" % (timestr, response.url))
-
-        post_time = None
-        try:
-            timestr     = timestr.lower()
-            if 'day' in timestr:
-                timestr     = timestr.replace('today', str(self.localnow().date()))
-                timestr     = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
-            post_time   = self.to_utc(parser.parse(timestr))
-        except:
-            if timestr:
-                self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
-        if post_time is None or post_time == '':
-            self.logger.warning("Unreasonably short timestring '%s' returned from '%s' at %s" % (post_time, timestr, response.url))
-        return post_time
+    def parse_datetime(self, timestr):
+        timestr = timestr.replace('less than', '')
+        datetime = dateparser.parse(timestr)
+        return datetime
 
     def islogged(self, response):
         loggedin = False
