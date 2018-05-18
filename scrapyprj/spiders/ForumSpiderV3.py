@@ -33,6 +33,15 @@ class ForumSpiderV3(ForumSpider):
         super(ForumSpiderV3, self).__init__(*args, **kwargs)
 
         self.alt_hostnames = []
+        self.report_hostnames_found = True
+        self.tor_browser = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            "Upgrade-Insecure-Requests": '1'
+        } 
 
     def start_requests(self):
         yield self.make_request(url = 'index', dont_filter=True)
@@ -77,7 +86,7 @@ class ForumSpiderV3(ForumSpider):
         parsed_url = urlparse(full_url)
         endpoint = self.spider_settings['endpoint']
         if parsed_url.hostname not in endpoint:
-            if parsed_url.hostname not in self.alt_hostnames:
+            if parsed_url.hostname not in self.alt_hostnames and self.report_hostnames_found == True:
                 self.alt_hostnames.append(parsed_url.hostname)
                 self.logger.warning('Not following url with different hostname, possibly an alt hostname : %s' % (full_url))
             return False
@@ -96,6 +105,18 @@ class ForumSpiderV3(ForumSpider):
         #self.logger.warning("Following %s because it didn't match %s" % (full_url, regex))
         return True
 
+    def set_priority(self, req):
+        if 'priority' in self.spider_settings:
+            priorities = self.spider_settings['priority']
+
+            for key, priority in priorities.iteritems():
+                if re.search(priority['regex'], req.url) is not None:
+                    req.priority = priority['value']
+                    # self.logger.info("[Priority: %s] %s" % (req.priority, req))
+                    return req
+        req.priority = 0
+        #self.logger.info("[Priority: %s] %s" % (req.priority, req))
+        return req
 
     def normalize_pgp_key(self, key):
         begin = '-----BEGIN PGP (PUBLIC|PRIVATE) KEY BLOCK-----'
