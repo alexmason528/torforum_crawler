@@ -7,6 +7,7 @@ from datetime import timedelta
 from urlparse import urlparse
 import re
 import dateutil
+import dateparser
 
 
 class BerlusconiMarketForumSpider(ForumSpiderV3):
@@ -173,7 +174,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                 continue
 
             if key == "Last Visit:":
-                user["last_activity"] = value.split("(")[0]
+                user["last_activity"] = self.parse_datetime(value.split("(")[0])
             elif key == "Total Posts:":
                 user["post_count"] = value.split(" (")[0].strip()
                 try:
@@ -182,7 +183,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                     self.logger.warning("Couldn't get posts per day. Please verify at %s" % response.url)
 
             elif key == "Joined:":
-                user['joined_on'] = value
+                user['joined_on'] = self.parse_datetime(value)
             elif "Reputation:" in key:
                 self.get_text(tr_item.xpath(".//strong[contains(@class, 'reputation_')]"))
                 user['reputation'] = self.get_text(tr_item.xpath(".//strong[contains(@class, 'reputation_')]"))
@@ -222,7 +223,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
                 messageitem['author_username'] = self.get_text(post.xpath(".//div[@class='author_information']//span[@class='largetext']/a"))
                 messageitem['postid'] = post.xpath("@id").extract_first(" ").replace("post_", "").strip()
                 messageitem['threadid'] = threadid
-                messageitem['posted_on'] = self.parse_timestr(posttime)
+                messageitem['posted_on'] = self.parse_datetime(posttime)
                 msg = post.css("div.post_body")
                 messageitem['contenttext'] = self.get_text(msg)
                 messageitem['contenthtml'] = self.get_text(msg.extract_first())
@@ -246,7 +247,7 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
             threaditem['fullurl'] = self.make_url(threaditem['relativeurl'])
             last_post_time = self.get_text(line.css("td:nth-child(6) span.lastpost"))
             try:
-                threaditem['last_update'] = self.parse_timestr(re.search("(.*)last ", last_post_time, re.M|re.I|re.S).group(1).strip())
+                threaditem['last_update'] = self.parse_datetime(re.search("(.*)last ", last_post_time, re.M|re.I|re.S).group(1).strip())
             except Exception as e:
                 self.logger.warning("last_update %s error %s" % (response.url, e))
 
@@ -289,18 +290,24 @@ class BerlusconiMarketForumSpider(ForumSpiderV3):
         return req
 
     # ########## MISCELLANEOUS ###################
-    def parse_timestr(self, timestr):
-        last_post_time = None
-        try:
-            timestr = timestr.lower()
-            if "ago" in timestr:
-                timestr = str(self.localnow().date())
+    # def parse_timestr(self, timestr):
+    #     last_post_time = None
+    #     try:
+    #         timestr = timestr.lower()
+    #         if "ago" in timestr:
+    #             timestr = str(self.localnow().date())
 
-            timestr = timestr.replace('today', str(self.localnow().date()))
-            timestr = timestr.replace('today', str(self.localnow().date()))
-            timestr = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
-            last_post_time = self.to_utc(dateutil.parser.parse(timestr))
-        except Exception as e:
-            if timestr:
-                self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
-        return last_post_time
+    #         timestr = timestr.replace('today', str(self.localnow().date()))
+    #         timestr = timestr.replace('today', str(self.localnow().date()))
+    #         timestr = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
+    #         last_post_time = self.to_utc(dateutil.parser.parse(timestr))
+    #     except Exception as e:
+    #         if timestr:
+    #             self.logger.warning("Could not determine time from this string : '%s'. Ignoring" % timestr)
+    #     return last_post_time
+
+
+    def parse_datetime(self, timestr):
+        timestr = timestr.replace('less than', '')
+        datetime = dateparser.parse(timestr)
+        return datetime
