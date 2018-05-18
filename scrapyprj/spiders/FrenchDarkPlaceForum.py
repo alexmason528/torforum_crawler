@@ -105,22 +105,17 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
         # Handle parsing.
         else:
             # We restore the missed request when protection kicked in
+            self.loggedin = True
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
-                
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
-
-                self.loggedin = True
-
-                yield response.meta['req_once_logged']
-                
+                yield response.meta['req_once_logged']                
             else:
                 if self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
                 elif self.is_message(response) is True:
                     parser = self.parse_message
-
                 # Yield the appropriate parsing function.
                 if parser is not None:
                     for x in parser(response):
@@ -142,14 +137,13 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
         posts       = response.css("#brdmain .blockpost")
 
         for post in posts:
-            postcontent = post.css(".postright:nth-child(2) p")
-
             messageitem                         = items.Message()
+            messageitem['contenthtml']          = post.xpath(".//div[@class='postmsg']").extract_first()
+            messageitem['contenttext']          = self.get_text(post.xpath(".//div[@class='postmsg']"))
             messageitem['postid']               = self.get_url_param(post.css("h2 span a::attr(href)").extract_first(), 'pid')
             messageitem['threadid']             = threadid
             messageitem['author_username']      = self.get_text(post.css(".postleft dl dt strong span"))
-            messageitem['contenthtml']          = postcontent.extract_first()
-            messageitem['contenttext']          = self.get_text(postcontent)
+
             # messageitem['posted_on']            = self.get_text(post.css("h2 span a"))
 
             yield messageitem
