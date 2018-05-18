@@ -66,7 +66,18 @@ settings = {
 			'/portal.php',
 			'/member.php',
 			'/archive',
-			'/attachment\.php'
+			'/attachment\.php',
+			'\.png$'
+		}
+	},
+	'priority': {
+		'thread': {
+			'regex': 'showthread\.php\?tid=',
+			'value': -1
+		},
+		'message': {
+			'regex': 'forumdisplay\.php\?fid=',
+			'value': -2
 		}
 	}
 }
