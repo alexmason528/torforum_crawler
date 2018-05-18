@@ -19,6 +19,10 @@ from IPython import embed
 from random import randint
 from dateutil.parser import parse
 import dateutil.relativedelta as relativedelta
+import dateparser
+
+
+
 
 class IDC2Spider(ForumSpiderV3):
     name = "idc2_forum"  
@@ -39,10 +43,10 @@ class IDC2Spider(ForumSpiderV3):
         self.statsinterval      = 60            # Custom Queue system
         self.logintrial         = 0             # Max login attempts.
         self.alt_hostnames      = []            # Not in use.
-        self.report_status      = True          # Report 200's.
+        self.report_status      = False          # Report 200's.
         self.loggedin           = False         # Login flag. 
         self.report_hostnames_found = False     # Disable/enable logging of outbound URLs.
-        self.user_agent         = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
+
 
     def start_requests(self):
         yield self.make_request(url = 'index', dont_filter=True)
@@ -55,9 +59,9 @@ class IDC2Spider(ForumSpiderV3):
             req = self.craft_login_request_from_form(kwargs['response']) 
             req.dont_filter = True
         elif reqtype is 'loginpage':
-            req = Request(self.make_url('loginpage'), dont_filter=True, headers=self.user_agent)
+            req = Request(self.make_url('loginpage'), dont_filter=True, headers=self.tor_browser)
         elif reqtype is 'regular':
-            req = Request(kwargs['url'], headers=self.user_agent)
+            req = Request(kwargs['url'], headers=self.tor_browser)
             req.meta['shared'] = True 
 
         if 'relativeurl' in kwargs:
@@ -70,7 +74,9 @@ class IDC2Spider(ForumSpiderV3):
         req.meta['proxy'] = self.proxy  
         req.meta['slot'] = self.proxy
         req.meta['reqtype'] = reqtype   
-        return req
+
+        return self.set_priority(req)
+        #return req
 
     def parse_response(self, response):
         parser = None
@@ -140,7 +146,7 @@ class IDC2Spider(ForumSpiderV3):
                 messageitem['contenthtml']      = self.get_text(msg.extract_first())
                 # Post date handling
                 posted_on                       = post.xpath('.//span[@class="post_date"]/text()').extract_first()
-                messageitem['posted_on']        = self.parse_date_idc(posted_on)
+                messageitem['posted_on']        = self.parse_datetime(posted_on)
             else:
                 messageitem['author_username']  = post.xpath('div/div/strong/span/text()').extract_first()
                 messageitem['postid']           = post.xpath('@id').extract_first().lstrip('post_')
@@ -150,7 +156,7 @@ class IDC2Spider(ForumSpiderV3):
                 messageitem['contenthtml']      = self.get_text(msg.extract_first())
                 # Post date handling
                 posted_on                       = post.xpath('.//span[@class="post_date"]/text()').extract_first()
-                messageitem['posted_on']        = self.parse_date_idc(posted_on)                
+                messageitem['posted_on']        = self.parse_datetime(posted_on)                
             if messageitem['author_username'] is None:
                 self.logger.warning("Author username is still None at URL: %s. Can't yield item." % response.url)
 
@@ -167,7 +173,7 @@ class IDC2Spider(ForumSpiderV3):
                 useritem['message_count']   = int(re.sub('[^0-9]', '', message_count))
                 post_count                  = post.xpath('.//div[@class="author_statistics"]/text()[3]').extract_first()
                 useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
-                useritem['joined_on']       = post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first().replace("Registrato: ", '')
+                useritem['joined_on']       = self.parse_datetime(post.xpath('.//div[@class="author_statistics"]/text()[4]').extract_first().replace("Registrato: ", ''))
                 useritem['reputation']      = post.xpath('.//strong[contains(@class, "reputation")]/text()').extract_first()
                 useritem['post_count']      = int(re.sub('[^0-9]', '', post_count))
                 useritem['username_id']     = re.search('([0-9]+)', useritem['relativeurl']).group(1)
@@ -194,7 +200,7 @@ class IDC2Spider(ForumSpiderV3):
             threaditem['views']           = re.sub('[^0-9]', '', topic.xpath('.//td[5]/text()').extract_first())
             # Last update handling
             lastupdate = topic.xpath('.//span[contains(@class, "lastpost")]/text()[1]').extract_first()
-            threaditem['last_update'] = self.parse_date_idc(lastupdate)
+            threaditem['last_update'] = self.parse_datetime(lastupdate)
                        
             yield threaditem
 
@@ -234,7 +240,7 @@ class IDC2Spider(ForumSpiderV3):
                 'username' : self.login['username'],
                 'password' : self.login['password']
             }            
-        req = FormRequest.from_response(response, formdata=data, headers=self.user_agent)
+        req = FormRequest.from_response(response, formdata=data, headers=self.tor_browser)
         req.dont_filter = True
 
         return req
@@ -247,6 +253,11 @@ class IDC2Spider(ForumSpiderV3):
             return False 
 
     ########### MISCELLANEOUS ###################
+    def parse_datetime(self, timestr):
+        timestr = timestr.replace('less than', '')
+        datetime = dateparser.parse(timestr)
+        return datetime
+
     def parse_date_idc(self, date):
         if 'oggi' in date: # 'Today, HH:MM PM/AM'
             time = dateutil.parser.parse(re.sub(r'oggi, ', '', date))
