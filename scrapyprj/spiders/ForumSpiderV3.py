@@ -26,6 +26,7 @@ from IPython import embed
 import json
 import profiler
 from scrapyprj.spiders.ForumSpider import ForumSpider
+import dateparser
 
 class ForumSpiderV3(ForumSpider):
     
@@ -134,3 +135,8 @@ class ForumSpiderV3(ForumSpider):
             return '%s\n\n%s\n%s' % (m.group(1), content, m.group(4))        
         self.logger.warning('Failed to clean PGP key. \n %s' % key)
         return key       
+
+    def parse_datetime(self, timestr):
+        timestr = timestr.replace('less than', '')
+        datetime = dateparser.parse(timestr)
+        return datetime
