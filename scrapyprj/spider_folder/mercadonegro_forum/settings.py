@@ -33,13 +33,12 @@ settings = {
         'prefix' : {
             # Prefix with '#' will be excluded
             '#',
-            'http://',
             '/report',
             '/posting.php'
         },
-        'regex' : { # Regex prefixes, ran against the url part that comes after '.onion/'
-            r'search\.php',
-            r'ucp\.php',
+        'regex' : { 
+            'search\.php',
+            'ucp\.php',
             'mailto:',
             'mode=quote',
             'mode=reply',
@@ -48,7 +47,9 @@ settings = {
             'index\.php/index\.php',
             'first_char=',
             'watch=',
-            'view=print'
+            'view=print',
+            '/../',
+            '#'
         }
     }
 }

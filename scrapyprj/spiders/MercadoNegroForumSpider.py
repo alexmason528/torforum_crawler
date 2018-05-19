@@ -10,6 +10,7 @@ import dateutil.parser
 from scrapy.http import FormRequest, Request
 import scrapyprj.items.forum_items as items
 from scrapyprj.spiders.ForumSpiderV3 import ForumSpiderV3
+from scrapy.shell import inspect_response
 
 
 class MercadoNegroForumSpider(ForumSpiderV3):
@@ -46,9 +47,9 @@ class MercadoNegroForumSpider(ForumSpiderV3):
             req = self.craft_login_request_from_form(kwargs['response'])
             req.dont_filter = True
         elif reqtype is 'loginpage':
-            req = Request(self.make_url('loginpage'), dont_filter=True)
+            req = Request(self.make_url('loginpage'), dont_filter=True, headers =self.tor_browser)
         elif reqtype is 'regular':
-            req = Request(kwargs['url'])
+            req = Request(kwargs['url'], headers =self.tor_browser)
             req.meta['shared'] = True # Ensures that requests are shared among spiders.
         # Some meta-keys that are shipped with the request.
         if 'relativeurl' in kwargs:
@@ -116,7 +117,8 @@ class MercadoNegroForumSpider(ForumSpiderV3):
 
     # ######### PARSING FLAGS ##############
     def is_message(self, response):
-        return "viewtopic.php?" in response.url
+        if "viewtopic.php?" in response.url and "p=" not in response.url:
+            return True
 
     def is_user(self, response):
         return 'memberlist.php?mode=viewprofile&u=' in response.url
@@ -143,9 +145,9 @@ class MercadoNegroForumSpider(ForumSpiderV3):
             elif key == 'groups:':
                 user['group'] = value.css('*::text').extract_first()
             elif key == 'joined:':
-                user['joined_on'] = self.parse_timestr(ddtext)
+                user['joined_on'] = self.parse_datetime(ddtext)
             elif key == 'last active:':
-                user['last_post'] = self.parse_timestr(ddtext)
+                user['last_post'] = self.parse_datetime(ddtext)
             elif key == 'total posts:':
                 m = re.match(r"^(\d+).+", ddtext)
                 if m:
@@ -161,33 +163,27 @@ class MercadoNegroForumSpider(ForumSpiderV3):
         # except KeyError:
         #     # It shows one post in thread only, so ignore this page
         #     return
+        try:
+            threadid = self.get_url_param(response.url, 't')
+            posts = response.css('div.postbody')
+            for post in posts:
+                    messageitem                     = items.Message()
+                    messageitem['threadid']         = threadid
+                    author                          = post.xpath('//a[starts-with(@class, "username")]/text()').extract_first()
+                    messageitem['author_username']  = author
+                    post_time                       = post.css('p.author *::text').extract()
+                    messageitem['posted_on']        = dateutil.parser.parse(post_time[-1].strip())
+                    post_link                       = post.css('p.author > a::attr(href)').extract_first()
+                    messageitem['postid']           = self.get_url_param(post_link, 'p')
+                    msg                             = post.css("div.content")
+                    messageitem['contenttext']      = self.get_text(msg)
+                    messageitem['contenthtml']      = self.get_text(msg.extract_first())
 
-        posts = response.css('div.postbody')
-        for post in posts:
-            try:
-                messageitem = items.Message()
-                messageitem['threadid'] = threadid
+                    yield messageitem
 
-                author = post.xpath('//a[starts-with(@class, "username")]/text()').extract_first()
-                if author:
-                    messageitem['author_username'] = author
-
-                post_time = post.css('p.author *::text').extract()
-                if post_time:
-                    messageitem['posted_on'] = dateutil.parser.parse(post_time[-1].strip())
-
-                post_link = post.css('p.author > a::attr(href)').extract_first()
-                if post_link:
-                    messageitem['postid'] = self.get_url_param(post_link, 'p')
-
-                msg = post.css("div.content")
-                messageitem['contenttext'] = self.get_text(msg)
-                messageitem['contenthtml'] = self.get_text(msg.extract_first())
-
-                yield messageitem
-
-            except Exception as e:
-                self.logger.warning("Invalid thread page. %s" % e)
+        except Exception as e:
+            self.logger.warning("Invalid thread page. %s" % e)
+            inspect_response(response, self)
 
     def parse_threadlisting(self, response):
         # self.logger.info("Yielding threads from %s" % response.url)
@@ -196,17 +192,14 @@ class MercadoNegroForumSpider(ForumSpiderV3):
                 title = line.css("dt div.list-inner > a")
                 # if not title:
                 #     continue
-
                 threaditem = items.Thread()
-                threaditem['title'] = self.get_text(title)
-                threaditem['relativeurl'] = title.xpath('@href').extract_first()
-                threaditem['fullurl'] = self.make_url(threaditem['relativeurl'])
-                threaditem['threadid'] = self.get_url_param(threaditem['fullurl'], 't')
-
-                threaditem['author_username'] = line.css('div.topic-poster a::text').extract_first()
-                threaditem['replies'] = line.css('dd.posts *::text').extract_first().strip()
-                threaditem['views'] = line.css('dd.views *::text').extract_first().strip()
-
+                threaditem['title']             = self.get_text(title)
+                threaditem['relativeurl']       = title.xpath('@href').extract_first()
+                threaditem['fullurl']           = self.make_url(threaditem['relativeurl'])
+                threaditem['threadid']          = self.get_url_param(threaditem['fullurl'], 't')
+                threaditem['author_username']   = line.css('div.topic-poster a::text').extract_first()
+                threaditem['replies']           = line.css('dd.posts *::text').extract_first().strip()
+                threaditem['views']             = line.css('dd.views *::text').extract_first().strip()
                 yield threaditem
             except Exception as e:
                 self.logger.warning("Invalid thread listing page. %s" % e)
@@ -236,7 +229,7 @@ class MercadoNegroForumSpider(ForumSpiderV3):
         if sid:
             form_data['sid'] = sid
 
-        req = FormRequest(url=self.make_url('loginpage'), formdata=form_data)
+        req = FormRequest(url=self.make_url('loginpage'), formdata=form_data, headers =self.tor_browser)
         req.dont_filter = True
         return req
 
