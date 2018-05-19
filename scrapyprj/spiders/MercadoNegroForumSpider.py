@@ -72,58 +72,29 @@ class MercadoNegroForumSpider(ForumSpiderV3):
                 # req_once_logged:
                 # stores the request we will go to after logging in.
                 req_once_logged = response.request
-                yield self.make_request(
-                    reqtype='loginpage',
-                    response=response,
-                    req_once_logged=req_once_logged, priority = 10)
+                yield self.make_request(reqtype='loginpage', response=response, req_once_logged=req_once_logged, priority = 10)
             else:
-                req_once_logged = response.meta['req_once_logged'] \
-                    if 'req_once_logged' in response.meta else response.request
-                req_once_logged.meta['shared'] = True
-
+                req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
                 # Try to yield informative error messages if we can't logon.
-                if self.has_login_form(response) is True \
-                        and self.login_failed(response) is True:
-                    self.logger.info(
-                        'Failed last login as %s. Trying again. Error: %s' % (
-                            self.login['username'],
-                            self.get_text(
-                                response.xpath('.//p[@class="error"]')
-                                )
-                            )
-                        )
+                if self.has_login_form(response) is True and self.login_failed(response) is True:
+                    self.logger.info('Failed last login as %s. Trying again. Error: %s' % (self.login['username'], self.get_text(response.xpath('.//p[@class="error"]'))))
                 # Allow the spider to fail if it can't log on.
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-                    self.wait_for_input(
-                        "Too many login failed", req_once_logged)
+                    self.wait_for_input("Too many login failed", req_once_logged)
                     self.logintrial = 0
                     return
-                self.logger.info("Trying to login as %s." %
-                                 self.login['username'])
+                self.logger.info("Trying to login as %s." % self.login['username'])
                 self.logintrial += 1
-                yield self.make_request(
-                    reqtype='dologin',
-                    response=response,
-                    req_once_logged=req_once_logged
-                    )
+                yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
         # Handle parsing.
         else:
+            self.loggedin = True
             # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
-                self.logger.info(
-                    "Succesfully logged in as %s! "
-                    "Returning to stored request %s" % (
-                        self.login['username'],
-                        response.meta['req_once_logged']
-                        )
-                    )
+                self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
-                    self.logger.warning(
-                        "We are trying to yield a None."
-                        " This should not happen."
-                    )
+                    self.logger.warning("We are trying to yield a None. This should not happen.")
                 yield response.meta['req_once_logged']
-                self.loggedin = True
             # Notify on succesful login and set parsing flag.
             # Parsing handlers.
             # A simple function designates whether a page should be parsed.
@@ -185,12 +156,11 @@ class MercadoNegroForumSpider(ForumSpiderV3):
         yield user
 
     def parse_message(self, response):
-        # self.logger.info("Yielding messages from %s" % response.url)
-        try:
-            threadid = self.get_url_param(response.url, 't')
-        except KeyError:
-            # It shows one post in thread only, so ignore this page
-            return
+        # try:
+        #     threadid = self.get_url_param(response.url, 't')
+        # except KeyError:
+        #     # It shows one post in thread only, so ignore this page
+        #     return
 
         posts = response.css('div.postbody')
         for post in posts:
@@ -224,8 +194,8 @@ class MercadoNegroForumSpider(ForumSpiderV3):
         for line in response.css("ul.topiclist.topics li.row"):
             try:
                 title = line.css("dt div.list-inner > a")
-                if not title:
-                    continue
+                # if not title:
+                #     continue
 
                 threaditem = items.Thread()
                 threaditem['title'] = self.get_text(title)
@@ -250,8 +220,7 @@ class MercadoNegroForumSpider(ForumSpiderV3):
         return len(response.css('li#username_logged_in span.username')) > 0
 
     def has_login_form(self, response):
-        return len(response.css('form input#username')) > 0 and \
-                len(response.css('form input#password')) > 0
+        return len(response.css('form input#username')) > 0 and len(response.css('form input#password')) > 0
 
     def craft_login_request_from_form(self, response):
         sid = response.xpath('//input[@name="sid"]/@value').extract_first()
@@ -277,13 +246,10 @@ class MercadoNegroForumSpider(ForumSpiderV3):
         try:
             timestr = timestr.lower()
             timestr = timestr.replace('today', str(self.localnow().date()))
-            timestr = timestr.replace('yesterday', str(
-                self.localnow().date() - timedelta(days=1)))
+            timestr = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
             last_post_time = self.to_utc(dateutil.parser.parse(timestr))
         except Exception as e:
             if timestr:
-                self.logger.warning(
-                    "Could not determine time from this string :"
-                    " '%s'. Ignoring" % timestr)
+                self.logger.warning("Could not determine time from this string: '%s'. Ignoring" % timestr)
 
         return last_post_time
