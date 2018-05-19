@@ -67,7 +67,8 @@ settings = {
 			'action=newpost',
 			'#',
 			'&action=nextoldest',
-			'\.png$'
+			'\.png$',
+			'&highlight='
 		}
 	}
 }
