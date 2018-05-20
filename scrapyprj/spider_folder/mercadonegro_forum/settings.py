@@ -51,5 +51,19 @@ settings = {
             '/../',
             '#'
         }
+    },
+    'priority' : {
+        'user': {
+            'regex': 'viewprofile',
+            'value': -1
+        },
+        'threadlisting': {
+            'regex': 'viewforum',
+            'value': -2
+        },
+        'messages': {
+            'regex': 'viewtopic',
+            'value': -3
+        }
     }
 }

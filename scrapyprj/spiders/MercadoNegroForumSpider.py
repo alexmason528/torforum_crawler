@@ -62,7 +62,8 @@ class MercadoNegroForumSpider(ForumSpiderV3):
         req.meta['slot'] = self.proxy
         # We tell the type so that we can redo it if login is required
         req.meta['reqtype'] = reqtype
-        return req
+
+        return self.set_priority(req)
 
     def parse_response(self, response):
         parser = None
@@ -165,21 +166,21 @@ class MercadoNegroForumSpider(ForumSpiderV3):
         #     return
         try:
             threadid = self.get_url_param(response.url, 't')
-            posts = response.css('div.postbody')
+            posts = response.xpath(".//div[@id='page-body']/div[contains(@id, 'p')]")
             for post in posts:
-                    messageitem                     = items.Message()
-                    messageitem['threadid']         = threadid
-                    author                          = post.xpath('//a[starts-with(@class, "username")]/text()').extract_first()
-                    messageitem['author_username']  = author
-                    post_time                       = post.css('p.author *::text').extract()
-                    messageitem['posted_on']        = dateutil.parser.parse(post_time[-1].strip())
-                    post_link                       = post.css('p.author > a::attr(href)').extract_first()
-                    messageitem['postid']           = self.get_url_param(post_link, 'p')
-                    msg                             = post.css("div.content")
-                    messageitem['contenttext']      = self.get_text(msg)
-                    messageitem['contenthtml']      = self.get_text(msg.extract_first())
+                messageitem                     = items.Message()
+                messageitem['threadid']         = threadid
+                author                          = post.xpath('.//a[starts-with(@class, "username")]/text()').extract_first()
+                messageitem['author_username']  = author
+                post_time                       = post.css('p.author *::text').extract()
+                messageitem['posted_on']        = dateutil.parser.parse(post_time[-1].strip())
+                post_link                       = post.css('p.author > a::attr(href)').extract_first()
+                messageitem['postid']           = self.get_url_param(post_link, 'p')
+                msg                             = post.css("div.content")
+                messageitem['contenttext']      = self.get_text(msg)
+                messageitem['contenthtml']      = self.get_text(msg.extract_first())
 
-                    yield messageitem
+                yield messageitem
 
         except Exception as e:
             self.logger.warning("Invalid thread page. %s" % e)
