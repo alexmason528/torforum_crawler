@@ -28,15 +28,6 @@ class SilkRoadSpider(ForumSpiderV3):
         'RETRY_TIMES' : 5
     }
 
-    headers = {
-        'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0',
-        'Accept':' text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language':' en-US,en;q=0.5',
-        'Accept-Encoding':' gzip, deflate',
-        'Connection':' keep-alive',
-        'Upgrade-Insecure-Requests':'1',
-    }
-
     def __init__(self, *args, **kwargs):
         super(SilkRoadSpider, self).__init__(*args, **kwargs)
 
@@ -61,9 +52,9 @@ class SilkRoadSpider(ForumSpiderV3):
             req = self.craft_login_request_from_form(kwargs['response']) 
             req.dont_filter = True
         elif reqtype is 'loginpage':
-            req = Request(self.make_url('loginpage'), headers=self.headers, dont_filter=True)
+            req = Request(self.make_url('loginpage'), headers=self.tor_browser, dont_filter=True)
         elif reqtype is 'regular':
-            req = Request(kwargs['url'], headers=self.headers)
+            req = Request(kwargs['url'], headers=self.tor_browser)
             req.meta['shared'] = True # Ensures that requests are shared among spiders.
 
         # Some meta-keys that are shipped with the request.
@@ -76,7 +67,7 @@ class SilkRoadSpider(ForumSpiderV3):
         req.meta['proxy'] = self.proxy  
         req.meta['slot'] = self.proxy
         req.meta['reqtype'] = reqtype   # We tell the type so that we can redo it if login is required
-        return req
+        return self.set_priority(req)
 
     def parse_response(self, response):
         parser = None
@@ -103,13 +94,13 @@ class SilkRoadSpider(ForumSpiderV3):
                 yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
         # Handle parsing.
         else:
+            self.loggedin = True
             # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
                 yield response.meta['req_once_logged']
-                self.loggedin = True
             else:
                 if self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
@@ -260,7 +251,7 @@ class SilkRoadSpider(ForumSpiderV3):
             'login':'Login',
         }
 
-        req = FormRequest.from_response(response, formid='login', formdata=data, headers=self.headers)
+        req = FormRequest.from_response(response, formid='login', formdata=data, headers=self.tor_browser)
 
         req.dont_filter = True
         return req
