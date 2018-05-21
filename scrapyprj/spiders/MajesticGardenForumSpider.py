@@ -32,7 +32,7 @@ class MajesticGardenForumSpider(ForumSpiderV3):
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
-        self.report_status = True               # Report 200's.
+        self.report_status = False               # Report 200's.
         self.loggedin = False                   # Login flag.
         self.user_agent = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the        
 
@@ -129,12 +129,17 @@ class MajesticGardenForumSpider(ForumSpiderV3):
             messageitem = items.Message()
             posttime = self.parse_timestr(re.search("«.*on:(.*?)»", self.get_text(post.css("div.keyinfo div.smalltext")), re.S | re.M).group(1).strip())
 
-            messageitem['author_username']   = self.get_text(post.css(".poster h4"))
+            author_username   = post.xpath(".//h4/a/text()").extract_first()
+            if author_username is not None: # Verified posters.
+                messageitem['author_username']        = author_username.strip()
+            elif post.xpath(".//h4/text()").extract_first() is not None:
+                messageitem['author_username']        = post.xpath(".//h4/text()").extract_first().strip()
+            else:
+                self.logger.warning('Unknown problem yielding user at URL %s' % response.url)
             messageitem['postid']            = post.css("div.post div.inner::attr(id)").extract_first().replace("msg_", "")
             messageitem['threadid']          = threadid
             messageitem['posted_on']         = posttime
-
-            msg = post.css("div.post")
+            msg                              = post.css("div.post")
             messageitem['contenttext']       = self.get_text(msg)
             messageitem['contenthtml']       = self.get_text(msg.extract_first())
             yield messageitem
