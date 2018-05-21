@@ -3,11 +3,17 @@ START TRANSACTION;
 insert ignore into `market` (`name`, `spider`) values 
 	('Dream Market', 'dreammarket'),
 	('Hansa market', 'hansa_market'),
-	( 'Traderoute Market', 'traderoute_market'),
+	('Traderoute Market', 'traderoute_market'),
 	('Wallstreet Market', 'wallstreet_market'),
 	('Darknet Heroes League Market', 'dhl_market'),
 	('Cannabis Growers & Merchants Coop', 'cgmc_market'),
-	('Libertas Market', 'libertas_market');
+	('Libertas Market', 'libertas_market'),
+    ('Silk Road', 'silkroad_market'),
+    ('French Deep Web Market', 'frenchdeepweb_market'),
+    ('Rapture Market', 'rapture_market'),
+    ('Olympus Market', 'olympus_market'),
+    ('Flugsvamp Market', 'flugsvamp_market'),
+    ('Apollon Market', 'apollon_market');
 
 insert ignore into `ads_propkey` (`name`, `prettyname`) values 
 	('price', 'Price'),
@@ -21,6 +27,7 @@ insert ignore into `ads_propkey` (`name`, `prettyname`) values
 	('ads_class', 'Class'),
 	('in_stock', 'In Stock'),
 	('terms_and_conditions', 'Terms & Condition'),
+	('refund_policy', 'Refund policy'),
 	('stock', 'Stock'),
 	('price_options', 'Price Options'),
 	('multilisting', 'Multilisting'),
@@ -33,13 +40,15 @@ insert ignore into `ads_propkey` (`name`, `prettyname`) values
 	('replace_time', 'Replace Time'),
 	('auto_accept', 'Auto Accept'),
     ('price_usd', 'Price (USD)'),
+    ('price_btc', 'Price (BTC)'),
+    ('price_eur', 'Price (EURO)'),
 	('price_ltc', 'Price (litecoin)'),
     ('price_bch', 'Price (bitcoin cash)'),
-    ('price_btc', 'Price (Bitcoin)'),
     ('price_xmr', 'Price (monero)'),
 	('accepted_currencies', 'Accepted Currencies'),
     ('shipping_time', 'Shipping Time'),
-    ('quantity', 'Quantity');
+    ('quantity', 'Quantity'),
+    ('product_rating', 'Product rating');
 
 insert ignore into `user_propkey` (`name`, `prettyname`) values 
 	('successful_transactions', 'Successful Transactions'),
@@ -52,12 +61,13 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('hansa_rating', 'Hansa rating'),
 	('trusted_seller', 'Trusted seller'),
 	('verified','Verified'),
-	('fe_enabled', 'Finalize Early'),
+	('fe_enabled', 'Finalize Early Enabled'),
 	('join_date', 'Join date'),
 	('last_active', 'Last active'),
 	('terms_and_conditions', 'Terms and Conditions'),
 	('public_pgp_key', 'Public PGP Key'),
 	('dreammarket_rating', 'Dream Market Rating'),
+	('dreammarket_sales', 'Dream Market Sales'),
 	('valhalla_rating', 'Valhalla Rating'),
 	('subscribers', 'Subscribers'),
 	('positive_feedback', 'Positive Feedback'),
@@ -77,10 +87,46 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('forum_posts', 'Forum Posts'),
 	('feedback_received', 'Feedback Received'),
 	('refund_policy', 'Refund Policy'),
-	('reship_policy', 'Reshipping Policy');
+	('reship_policy', 'Reshipping Policy'),
+	('average_rating_percernt', 'Average Rating in Percent'),
+	('accepted_currencies', 'Accepted Currencies'),
+	('badges', 'Badges'),
+	('rating_quality', "Rating (Quality)"),
+	('rating_speed', "Rating (Speed)"),
+	('rating_packaging', "Rating (Packaging)"),
+	('rating_communication', "Rating (Communication)"),
+	('is_banned', 'Banned'),	
+	('has_warning', 'Warning'),	
+	('banned_reason', 'Banned reason'),
+	('warning_reason', 'Warning reason'),
+	('vacation_mode', 'On vacation'),
+	('is_buyer', 'Buyer Profile'),
+	('successful_orders', 'Successful orders (Buyer)'),
+	('unsuccessful_orders', 'Unsuccessful orders (Buyer)'),
+	('amount_spent', 'Amount spent (Buyer)'),
+	('positive_rating', 'Positive rating (Buyer)'),
+	('negative_rating', 'Negative rating (Buyer)'),
+	('absolute_rating', 'Absolute rating (Buyer)'),
+	('buyer_level', 'Buyer level'),
+	('disputes', 'Disputes'),
+	('disputes_lost', 'Disputes won'),
+	('disputes_draw', 'Disputes lost'),
+	('disputes_won', 'Disputes lost'),
+	('forum_username', 'Forum username'),
+	('irc', 'IRC'),
+	('email', 'Email'),
+	('icq', 'ICQ'),
+	('jabber', 'Jabber (XMPP)'),	
+	('website', 'Website'),
+	('ricochet', 'Ricochet (IM)'),
+	('bitmessage', 'Bitmessage'),
+	('btc_address', 'Bitcoin address'),
+    ('response_time', 'Response time');
 
 insert ignore into `ads_feedback_propkey` (`name`, `prettyname`) values 
 	('submitted_on', 'Submitted on'),
+	('submitted_on_string', 'Submitted on (string)'),	
+	('item_name', 'Item name'),
 	('rating', 'Rating'),
 	('comment', 'Comment'),
 	('submitted_by','Submitted By'),
@@ -88,10 +134,12 @@ insert ignore into `ads_feedback_propkey` (`name`, `prettyname`) values
     ('submitter_level', 'Submitter reputation level'),
    	('price', 'Price'),
     ('price_usd', '{Price USD'),
-    ('price_xmr', 'Price XMR');
+    ('price_xmr', 'Price XMR'),
+    ('submitted_by_number_transactions', 'Previous transactions by submitter');
 
 insert ignore into `seller_feedback_propkey` (`name`, `prettyname`) values 
 	('submitted_on', 'Submitted on'),
+	('submitted_on_string', 'Submitted on (string)'),
 	('rating', 'Rating'),
 	('comment', 'Comment'),
 	('submitted_by','Submitted By'),
@@ -104,7 +152,8 @@ insert ignore into `seller_feedback_propkey` (`name`, `prettyname`) values
 	('item_name', 'Item name'),
 	('submitter_level', 'Submitter reputation level'),
 	('price', 'Price'),
-    ('price_usd', '{Price USD'),
-    ('price_xmr', 'Price XMR');
+    ('price_usd', 'Price USD'),
+    ('price_xmr', 'Price XMR'),
+    ('ads_id', 'Ad ID');
 
 COMMIT;
