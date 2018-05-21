@@ -7,6 +7,7 @@ from scrapyprj.spiders.ForumSpider import ForumSpider
 import scrapyprj.items.forum_items as items
 from scrapy.shell import inspect_response
 import time
+import dateparser
 
 
 class ZionMarketForumSpider(ForumSpider):
@@ -203,9 +204,8 @@ class ZionMarketForumSpider(ForumSpider):
                 # Cannot get last update time exactly, that's because the update time
                 # doesn't follow time format, it's something like "XX days ago".
                 moment_time_value = cells[3].css('small::text').extract()[-1]
-                threaditem['last_update'] = self.parse_timestr(moment_time_value)
+                threaditem['last_update'] = self.parse_datetime(moment_time_value).date()
                 threaditem['replies'] = cells[2].css('::text').extract_first()
-
                 yield threaditem
 
                 yield self.make_request('thread', url=thread_link, shared=True)
@@ -217,6 +217,7 @@ class ZionMarketForumSpider(ForumSpider):
             yield self.make_request('threadlisting', url=link, shared=True)
 
     def parse_thread(self, response):
+        inspect_response(response, self)
         threadid = self.get_id_from_url(response.url)
         # We first parse the first post. 
         messageitem = items.Message()
@@ -252,15 +253,12 @@ class ZionMarketForumSpider(ForumSpider):
         postinfo = self.get_text(response.xpath(".//div[@class='col-xs-12']/small"))
         if postinfo:
             matches = re.search(r'(\d+) (.+) ago by ([^ ]+)', postinfo)
-            messageitem['posted_on'] = self.parse_timestr(matches.group(0))
+            messageitem['posted_on'] = self.parse_datetime(matches.group(0))
         else:
             self.logger.warning("No postinfo yielded at %s" % response.url)
         yield messageitem
 
 
-        # Then we yield the first user.
-        # To treat the DB nice and avoid race conditions, sleep for a second.
-        #time.sleep(0.5)
         user = items.User()
         user['username'] = author_username
         user['membergroup'] = membergroup
@@ -413,3 +411,8 @@ class ZionMarketForumSpider(ForumSpider):
             return _id if _id.isdigit() else None
         except Exception:
             self.logger.warning("Could not determine id from this url : '%s'" % url)
+
+    def parse_datetime(self, timestr):
+        timestr = timestr.replace('less than', '')
+        datetime = dateparser.parse(timestr)
+        return datetime
