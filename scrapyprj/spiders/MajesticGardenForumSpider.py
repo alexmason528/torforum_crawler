@@ -143,7 +143,7 @@ class MajesticGardenForumSpider(ForumSpiderV3):
             useritem = items.User()
             username = post.xpath(".//h4/a/text()").extract_first()
             if username is not None: # Verified posters.
-                useritem['username'] = username.strip()
+                useritem['username']        = username.strip()
                 useritem["relativeurl"]     = self.get_relative_url(post.css(".poster h4 a::attr(href)").extract_first())
                 useritem["fullurl"]         = self.make_url(post.css(".poster h4 a::attr(href)").extract_first())
             elif post.xpath(".//h4/text()").extract_first() is not None:
@@ -180,7 +180,6 @@ class MajesticGardenForumSpider(ForumSpiderV3):
 
 
     def parse_threadlisting(self, response):
-        # self.logger.info("Yielding threads from %s" % response.url)
         for line in response.css("#messageindex table tbody tr"):
             threaditem                      = items.Thread()
             last_post_time                  = self.parse_timestr(self.get_text(line.css("td:last-child")).split("by")[0].strip())
@@ -191,12 +190,10 @@ class MajesticGardenForumSpider(ForumSpiderV3):
                 threaditem['relativeurl']   = self.get_relative_url(threadlinkhref)
                 threaditem['fullurl']       = self.make_url(threadlinkhref)
                 threaditem['threadid']      = self.get_url_param(threaditem['fullurl'], 'topic').split(".")[0]
-                byuser                      = self.get_text(line.css("td:nth-child(3) p a"))
-                byuser1                     = self.get_text(line.css("td:nth-child(3) p")).replace("Started by ", "")
-                if byuser == '' and byuser1 != '':
-                    threaditem['author_username'] = byuser1
-                else:
-                    threaditem['author_username'] = byuser
+                byuser                      = self.get_text(line.xpath(".//div/p/a"))
+                if byuser == '':
+                    byuser = line.xpath(".//div/p[contains(text(), 'Started by')]/text()").extract_first().strip().replace("Started by ", "")
+                threaditem['author_username'] = byuser
                 threaditem['last_update']   = last_post_time
                 reply_review                = self.get_text(line.css("td:nth-child(4)"))
                 threaditem['replies']       = re.search(r"(\d+) Replies", reply_review, re.S | re.M).group(1)
