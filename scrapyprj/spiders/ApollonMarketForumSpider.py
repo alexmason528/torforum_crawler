@@ -10,7 +10,7 @@ import dateutil.parser
 from scrapy.http import FormRequest, Request
 import scrapyprj.items.forum_items as items
 from scrapyprj.spiders.ForumSpiderV3 import ForumSpiderV3
-
+from scrapy.shell import inspect_response
 
 class ApollonMarketForumSpider(ForumSpiderV3):
     name = "apollonmarket_forum"
@@ -26,7 +26,7 @@ class ApollonMarketForumSpider(ForumSpiderV3):
         super(ApollonMarketForumSpider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(5)              # Scrapy config
+        self.set_download_delay(15)              # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval  = 60                # Custom Queue system
         self.logintrial     = 0                 # Max login attempts.
@@ -68,60 +68,38 @@ class ApollonMarketForumSpider(ForumSpiderV3):
     def parse_response(self, response):
         parser = None
         # Handle login status.
-        if self.islogged(response) is False:
+        if response.status == 400:
+            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
+            self.logger.warning("%s: HTTP 400 at %s. Going to index page. Error message: %s" % (self.login['username'], response.url, response.xpath(".//body/text()").extract()))
+            yield self.make_request(url='index', response=response, req_once_logged=req_once_logged, shared = False)
+        elif self.islogged(response) is False:
             self.loggedin = False
             req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
             if self.is_login_page(response) is False:
                 # req_once_logged:
                 # stores the request we will go to after logging in.
                 self.logger.info('Not logged in. Going to login page.')
-                yield self.make_request(
-                    reqtype='loginpage',
-                    response=response,
-                    req_once_logged=req_once_logged)
-            else:
+                yield self.make_request(reqtype='loginpage', response=response, req_once_logged=req_once_logged)
+            elif self.is_login_page(response) is True:
                 # Try to yield informative error messages if we can't logon.
-                if self.is_login_page(response) is True \
-                        and self.login_failed(response) is True:
-                    self.logger.info(
-                        'Failed last login as %s. Trying again. Error: %s' % (
-                            self.login['username'],
-                            self.get_text(
-                                response.xpath('.//p[@class="error"]')
-                                )
-                            )
-                        )
+                if self.is_login_page(response) is True and self.login_failed(response) is True:
+                    self.logger.info('Failed last login as %s. Trying again. Error: %s' % (self.login['username'], self.get_text(response.xpath('.//p[@class="error"]'))))
                 # Allow the spider to fail if it can't log on.
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-                    self.wait_for_input(
-                        "Too many login failed", req_once_logged)
+                    self.wait_for_input("Too many login failed", req_once_logged)
                     self.logintrial = 0
                     return
-                self.logger.info("Trying to login as %s." %
-                                 self.login['username'])
+                self.logger.info("Trying to login as %s." % self.login['username'])
                 self.logintrial += 1
-                yield self.make_request(
-                    reqtype='dologin',
-                    response=response,
-                    req_once_logged=req_once_logged
-                    )
+                yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
         # Handle parsing.
         else:
             self.loggedin = True
             # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
-                self.logger.info(
-                    "Succesfully logged in as %s! "
-                    "Returning to stored request %s" % (
-                        self.login['username'],
-                        response.meta['req_once_logged']
-                        )
-                    )
+                self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
-                    self.logger.warning(
-                        "We are trying to yield a None."
-                        " This should not happen."
-                    )
+                    self.logger.warning("We are trying to yield a None. This should not happen.")
                 yield response.meta['req_once_logged']
             # Notify on succesful login and set parsing flag.
             # Parsing handlers.
