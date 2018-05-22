@@ -26,7 +26,7 @@ class DreamMarketSpider(MarketSpider):
 		
 		self.logintrial = 0
 		self.http504max = 0
-		self.set_max_concurrent_request(3)      # Scrapy config
+		self.set_max_concurrent_request(1)      # Scrapy config
 		self.set_download_delay(10)             # Scrapy config
 		self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 		self.statsinterval = 60;				# Custom Queue system
@@ -89,10 +89,10 @@ class DreamMarketSpider(MarketSpider):
 
 
 	def parse(self, response):
-		# if response.status is 200:
-		# 	self.logger.info("HTTP 200 at %s" % response.url)
-		if response.status is 504 and response.request is "http://wn2vtsetsdggve45.onion/":
-			self.logger.warning("504 on login. Going to retry.")
+		if response.status is 200:
+			self.logger.info("%s: HTTP 200 at %s" % ( self.login['username'], response.url))
+		if response.status is 504 and response.request in self.settings['endpoint']:
+			self.logger.warning("%s: 504 on login. Going to retry." % self.login['username'])
 			self.http504max =+ 1
 			if self.http504max > 5:
 				self.wait_for_input("Too many login failed", req_once_logged)				
