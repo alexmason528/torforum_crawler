@@ -13,7 +13,8 @@ insert ignore into `market` (`name`, `spider`) values
     ('Rapture Market', 'rapture_market'),
     ('Olympus Market', 'olympus_market'),
     ('Flugsvamp Market', 'flugsvamp_market'),
-    ('Apollon Market', 'apollon_market');
+    ('Apollon Market', 'apollon_market'),
+    ('Berlusconi Market', 'berlusconi_market');
 
 insert ignore into `ads_propkey` (`name`, `prettyname`) values 
 	('price', 'Price'),
