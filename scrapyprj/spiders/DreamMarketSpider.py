@@ -39,17 +39,18 @@ class DreamMarketSpider(MarketSpider):
 				'user_ratings'	: self.parse_user_ratings,
 				'user_listings' : self.parse_user_listings
 			}
-        self.tor_browser = {
-            'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0',
-            'Accept':' text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language':' en-US,en;q=0.5',
-            'Accept-Encoding':' gzip, deflate',
-            'Connection':' keep-alive',
-            'Upgrade-Insecure-Requests': '1'
-        }    
+
+		self.tor_browser = {
+			'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0',
+			'Accept':' text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+			'Accept-Language':' en-US,en;q=0.5',
+			'Accept-Encoding':' gzip, deflate',
+			'Connection':' keep-alive',
+			'Upgrade-Insecure-Requests': '1'
+		}	
+
 	def start_requests(self):
 		yield self.make_request('index')
-
 
 	def make_request(self, reqtype,  **kwargs):
 
