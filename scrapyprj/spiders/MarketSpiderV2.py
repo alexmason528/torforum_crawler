@@ -80,7 +80,7 @@ class MarketSpiderV2(MarketSpider):
                 if uri:
                     full_url = self.check_relative_url(uri, response)
                     if self.should_follow(uri, full_url):
-                        yield self.make_request(url = uri)          
+                        yield self.make_request(url = full_url)          
         
     def check_relative_url(self, uri, response):
         if uri.startswith('?'): # relative path to current path
