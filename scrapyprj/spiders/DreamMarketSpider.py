@@ -107,8 +107,9 @@ class DreamMarketSpider(MarketSpider):
 			if 'You are not logged in, you are redirectied to' in response.body:
 				self.logger.warning("Encountered an unkown error as %s claiming missing login status. Redirecting to login page [Attempt: %s]." % (self.login['username'], self.unknown_error_killswitch))
 				if self.unknown_error_killswitch > 10:
-					self.wait_for_input("Too many login failed", req_once_logged)				
 					self.unknown_error_killswitch = 0
+					self.wait_for_input("Too many login failed", req_once_logged)				
+					return
 				else:
 					self.unknown_error_killswitch += 1
 					yield self.make_request('index', req_once_logged = req_once_logged, shared = False, dont_filter = True)
