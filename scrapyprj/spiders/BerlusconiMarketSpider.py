@@ -24,7 +24,7 @@ class BerlusconiMarket(MarketSpiderV2):
         self.statsinterval        	= 60			# Custom Queue system
         # Marketspider2 settings.
         self.recursive_flag 	  	= False # Same as self.islogged-flag in ForumSpiderV3.
-        self.report_status = False
+        self.report_status          = True
         self.report_other_hostnames = False
         # Custom for this spider.
         self.logintrial = 0
@@ -88,7 +88,8 @@ class BerlusconiMarket(MarketSpiderV2):
         
         if response.status == 404:
         	self.logger.warning("Received 404 response. Error message: %s" % self.get_text(response.xpath(".//h1")))
-        elif self.islogged(response) is False:
+        
+        if self.islogged(response) is False:
             self.recursive_flag = False
             req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request
             
