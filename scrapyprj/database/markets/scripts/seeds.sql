@@ -14,7 +14,8 @@ insert ignore into `market` (`name`, `spider`) values
     ('Olympus Market', 'olympus_market'),
     ('Flugsvamp Market', 'flugsvamp_market'),
     ('Apollon Market', 'apollon_market'),
-    ('Berlusconi Market', 'berlusconi_market');
+    ('Berlusconi Market', 'berlusconi_market'),
+    ('Tochka Market', 'tochkapoint_market');
 
 insert ignore into `ads_propkey` (`name`, `prettyname`) values 
 	('price', 'Price'),
@@ -61,6 +62,7 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('midlle_earth_rating', 'Middle Earth rating'),
 	('hansa_rating', 'Hansa rating'),
 	('trusted_seller', 'Trusted seller'),
+	('member_class', 'Member class'),
 	('verified','Verified'),
 	('fe_enabled', 'Finalize Early Enabled'),
 	('join_date', 'Join date'),
@@ -75,6 +77,7 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('neutral_feedback', 'Neutral Feedback'),
 	('negative_feedback', 'Negative Feedback'),
 	('level', 'Level'),
+	('trust_level', 'Trust Level'),
 	('avg_volume', 'Average volume'),
 	('profile', 'Profile'),
 	('oasis_rating', 'Oasis Rating'),
@@ -89,7 +92,7 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('feedback_received', 'Feedback Received'),
 	('refund_policy', 'Refund Policy'),
 	('reship_policy', 'Reshipping Policy'),
-	('average_rating_percernt', 'Average Rating in Percent'),
+	('average_rating_percent', 'Average Rating in Percent'),
 	('accepted_currencies', 'Accepted Currencies'),
 	('badges', 'Badges'),
 	('rating_quality', "Rating (Quality)"),
@@ -98,6 +101,7 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('rating_communication', "Rating (Communication)"),
 	('is_banned', 'Banned'),	
 	('has_warning', 'Warning'),	
+	('warnings_number', 'Warnings (number)'),
 	('banned_reason', 'Banned reason'),
 	('warning_reason', 'Warning reason'),
 	('vacation_mode', 'On vacation'),

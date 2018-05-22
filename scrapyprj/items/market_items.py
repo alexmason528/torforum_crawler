@@ -133,6 +133,7 @@ class User(scrapy.Item) :
 	trusted_seller 					 = scrapy.Field()
 	verified 						 = scrapy.Field()
 	fe_enabled 						 = scrapy.Field()
+	member_class					 = scrapy.Field()
 	terms_and_conditions			 = scrapy.Field()
 	public_pgp_key 					 = scrapy.Field()
 	badges 							 = scrapy.Field() # A catch all for lists with badges such as "Good communication", "Quality vendor" etc.
@@ -145,7 +146,6 @@ class User(scrapy.Item) :
 	website 						 = scrapy.Field()
 	bitmessage						 = scrapy.Field()
 	btc_address						 = scrapy.Field()
-
 
 	# Information about the vendor.
 	join_date  				         = scrapy.Field()
@@ -160,6 +160,7 @@ class User(scrapy.Item) :
 	is_banned 						 = scrapy.Field() # A True/False value if the vendor is banned.
 	banned_reason 					 = scrapy.Field() # A string containing the reason for the ban.
 	has_warning 					 = scrapy.Field() # A True/False value if the vendor profile has a warning.
+	warnings_number					 = scrapy.Field()
 	warning_reason 					 = scrapy.Field() # A string containing the reason why there is a warning.
 
 	# Business details:
