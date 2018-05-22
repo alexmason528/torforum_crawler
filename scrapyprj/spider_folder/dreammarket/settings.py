@@ -6,7 +6,7 @@
 settings = {
 	'timezone' : 'UTC',								# Timezone used on the website. 
 	#'endpoint' : 'http://uffti3lhacanefgy.onion', # Using a mirror. URL below is main.
-	'endpoint' : 'http://wn2vtsetsdggve45.onion',	# Endpoint of the site. Hostname only
+	'endpoint' : 'http://jd6yhuwcivehvdt4.onion',	# Endpoint of the site. Hostname only
 	'prefix' : '',					# http://myhost.onion/prefix1/prefixe2/profix3/page.php
 	'resources' : {									# List of availables resources. Url can be created like   self.make_url('MyResource1')  = http://blahblahblah.onion/prefix1/prefix2/section1/page2.php
 		'index' : "/"

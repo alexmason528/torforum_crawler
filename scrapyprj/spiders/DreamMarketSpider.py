@@ -39,17 +39,17 @@ class DreamMarketSpider(MarketSpider):
 				'user_ratings'	: self.parse_user_ratings,
 				'user_listings' : self.parse_user_listings
 			}
-        self.tor_browser = {
-            'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0',
-            'Accept':' text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language':' en-US,en;q=0.5',
-            'Accept-Encoding':' gzip, deflate',
-            'Connection':' keep-alive',
-            'Upgrade-Insecure-Requests': '1'
-        }    
+		# self.tor_browser = {
+		# 	'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0',
+		# 	'Accept':' text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+		# 	'Accept-Language':' en-US,en;q=0.5',
+		# 	'Accept-Encoding':' gzip, deflate',
+		# 	'Connection':' keep-alive',
+		# 	'Upgrade-Insecure-Requests': '1'
+		# }    
+
 	def start_requests(self):
 		yield self.make_request('index')
-
 
 	def make_request(self, reqtype,  **kwargs):
 
@@ -57,12 +57,12 @@ class DreamMarketSpider(MarketSpider):
 			kwargs['url'] = self.make_url(kwargs['url'])
 
 		if reqtype == 'index':
-			req = Request(self.make_url('index'), headers = self.tor_browser)
+			req = Request(self.make_url('index'))
 			if 'donotparse' in kwargs:
 				req.meta['donotparse'] = True
 			req.dont_filter=True
 		elif reqtype == 'captcha_img':
-			req  = Request(kwargs['url'], headers = self.tor_browser)
+			req  = Request(kwargs['url'])
 			req.dont_filter = True
 
 		elif reqtype == 'dologin':
@@ -75,7 +75,7 @@ class DreamMarketSpider(MarketSpider):
 			req.meta['ddos_protection'] = True
 			req.dont_filter=True
 		elif reqtype in ['ads_list', 'ads', 'user', 'image', 'user_ratings', 'user_listings']:
-			req = Request(self.make_url(kwargs['url']), headers = self.tor_browser)
+			req = Request(self.make_url(kwargs['url']))
 			req.meta['shared'] = True
 
 		if reqtype == 'ads':
@@ -97,22 +97,12 @@ class DreamMarketSpider(MarketSpider):
 
 	def parse(self, response):
 		# Snippet to attempts handling of an unknown error.
-		if 'You are not logged in, you are redirectied to' in response.body:
-			self.logger.warning("Encountered an unkown error as %s claiming missing login status. Redirecting to login page." % self.login['username'])
-			req_once_logged = response.url
-			yield self.make_request('index', req_once_logged)
-		elif response.status is 200:
+		if response.status is 200:
 			self.logger.info("%s: HTTP 200 at %s" % ( self.login['username'], response.url))
-		elif response.status is 504 and response.request in self.settings['endpoint']:
-			self.logger.warning("%s: 504 on login. Going to retry." % self.login['username'])
-			self.http504max =+ 1
-			if self.http504max > 5:
-				self.wait_for_input("Too many login failed", req_once_logged)				
-			else:
-				self.make_request('index', url=url)
 		elif response.status in range(400, 600):
-			self.logger.warning("Got response %s at URL %s from request %s" % (response.status, response.url, response.request))
-		elif not self.loggedin(response):	
+			self.logger.warning("%s: Got response %s at URL %s from request %s" % (self.login['username'], response.status, response.url, response.request))
+		
+		if not self.loggedin(response):	
 			self.http504max = 0
 			if self.isloginpage(response):
 				self.logger.debug('Encountered a login page.')
@@ -156,6 +146,21 @@ class DreamMarketSpider(MarketSpider):
 
 				response.request.dont_filter = True
 				yield response.request
+			elif 'You are not logged in, you are redirectied to' in response.body:
+				if self.unknown_error_killswitch > 5:
+					self.wait_for_input("Too many login failed", req_once_logged)				
+					self.unknown_error_killswitch = 0
+				self.logger.warning("Encountered an unkown error as %s claiming missing login status. Redirecting to login page." % self.login['username'])
+				req_once_logged = response.url
+				yield self.make_request('index', req_once_logged, shared = False, dont_filter = True)
+			elif response.status is 504 and response.request in self.settings['endpoint']:
+				self.logger.warning("%s: 504 on login. Going to retry." % self.login['username'])
+				self.http504max =+ 1
+				if self.http504max > 5:
+					self.wait_for_input("Too many login failed", req_once_logged)				
+				else:
+					yield self.make_request('index', req_once_logged, shared = False, dont_filter = True)
+
 			elif self.unknown_error(response):
 				self.logger.warning('Encountered an error which Dream Market does not describe. Dumping html: %s' % response.body)
 			else:
@@ -475,7 +480,7 @@ class DreamMarketSpider(MarketSpider):
 	 	result = eval(code)
 		self.logger.info('Answering DDOS protection challenge "%s" with answer %s' % (challenge, result))
 
-		req = FormRequest.from_response(response, formdata={'result' : str(result)}, headers = self.tor_browser)
+		req = FormRequest.from_response(response, formdata={'result' : str(result)})
 		req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
 			'request' : self.make_request('captcha_img', url=captcha_src),
 			'name' : 'captcha',
@@ -547,7 +552,7 @@ class DreamMarketSpider(MarketSpider):
 		if not captcha_src:
 			raise Exception('Cannot find Captcha src')
 
-		req = FormRequest.from_response(response, formdata=data, headers = self.tor_browser)
+		req = FormRequest.from_response(response, formdata=data)
 		req.meta['captcha'] = {		# CaptchaMiddleware will take care of that.
 			'request' : self.make_request('captcha_img', url=captcha_src),
 			'name' : captcha_formname,
