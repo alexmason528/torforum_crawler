@@ -30,7 +30,7 @@ class DreamMarketSpider(MarketSpider):
 		self.set_download_delay(10)             # Scrapy config
 		self.set_max_queue_transfer_chunk(1)    # Custom Queue system
 		self.statsinterval = 60;				# Custom Queue system
-		self.unknown_error_killswitch = 15
+		self.unknown_error_killswitch = 0
 		self.parse_handlers = {
 				'index' 		: self.parse_index,
 				'ads_list' 		: self.parse_ads_list,
@@ -94,20 +94,28 @@ class DreamMarketSpider(MarketSpider):
 
 		return req
 
+	# Not logged error should keep reqonce.
 
 	def parse(self, response):
-		# Snippet to attempts handling of an unknown error.
-		if response.status is 200:
-			self.logger.info("%s: HTTP 200 at %s" % ( self.login['username'], response.url))
-		elif response.status in range(400, 600):
-			self.logger.warning("%s: Got response %s at URL %s from request %s" % (self.login['username'], response.status, response.url, response.request))
+		if response.status == 200:
+			self.logger.info("[Logged in = %s] %s: %s at URL %s." % (self.loggedin(response), self.login['username'], response.status, response.url))
+		else:
+			self.logger.warning("[Logged in = %s] %s: %s at URL %s." % (self.loggedin(response), self.login['username'], response.status, response.url))
 		
 		if not self.loggedin(response):	
-			self.http504max = 0
-			if self.isloginpage(response):
+			req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else None
+			if 'You are not logged in, you are redirectied to' in response.body:
+				self.logger.warning("Encountered an unkown error as %s claiming missing login status. Redirecting to login page [Attempt: %s]." % (self.login['username'], self.unknown_error_killswitch))
+				if self.unknown_error_killswitch > 10:
+					self.wait_for_input("Too many login failed", req_once_logged)				
+					self.unknown_error_killswitch = 0
+				else:
+					self.unknown_error_killswitch += 1
+					yield self.make_request('index', req_once_logged = req_once_logged, shared = False, dont_filter = True)
+			elif self.isloginpage(response):
 				self.logger.debug('Encountered a login page.')
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
-					req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
+					#req_once_logged = response.meta['req_once_logged'] if  'req_once_logged' in response.meta else None
 					self.wait_for_input("Too many login failed", req_once_logged)
 					self.logintrial = 0
 					return
@@ -117,9 +125,7 @@ class DreamMarketSpider(MarketSpider):
 				req_once_logged = response.request
 				if ('req_once_logged' in response.meta):
 					req_once_logged = response.meta['req_once_logged']
-
-				yield self.make_request('dologin', req_once_logged=req_once_logged, response=response, priority=10)
-
+				yield self.make_request('dologin', req_once_logged=req_once_logged, response=response)
 			elif self.is_ddos_protection_form(response):
 				self.logger.warning('Encountered a DDOS protection page as %s' % self.login['username'])
 				if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
@@ -133,33 +139,14 @@ class DreamMarketSpider(MarketSpider):
 				req_once_logged = response.request
 				if ('req_once_logged' in response.meta):
 					req_once_logged = response.meta['req_once_logged']
-
-				yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response, priority=10)
+				yield self.make_request('ddos_protection', req_once_logged=req_once_logged, response=response)
 			elif self.is_ddos_good_answer(response):
 				self.logintrial = 0
 				self.logger.info("Bypassed DDOS protection successfully as %s" % self.login['username'])
 				yield response.meta['req_once_logged']
-
-			elif self.is_logged_elsewhere(response) or self.is_session_expired(response):
-				self.logger.warning('Need to relog as %s' % self.login['username'])
-				yield self.make_request('index', priority=10, donotparse=True)
-
-				response.request.dont_filter = True
-				yield response.request
-			elif 'You are not logged in, you are redirectied to' in response.body:
-				if self.unknown_error_killswitch > 5:
-					self.wait_for_input("Too many login failed", req_once_logged)				
-					self.unknown_error_killswitch = 0
-				self.logger.warning("Encountered an unkown error as %s claiming missing login status. Redirecting to login page." % self.login['username'])
-				req_once_logged = response.url
-				yield self.make_request('index', req_once_logged, shared = False, dont_filter = True)
-			elif response.status is 504 and response.request in self.settings['endpoint']:
-				self.logger.warning("%s: 504 on login. Going to retry." % self.login['username'])
-				self.http504max =+ 1
-				if self.http504max > 5:
-					self.wait_for_input("Too many login failed", req_once_logged)				
-				else:
-					yield self.make_request('index', req_once_logged, shared = False, dont_filter = True)
+			elif response.status == 502:
+				self.logger.warning("Encountered a 502 error. Going to index page. Body was: %s" % response.xpath(".//body/text()").extract())
+				yield self.make_request('index')
 
 			elif self.unknown_error(response):
 				self.logger.warning('Encountered an error which Dream Market does not describe. Dumping html: %s' % response.body)
@@ -171,7 +158,7 @@ class DreamMarketSpider(MarketSpider):
 
 			# We restore the missed request when protection kicked in
 			if response.meta['reqtype'] == 'dologin':
-				self.logger.warning("Login Success! Going to %s" % response.meta['req_once_logged'])
+				self.logger.warning("%s: Login Success! Going to %s" % (self.login['username'], response.meta['req_once_logged']))
 				if response.meta['req_once_logged'] is None:
 					self.logger.warning("We are trying to yield a None. This should not happen.")
 				yield response.meta['req_once_logged']
@@ -219,7 +206,7 @@ class DreamMarketSpider(MarketSpider):
 					link = span.css('a:first-child')
 					ads_item['vendor_username'] = self.get_text(link)
 					url = link.css('::attr(href)').extract_first().strip()
-					yield self.make_request('user', url = url, priority=5)
+					yield self.make_request('user', url = url)
 					
 				elif label_txt == 'price':
 					price 		 = self.get_text(span)
