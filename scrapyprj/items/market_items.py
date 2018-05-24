@@ -94,7 +94,8 @@ class User(scrapy.Item) :
 	negative_rating					 = scrapy.Field()
 	buyer_level 					 = scrapy.Field()
 	absolute_rating 				 = scrapy.Field() # Used when there is a 4.5/5 or 95%-like field. that is, an average rating.
-
+	buyer_profile					 = scrapy.Field()
+	buyer_country					 = scrapy.Field()
 
 	# Ratings from other markets.
 	agora_rating 					 = scrapy.Field()
@@ -124,6 +125,7 @@ class User(scrapy.Item) :
 	rating_speed		 			 = scrapy.Field()
 	rating_packaging				 = scrapy.Field()
 	rating_communication 			 = scrapy.Field()
+	rating_shipping					 = scrapy.Field()
 	disputes 						 = scrapy.Field() # Used if there is just 1 dispute number. If there are more details, use the following 3.
 	disputes_won					 = scrapy.Field()
 	disputes_draw					 = scrapy.Field()
@@ -146,6 +148,7 @@ class User(scrapy.Item) :
 	website 						 = scrapy.Field()
 	bitmessage						 = scrapy.Field()
 	btc_address						 = scrapy.Field()
+	verification_process			 = scrapy.Field()
 
 	# Information about the vendor.
 	join_date  				         = scrapy.Field()
@@ -155,7 +158,7 @@ class User(scrapy.Item) :
 	subscribers 					 = scrapy.Field()
 	profile 						 = scrapy.Field() # Profile text.
 	title 					         = scrapy.Field()
-	successful_transactions_as_buyer = scrapy.Field()
+	successful_transactions_as_buyer = scrapy.Field() # Used when a vendor also has purchased as a buyer.
 	news 							 = scrapy.Field()
 	is_banned 						 = scrapy.Field() # A True/False value if the vendor is banned.
 	banned_reason 					 = scrapy.Field() # A string containing the reason for the ban.
@@ -171,6 +174,7 @@ class User(scrapy.Item) :
 	reship_policy					 = scrapy.Field()
 	shipping_information			 = scrapy.Field()
 	accepted_currencies				 = scrapy.Field()
+
 
 # We have two classes of Ratings we collect. One uses the SELLER as an identifier (username),
 # and the other uses the item. If the item can be identified from a review, it is a ProductRating.

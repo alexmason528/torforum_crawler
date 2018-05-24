@@ -10,12 +10,11 @@ insert ignore into `market` (`name`, `spider`) values
 	('Libertas Market', 'libertas_market'),
     ('Silk Road', 'silkroad_market'),
     ('French Deep Web Market', 'frenchdeepweb_market'),
-    ('Rapture Market', 'rapture_market'),
     ('Olympus Market', 'olympus_market'),
     ('Flugsvamp Market', 'flugsvamp_market'),
     ('Apollon Market', 'apollon_market'),
-    ('Berlusconi Market', 'berlusconi_market'),
-    ('Tochka Market', 'tochkapoint_market');
+    ('Tochka Market', 'tochkapoint_market'),
+    ('Rapture Market', 'rapture_market');
 
 insert ignore into `ads_propkey` (`name`, `prettyname`) values 
 	('price', 'Price'),
@@ -99,6 +98,7 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('rating_speed', "Rating (Speed)"),
 	('rating_packaging', "Rating (Packaging)"),
 	('rating_communication', "Rating (Communication)"),
+	('rating_shipping', 'Rating (Shipping)'),
 	('is_banned', 'Banned'),	
 	('has_warning', 'Warning'),	
 	('warnings_number', 'Warnings (number)'),
@@ -126,7 +126,10 @@ insert ignore into `user_propkey` (`name`, `prettyname`) values
 	('ricochet', 'Ricochet (IM)'),
 	('bitmessage', 'Bitmessage'),
 	('btc_address', 'Bitcoin address'),
-    ('response_time', 'Response time');
+    ('response_time', 'Response time'),
+    ('verification_process', 'Verification process'),
+    ('buyer_profile', 'Profile (Buyer)'),
+    ('buyer_country', 'Country (Buyer)');
 
 insert ignore into `ads_feedback_propkey` (`name`, `prettyname`) values 
 	('submitted_on', 'Submitted on'),
