@@ -137,6 +137,11 @@ class ForumSpiderV3(ForumSpider):
         return key       
 
     def parse_datetime(self, timestr):
-        timestr = timestr.replace('less than', '')
-        datetime = dateparser.parse(timestr)
+        if timestr is None or timestr == '':
+            self.logger.warning("Cannot parse datetime format '%s'. Returning none. You might be passing an empty string or multiple values." % timestr)
+            return None
+        timestr     = timestr.replace('less than', '')
+        datetime    = dateparser.parse(timestr)
+        if datetime is None:
+            self.logger.warning("Cannot parse datetime format '%s'. Returning None." % timestr)
         return datetime
