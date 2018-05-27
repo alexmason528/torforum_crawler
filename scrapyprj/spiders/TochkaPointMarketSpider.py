@@ -144,7 +144,10 @@ class TochkaPointMarketSpider(MarketSpiderV2):
     # ############## FLAGS #################
     def islogged(self, response):
         logged_in = response.xpath(".//form//i[contains(@class,'sign out')]")
+        logged_in_auth = '404 page not found' in response.body and response.url.endswith("/auth/login") # Requesting login while logged in gives this.
         if logged_in:
+            return True
+        elif logged_in_auth == True:
             return True
         else:
             return False
