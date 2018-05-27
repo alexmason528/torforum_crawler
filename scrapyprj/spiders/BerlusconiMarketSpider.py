@@ -136,9 +136,6 @@ class BerlusconiMarket(MarketSpiderV2):
             if parser is not None:
                 for x in parser(response):
                     yield x
-            else:
-                if response.url != self.make_url('index') and 'search' not in response.url:
-                    self.logger.warning("Unknown page type at %s" % response.url)
 
     ############### FLAGS #################
     def islogged(self, response):
