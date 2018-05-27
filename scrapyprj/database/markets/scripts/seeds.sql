@@ -141,9 +141,10 @@ insert ignore into `ads_feedback_propkey` (`name`, `prettyname`) values
 	('delivery_time', 'Delivery Time'),
     ('submitter_level', 'Submitter reputation level'),
    	('price', 'Price'),
-    ('price_usd', '{Price USD'),
+    ('price_usd', 'Price USD'),
     ('price_xmr', 'Price XMR'),
-    ('submitted_by_number_transactions', 'Previous transactions by submitter');
+    ('submitted_by_number_transactions', 'Previous transactions by submitter'),
+    ('submitter_rating', 'Submitter rating');
 
 insert ignore into `seller_feedback_propkey` (`name`, `prettyname`) values 
 	('submitted_on', 'Submitted on'),
@@ -162,6 +163,8 @@ insert ignore into `seller_feedback_propkey` (`name`, `prettyname`) values
 	('price', 'Price'),
     ('price_usd', 'Price USD'),
     ('price_xmr', 'Price XMR'),
-    ('ads_id', 'Ad ID');
+    ('ads_id', 'Ad ID'),
+    ('submitted_by_number_transactions', 'Previous transactions by submitter'),
+    ('submitter_rating', 'Submitter rating');
 
 COMMIT;

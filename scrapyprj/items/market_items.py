@@ -195,6 +195,7 @@ class ProductRating(scrapy.Item):
 	price_xmr 			 			 = scrapy.Field() # The price in XMR.
 	submitter_level 				 = scrapy.Field() # The level of the submitter.
 	submitted_by_number_transactions = scrapy.Field()
+	submitter_rating				 = scrapy.Field() # Used when the reviewer has a reputation score. Typically a small number.
 
 	# Ratings:
 	rating 							 = scrapy.Field() # The rating.
@@ -221,6 +222,8 @@ class UserRating(scrapy.Item):
 	price_usd 			= scrapy.Field()
 	price_xmr			= scrapy.Field()
 	submitted_on_string = scrapy.Field()
+	submitted_by_number_transactions = scrapy.Field()
+	submitter_rating				 = scrapy.Field() # Used when the reviewer has a reputation score. Typically a small number.
 
 	# Ratings:
 	comment 			= scrapy.Field()
