@@ -5,6 +5,9 @@ from scrapy.http import FormRequest,Request
 import re
 import scrapyprj.items.market_items as items
 from scrapy.shell import inspect_response
+# For http 302 handling
+from scrapy.utils.python import to_native_str
+from six.moves.urllib.parse import urljoin
 
 class OlympusMarketSpider(MarketSpiderV2):
     name = "olympus_market"
@@ -16,7 +19,7 @@ class OlympusMarketSpider(MarketSpiderV2):
         'RETRY_TIMES'               : 5,
         'MAX_LOGIN_RETRY'           : 10,
     }
-
+    handle_httpstatus_list = [302]
 
     def __init__(self, *args, **kwargs):
         super(OlympusMarketSpider, self).__init__( *args, **kwargs)
@@ -81,7 +84,19 @@ class OlympusMarketSpider(MarketSpiderV2):
 
     def parse_response(self, response):
         parser = None
-        if self.islogged(response) is False:
+        if response.status >= 300 and response.status < 400:
+            self.recursive_flag = False
+            location        = to_native_str(response.headers['location'].decode('latin1'))
+            request         = response.request
+            redirected_url  = urljoin(request.url, location)
+            req             = self.make_request(url = redirected_url, dont_filter = True, shared = False)
+            if response.meta['reqtype']:
+                req.meta['reqtype'] = response.meta['reqtype']
+            req.meta['req_once_logged'] = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
+            req.priority                = 50
+            self.logger.warning("%s: Being redirected from %s to %s. [Priority: %s | Shared: %s]" % (self.login['username'], request.url, req.url, req.priority, req.meta['shared']))
+            yield req        
+        elif self.islogged(response) is False:
             self.recursive_flag = False
             req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
             if response.url.endswith(".png") is True or response.meta['reqtype'] == 'image':
@@ -125,9 +140,6 @@ class OlympusMarketSpider(MarketSpiderV2):
             if parser is not None:
                 for x in parser(response):
                     yield x
-            # else:
-            #     if response.url != self.make_url('index'):
-            #         self.logger.info("Unknown page type at %s" % response.url)
 
     ############### FLAGS #################
     def islogged(self, response):
