@@ -42,8 +42,8 @@ settings = {
             'username': 'python',
             'password': 'pass0000'
         },
-        'onion': {
-            'username': 'onion',
+        'endogenous': {
+            'username': 'endogenous',
             'password': 'pass0000'
         },
         'shymouse': {
