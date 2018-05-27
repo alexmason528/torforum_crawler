@@ -18,8 +18,9 @@ class TochkaPointMarketSpider(MarketSpiderV2):
         'HTTPERROR_ALLOW_ALL': True,
         'RETRY_ENABLED': True,
         'RETRY_TIMES': 5,
-        'MAX_LOGIN_RETRY': 50
+        'MAX_LOGIN_RETRY': 10
     }
+    handle_httpstatus_list = [302]
 
     def __init__(self, *args, **kwargs):
         super(TochkaPointMarketSpider, self).__init__(*args, **kwargs)
@@ -91,37 +92,44 @@ class TochkaPointMarketSpider(MarketSpiderV2):
 
     def parse_response(self, response):
         parser = None
-        if self.islogged(response) is False:
+        if response.status >= 300 and response.status < 400:
+            self.recursive_flag = False
+            location        = to_native_str(response.headers['location'].decode('latin1'))
+            request         = response.request
+            redirected_url  = urljoin(request.url, location)
+            req             = self.make_request(url = redirected_url, dont_filter = True, shared = False)
+            if response.meta['reqtype']:
+                req.meta['reqtype'] = response.meta['reqtype']
+            req.meta['req_once_logged'] = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
+            req.priority                = 50
+            self.logger.warning("%s: Being redirected from %s to %s. [Priority: %s | Shared: %s]" % (self.login['username'], request.url, req.url, req.priority, req.meta['shared']))
+            yield req        
+        elif self.islogged(response) is False:
             self.recursive_flag = False
             # DDoS and login handling block.
-            req_once_logged = response.meta['req_once_logged'] \
-                if 'req_once_logged' in response.meta else response.request
+            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
             if self.is_login_page(response) is True:
-                self.logger.warning("On login page. Proceeding to log in.")
+                self.logger.warning("%s: On login page. Proceeding to log in." % self.login['username'])
                 self.logintrial += 1
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
                     self.wait_for_input("Too many login failed", req_once_logged)
                     self.logintrial = 0
                     return
-                yield self.make_request(
-                    reqtype='dologin', response=response, dont_filter=True, req_once_logged=req_once_logged)
+                yield self.make_request(reqtype='dologin', response=response, dont_filter=True, req_once_logged=req_once_logged)
             elif self.islogged(response) is False:
                 self.logger.warning("Going to login page.")
                 self.captcha_trial = 0
                 self.logintrial = 0
-                yield self.make_request(
-                    reqtype='loginpage', req_once_logged=req_once_logged, dont_filter=True)
+                yield self.make_request(reqtype='loginpage', req_once_logged=req_once_logged, dont_filter=True)
             else:
-                self.logger.warning(
-                    'DDoS/Login-block: This is not supposed to happen. HTML %s' % response.body)
+                self.logger.warning('DDoS/Login-block: This is not supposed to happen. HTML %s' % response.body)
 
         else:
             self.recursive_flag = True
             self.captcha_trial = 0
             self.logintrial = 0
             if response.meta['reqtype'] == 'dologin':
-                self.logger.info(
-                    "Succesfully logged in as %s! Setting parsing flag." % (self.login['username']))
+                self.logger.info("Succesfully logged in as %s! Setting parsing flag." % (self.login['username']))
 
             if self.is_listing_page(response):
                 parser = self.parse_listing

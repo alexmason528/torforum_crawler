@@ -73,7 +73,7 @@ settings = {
     },
     'exclude': {
         'prefix': {
-            '/messages/',
+            '/messages',
             '/support',
             '/help',
             '/profile',
@@ -89,14 +89,10 @@ settings = {
             '/feed'
         },
         'regex': {
-            # '/vendors/drop$',
-            # '/vendors/digital$',
-            # '/vendors/drop preorder',
             '&sortby=date',
             '&sortby=rating',
             '&sortby=price',
             '&shipping-to=[a-zA-Z]',
-            # '&category=[1-9]',
             r'all%3cnil%3e'
         }
     },
