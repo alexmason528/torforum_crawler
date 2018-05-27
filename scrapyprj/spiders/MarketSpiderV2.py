@@ -35,8 +35,8 @@ class MarketSpiderV2(MarketSpider):
             'Accept-Language':' en-US,en;q=0.5',
             'Accept-Encoding':' gzip, deflate',
             'Connection':' keep-alive',
-            'Upgrade-Insecure-Requests': '1'
-        }    
+            'Upgrade-Insecure-Requests': '1',
+        }
 
     def start_requests(self):
         yield self.make_request(url = 'index', dont_filter=True)
@@ -81,7 +81,7 @@ class MarketSpiderV2(MarketSpider):
                     full_url = self.check_relative_url(uri, response)
                     if self.should_follow(uri, full_url):
                         yield self.make_request(url = full_url)          
-        
+
     def check_relative_url(self, uri, response):
         if uri.startswith('?'): # relative path to current path
             current_path = urlparse(response.url)
@@ -135,6 +135,11 @@ class MarketSpiderV2(MarketSpider):
         return key   
 
     def parse_datetime(self, timestr):
-        timestr = timestr.replace('less than', '')
-        datetime = dateparser.parse(timestr)
+        if timestr is None or timestr == '':
+            self.logger.warning("Cannot parse datetime format '%s'. Returning none. You might be passing an empty string or multiple values." % timestr)
+            return None
+        timestr     = timestr.replace('less than', '')
+        datetime    = dateparser.parse(timestr)
+        if datetime is None:
+            self.logger.warning("Cannot parse datetime format '%s'. Returning None." % timestr)
         return datetime
