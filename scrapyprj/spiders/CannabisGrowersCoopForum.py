@@ -25,12 +25,12 @@ class CannabisGrowersCoopForum(ForumSpiderV3):
         super(CannabisGrowersCoopForum, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(10)             # Scrapy config
+        self.set_download_delay(20)             # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
-        self.report_status = False              # Report 200's.
+        self.report_status = True              # Report 200's.
         self.loggedin = False                   # Login flag.
 
     def start_requests(self):
