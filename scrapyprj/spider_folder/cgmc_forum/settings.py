@@ -30,12 +30,16 @@ settings = {
             'username': 'atomscurl',
             'password': 'pass0000'
         },
-        'marlboroman': {
-            'username': 'marlboroman',
+        'haphazardly': {
+            'username': 'haphazardly',
             'password': 'pass0000'
         },
-        'egotisticgiraffe': {
-            'username': 'egotisticgiraffe',
+        'knowableenigma': {
+            'username': 'knowableenigma',
+            'password': 'pass0000'
+        },
+        'paperclip': {
+            'username': 'paperclip',
             'password': 'pass0000'
         }
     },

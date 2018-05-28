@@ -12,9 +12,8 @@
 # in case we get blocked. 
 #
 # Invite codes:
-# http://joincgmc55oplang.onion/5l1dwvuin3/
-# http://joincgmc55oplang.onion/5ihen01qdo/
-# http://joincgmc55oplang.onion/uwytsj2tul/
+# http://joincgmc55oplang.onion/uacl81cqsj/
+# http://joincgmc55oplang.onion/rd0ym92g80/
 
 
 settings = {
