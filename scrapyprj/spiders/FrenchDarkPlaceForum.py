@@ -34,13 +34,13 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
 
         self.set_max_concurrent_request(1)      # Scrapy config
         self.set_download_delay(10)             # Scrapy config
-        self.set_max_queue_transfer_chunk(16)   # Custom Queue system
+        self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval = 60                 # Custom Queue system
         self.logintrial = 0                     # Max login attempts.
         self.alt_hostnames = []                 # Not in use.
-        self.report_status = True               # Report 200's.
+        self.report_status = False              # Report 200's.
+        self.report_hostnames_found = False     
         self.loggedin = False                   # Login flag. 
-        self.user_agent = {'User-Agent':' Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'} # Base code assigns a random UA. Set it here in the
 
     def start_requests(self):
         yield self.make_request(url = 'index', dont_filter=True)
@@ -54,9 +54,9 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
         if reqtype is 'dologin':
             req = self.craft_login_request_from_form(kwargs['response']) 
         elif reqtype is 'loginpage':
-            req = Request(self.make_url('loginpage'), dont_filter=True, headers=self.user_agent)
+            req = Request(self.make_url('loginpage'), dont_filter=True, headers=self.tor_browser)
         elif reqtype is 'regular':
-            req = Request(kwargs['url'], headers=self.user_agent)
+            req = Request(kwargs['url'], headers=self.tor_browser)
             req.meta['shared'] = True # Ensures that requests are shared among spiders.
 
         # Some meta-keys that are shipped with the request.
@@ -78,50 +78,38 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
         # Handle login status.
         if self.islogged(response) is False:
             self.loggedin = False
-
+            req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request
             if self.is_login_page(response) is False:
-                # req_once_logged stores the request we will go to after logging in.
-                req_once_logged = response.request
-
                 yield self.make_request(reqtype='loginpage',response=response, req_once_logged=req_once_logged)
-
             else:
-                req_once_logged = response.meta['req_once_logged'] if 'req_once_logged'  in response.meta else response.request
-
-                # Try to yield informative error messages if we can't logon.
                 if self.login_failed(response) is True:
                     self.logger.info('Failed last login as %s. Trying again.' % self.login['username'])
-
-                # Allow the spider to fail if it can't log on.
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
                     self.wait_for_input("Too many login failed", req_once_logged)
                     self.logintrial = 0
                     return
-
                 self.logger.info("Trying to login as %s." % self.login['username'])
                 self.logintrial += 1
-
                 yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
         # Handle parsing.
         else:
-            # We restore the missed request when protection kicked in
             self.loggedin = True
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
                 yield response.meta['req_once_logged']                
+
+            if self.is_threadlisting(response) is True:
+                parser = self.parse_threadlisting
+            elif self.is_message(response) is True:
+                parser = self.parse_message
+            # Yield the appropriate parsing function.
+            if parser is not None:
+                for x in parser(response):
+                    yield x
             else:
-                if self.is_threadlisting(response) is True:
-                    parser = self.parse_threadlisting
-                elif self.is_message(response) is True:
-                    parser = self.parse_message
-                # Yield the appropriate parsing function.
-                if parser is not None:
-                    for x in parser(response):
-                        yield x
-                else:
-                    self.logger.info("Unknown page type at %s" % response.url)
+                self.logger.info("Unknown page type at %s" % response.url)
 
     ########## PARSING FLAGS ##############
     def is_message(self, response):
@@ -132,62 +120,47 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
             
     ########## PARSING FUNCTIONS ##########            
     def parse_message(self, response):
-        # self.logger.info("Yielding messages from %s" % response.url)
         threadid    = self.get_url_param(response.url, 'id')
         posts       = response.css("#brdmain .blockpost")
-
         for post in posts:
+            # Yield message.
             messageitem                         = items.Message()
             messageitem['contenthtml']          = post.xpath(".//div[@class='postmsg']").extract_first()
             messageitem['contenttext']          = self.get_text(post.xpath(".//div[@class='postmsg']"))
             messageitem['postid']               = self.get_url_param(post.css("h2 span a::attr(href)").extract_first(), 'pid')
             messageitem['threadid']             = threadid
             messageitem['author_username']      = self.get_text(post.css(".postleft dl dt strong span"))
-
-            # messageitem['posted_on']            = self.get_text(post.css("h2 span a"))
-
+            messageitem['posted_on']            = self.parse_timestr(self.get_text(post.css("h2 span a")))
             yield messageitem
-
-
+            # Yield user.
             useritem                = items.User()
             useritem['username']    = self.get_text(post.css(".postleft dl dt strong span"))
-
-            # self.logger.info("Yielding profile for %s" % useritem['username'])
-
             member_group = post.css(".postleft dd.usertitle")
             if len(member_group) > 0:
                 useritem['membergroup'] = self.get_text(member_group)
-
             website = post.css(".postleft dd.usercontacts span.website a::attr(href)")
             if len(website) > 0:
                 useritem['website'] = self.get_text(website)
-
             attributes = post.css(".postleft dd")
-
             for attribute in attributes:
                 if not attribute.css("span::attr(class)"):
                     content     = self.get_text(attribute.css("span"))
                     match       = re.search('(.+): (.+)', content)
-
                     if match:
                         key = match.group(1)
                         value = match.group(2)
-
                         if 'From' in key or 'Lieu' in key:
                             useritem['location'] = value
                         elif 'Posts' in key or 'Messages' in key:
                             useritem['post_count'] = value
                         elif 'Registered' in key or 'Inscription' in key:
                             useritem['joined_on'] = self.parse_timestr(value)
-                            #pass
                         else:
                             self.logger.warning('New information found : %s' % key)
 
             yield useritem
 
     def parse_threadlisting(self, response):
-        # self.logger.info("Yielding threads from %s" % response.url)
-
         threads = response.css('#vf table tbody tr')
         for thread in threads:
             try:
@@ -197,7 +170,7 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
 
                 threaditem                          = items.Thread()
                 threaditem['threadid']              = self.get_url_param(threadurl, 'id')
-                threaditem['title']                 = self.get_text(threadlink)
+                threaditem['title']                 = thread.xpath(".//a[contains(@href, 'viewtopic')]/text()").extract_first()
                 threaditem['author_username']       = self.get_text(thread.css('td:first-child span.byuser span'))
                 threaditem['last_update']           = self.parse_timestr(thread_last_update)
                 threaditem['relativeurl']           = threadurl
@@ -208,8 +181,7 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
                 yield threaditem
 
             except Exception as e:
-                self.logger.error("Cannot parse thread item : %s" % e)
-                pass
+                self.logger.error("Cannot parse thread item at %s (Error: %s)" % (response.url, e))
 
     ############ LOGIN HANDLING ################
     def login_failed(self, response):
@@ -229,9 +201,7 @@ class FrenchDarkPlaceForum(ForumSpiderV3):
             'req_username' : self.login['username'],
             'req_password' : self.login['password'],
         }
-
-        req = FormRequest.from_response(response, formdata=data, dont_filter=True, headers=self.user_agent)
-
+        req = FormRequest.from_response(response, formdata=data, dont_filter=True, headers=self.tor_browser)
         return req
 
     ########### MISCELLANEOUS ###################
