@@ -1,6 +1,6 @@
 settings = {
 	'timezone' : 'UTC',
-	'endpoint' : 'http://olptalkpybezjlhx.onion/',
+	'endpoint' : 'http://7nciyoqtbbtuvnav.onion/',
 	'prefix' : '',
 	'resources' : {
 		'loginpage' : 'login/login',
