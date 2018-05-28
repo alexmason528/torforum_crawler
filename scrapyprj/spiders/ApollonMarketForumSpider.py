@@ -26,13 +26,14 @@ class ApollonMarketForumSpider(ForumSpiderV3):
         super(ApollonMarketForumSpider, self).__init__(*args, **kwargs)
 
         self.set_max_concurrent_request(1)      # Scrapy config
-        self.set_download_delay(15)              # Scrapy config
+        self.set_download_delay(20)              # Scrapy config
         self.set_max_queue_transfer_chunk(1)    # Custom Queue system
         self.statsinterval  = 60                # Custom Queue system
         self.logintrial     = 0                 # Max login attempts.
         self.alt_hostnames  = []                # Not in use.
         self.report_status  = True              # Report 200's.
         self.loggedin       = False             # Login flag.
+        self.report_hostnames_found = False
 
     def start_requests(self):
         yield self.make_request(url='index', dont_filter=True)
@@ -53,8 +54,6 @@ class ApollonMarketForumSpider(ForumSpiderV3):
         # Some meta-keys that are shipped with the request.
         if 'shared' in kwargs:
             req.meta['shared'] = kwargs['shared']
-        if 'relativeurl' in kwargs:
-            req.meta['relativeurl'] = kwargs['relativeurl']
         if 'dont_filter' in kwargs:
             req.dont_filter = kwargs['dont_filter']
         if 'req_once_logged' in kwargs:
@@ -70,21 +69,17 @@ class ApollonMarketForumSpider(ForumSpiderV3):
         # Handle login status.
         if response.status == 400:
             req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
-            self.logger.warning("%s: HTTP 400 at %s. Going to index page. Error message: %s" % (self.login['username'], response.url, response.xpath(".//body/text()").extract()))
-            yield self.make_request(url='index', response=response, req_once_logged=req_once_logged, shared = False)
+            self.logger.warning("%s: HTTP 400 at %s. Going to index page. Error message: %s" % (self.login['username'], response.url, self.get_text(response.xpath(".//body/text()").extract())))
+            yield self.make_request(url='index', response=response, req_once_logged=req_once_logged, shared = False, dont_filter = True)
         elif self.islogged(response) is False:
             self.loggedin = False
             req_once_logged = response.meta['req_once_logged'] if 'req_once_logged' in response.meta else response.request
             if self.is_login_page(response) is False:
-                # req_once_logged:
-                # stores the request we will go to after logging in.
                 self.logger.info('Not logged in. Going to login page.')
                 yield self.make_request(reqtype='loginpage', response=response, req_once_logged=req_once_logged)
             elif self.is_login_page(response) is True:
-                # Try to yield informative error messages if we can't logon.
                 if self.is_login_page(response) is True and self.login_failed(response) is True:
                     self.logger.info('Failed last login as %s. Trying again. Error: %s' % (self.login['username'], self.get_text(response.xpath('.//p[@class="error"]'))))
-                # Allow the spider to fail if it can't log on.
                 if self.logintrial > self.settings['MAX_LOGIN_RETRY']:
                     self.wait_for_input("Too many login failed", req_once_logged)
                     self.logintrial = 0
@@ -92,18 +87,13 @@ class ApollonMarketForumSpider(ForumSpiderV3):
                 self.logger.info("Trying to login as %s." % self.login['username'])
                 self.logintrial += 1
                 yield self.make_request(reqtype='dologin', response=response, req_once_logged=req_once_logged)
-        # Handle parsing.
         else:
             self.loggedin = True
-            # We restore the missed request when protection kicked in
             if response.meta['reqtype'] == 'dologin':
                 self.logger.info("Succesfully logged in as %s! Returning to stored request %s" % (self.login['username'], response.meta['req_once_logged']))
                 if response.meta['req_once_logged'] is None:
                     self.logger.warning("We are trying to yield a None. This should not happen.")
                 yield response.meta['req_once_logged']
-            # Notify on succesful login and set parsing flag.
-            # Parsing handlers.
-            # A simple function designates whether a page should be parsed.
             else:
                 if self.is_threadlisting(response) is True:
                     parser = self.parse_threadlisting
@@ -115,10 +105,6 @@ class ApollonMarketForumSpider(ForumSpiderV3):
                 if parser is not None:
                     for x in parser(response):
                         yield x
-                else:
-                    if response.url != self.make_url('index'):
-                        self.logger.warning(
-                            "Unknown page type at %s" % response.url)
 
     # ######### PARSING FLAGS ##############
     def is_message(self, response):
@@ -135,7 +121,6 @@ class ApollonMarketForumSpider(ForumSpiderV3):
 
     # ######### PARSING FUNCTIONS ##########
     def parse_user(self, response):
-        # self.logger.info("Yielding profile from %s" % response.url)
         user = items.User()
         user['relativeurl'] = self.get_relative_url(response.url)
         user['fullurl']     = response.url
@@ -149,7 +134,7 @@ class ApollonMarketForumSpider(ForumSpiderV3):
             if key == 'username':
                 user['username'] = ddtext
             elif key == 'title':
-                user['title'] = ddtext
+                user['title'] = ddtext      
             elif key == 'registered':
                 user['joined_on'] = self.parse_timestr(ddtext)
             elif key == 'last post':
@@ -185,58 +170,42 @@ class ApollonMarketForumSpider(ForumSpiderV3):
             yield user
 
     def parse_message(self, response):
-        # self.logger.info("Yielding messages from %s" % response.url)
-        threadid = self.get_url_param(response.url, 'id')
-        posts = response.css("#punviewtopic div.blockpost")
+        threadid        = self.get_url_param(response.url, 'id')
+        posts           = response.css("#punviewtopic div.blockpost")
         for post in posts:
             try:
-                messageitem = items.Message()
-                posttime = self.parse_timestr(self.get_text(post.css("h2 a")))
-
-                messageitem['author_username'] = self.get_text(
-                    post.xpath(
-                        ".//div[@class='postleft']/dl/dt/strong/a/text()"
-                        ).extract_first())
-                messageitem['postid'] = post.xpath("@id").extract_first()
-                messageitem['threadid'] = threadid
-                messageitem['posted_on'] = posttime
-
-                msg = post.css("div.postmsg")
-                messageitem['contenttext'] = self.get_text(msg)
-                messageitem['contenthtml'] = self.get_text(msg.extract_first())
-
+                messageitem                     = items.Message()
+                posttime                        = self.parse_timestr(self.get_text(post.css("h2 a")))
+                messageitem['author_username']  = self.get_text(post.xpath(".//div[@class='postleft']/dl/dt/strong/a/text()").extract_first())
+                messageitem['postid']           = post.xpath("@id").extract_first()
+                messageitem['threadid']         = threadid
+                messageitem['posted_on']        = posttime
+                msg                             = post.css("div.postmsg")
+                messageitem['contenttext']      = self.get_text(msg)
+                messageitem['contenthtml']      = self.get_text(msg.extract_first())
                 yield messageitem
             except Exception as e:
-                self.logger.warning("Invalid thread page. %s. URL:" % (e, response.url))
+                self.logger.warning("Invalid thread page. Error: '%s'. URL:" % (e, response.url))
 
     def parse_threadlisting(self, response):
-        # self.logger.info("Yielding threads from %s" % response.url)
         for line in response.css('#punviewforum tbody tr:not([class*="inone"])'):
-            threaditem = items.Thread()
-            last_post_time = self.parse_timestr(
-                self.get_text(line.css("td:last-child a")))
+            threaditem          = items.Thread()
+            last_post_time      = self.parse_timestr(self.get_text(line.css("td:last-child a")))
             # First or None if empty
-            threadlinkobj = next(
-                iter(line.css("td:first-child a") or []), None)
+            threadlinkobj       = next(iter(line.css("td:first-child a") or []), None)
             if threadlinkobj:
-                threadlinkhref = threadlinkobj.xpath(
-                    "@href").extract_first() if threadlinkobj else None
-                threaditem['title'] = self.get_text(threadlinkobj)
-                threaditem['relativeurl'] = threadlinkhref
-                threaditem['fullurl'] = self.make_url(threadlinkhref)
-                threaditem['threadid'] = self.get_url_param(
-                    threaditem['fullurl'],
-                    'id')
-                byuser = self.get_text(line.css("td:first-child span.byuser"))
+                threadlinkhref              = threadlinkobj.xpath("@href").extract_first() if threadlinkobj else None
+                threaditem['title']         = self.get_text(threadlinkobj)
+                threaditem['relativeurl']   = threadlinkhref
+                threaditem['fullurl']       = self.make_url(threadlinkhref)
+                threaditem['threadid']      = self.get_url_param(threaditem['fullurl'],'id')
+                byuser                      = self.get_text(line.css("td:first-child span.byuser"))
                 m = re.match("by (.+)", byuser)  # regex
                 if m:
                     threaditem['author_username'] = m.group(1)
-                threaditem['last_update'] = last_post_time
-                threaditem['replies'] = self.get_text(
-                    line.css("td:nth-child(2)"))
-                threaditem['views'] = self.get_text(
-                    line.css("td:nth-child(3)"))
-
+                threaditem['last_update']   = last_post_time
+                threaditem['replies']       = self.get_text(line.css("td:nth-child(2)"))
+                threaditem['views']         = self.get_text(line.css("td:nth-child(3)"))
             yield threaditem
 
     # ########### LOGIN HANDLING ################
@@ -276,14 +245,8 @@ class ApollonMarketForumSpider(ForumSpiderV3):
         try:
             timestr = timestr.lower()
             timestr = timestr.replace('today', str(self.localnow().date()))
-            timestr = timestr.replace('yesterday', str(
-                self.localnow().date() - timedelta(days=1)))
+            timestr = timestr.replace('yesterday', str(self.localnow().date() - timedelta(days=1)))
             last_post_time = self.to_utc(dateutil.parser.parse(timestr))
         except Exception as e:
-            print(str(e))
-            print(str(e))
-            if timestr:
-                self.logger.warning(
-                    "Could not determine time from this string :"
-                    " '%s'. Ignoring" % timestr)
+            self.logger.warning("Couldn't parse timestring '%s' (Error: %s)." % (timestr, e))
         return last_post_time
