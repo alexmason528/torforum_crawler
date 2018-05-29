@@ -7,6 +7,7 @@ import logging
 from scrapy.exceptions import IgnoreRequest
 from scrapyprj.captcha.DreamMarketRectangleCropper import DreamMarketRectangleCropper
 from scrapyprj.captcha.WallstreetMarketAddBackground import WallstreetMarketAddBackground
+from scrapyprj.captcha.RaptureMarketRemoveFirstLetter import RaptureMarketRemoveFirstLetter
 import base64
 
 # this middleware handles captcha images by sending request to death by captcha
@@ -73,6 +74,10 @@ class CaptchaMiddleware(object):
 			error = True
 
 		if not error:
+			if 'afterprocess' in request.meta['captcha']:
+				if request.meta['captcha']['afterprocess'] == 'RaptureMarketRemoveFirstLetter':
+					captcha_answer['text'] = RaptureMarketRemoveFirstLetter().process(captcha_answer['text'])
+
 			self.logger.info("Got Captcha : %s" % captcha_answer['text'])
 
 			# Update the original request body with a new string url containing the Captcha solution

@@ -196,7 +196,7 @@ class ProductRating(scrapy.Item):
 	submitter_level 				 = scrapy.Field() # The level of the submitter.
 	submitted_by_number_transactions = scrapy.Field()
 	submitter_rating				 = scrapy.Field() # Used when the reviewer has a reputation score. Typically a small number.
-
+	warnings 						 = scrapy.Field() # Used when a warning is attached to the review by the website.
 	# Ratings:
 	rating 							 = scrapy.Field() # The rating.
 	comment 						 = scrapy.Field() # The comment.
@@ -223,7 +223,8 @@ class UserRating(scrapy.Item):
 	price_xmr			= scrapy.Field()
 	submitted_on_string = scrapy.Field()
 	submitted_by_number_transactions = scrapy.Field()
-	submitter_rating				 = scrapy.Field() # Used when the reviewer has a reputation score. Typically a small number.
+	submitter_rating	= scrapy.Field() # Used when the reviewer has a reputation score. Typically a small number.
+	warnings 			= scrapy.Field() # Used when a warning is attached to the review by the website.
 
 	# Ratings:
 	comment 			= scrapy.Field()
